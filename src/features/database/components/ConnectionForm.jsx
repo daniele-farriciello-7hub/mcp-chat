@@ -152,8 +152,8 @@ export default function ConnectionForm({ connection, onSaved, onCancel }) {
       <Switch
         checked={form.userScoped}
         onChange={v => set('userScoped', v)}
-        label="Ognuno vede solo le sue pratiche"
-        description="Da attivare quando la connessione usa le viste filtrate per utente: prima di ogni domanda il database riceve l’email di chi chiede (@assistente_utente_email) e mostra solo le pratiche che può vedere. Senza viste, non filtra nulla."
+        label="Filtra i dati per utente"
+        description="Ognuno vede solo i dati che gli competono. Da attivare quando la connessione usa viste filtrate: prima di ogni domanda il database riceve l’email di chi chiede (@assistente_utente_email) e le viste mostrano solo ciò che quella persona può vedere. Senza viste, non filtra nulla."
       />
 
       <div className="flex items-center gap-2 pt-1">
