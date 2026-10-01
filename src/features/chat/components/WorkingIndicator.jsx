@@ -1,112 +1,31 @@
 /**
- * What shows while the assistant works: a small swarm of particles that follows the pointer and
- * bursts on click, next to one honest line. It never says what the assistant is doing — a step
- * label would promise work that sometimes ends at once — only the two states that are always true:
- * "Sto pensando…" until the reply starts, "Scrivo la risposta…" while it streams.
+ * One small boxed line (as wide as its text, not the whole panel) while the assistant works, never a card per step. It says what is happening only
+ * while it really is: a tool's phase shows for as long as that tool runs, and between tools (or
+ * when none ran) it is "Sto pensando…". Once the reply streams, the reply itself is the signal.
  */
-'use client';
+import { Database, FileSearch, FileSpreadsheet, Sparkles } from 'lucide-react';
 
-import { useEffect, useRef } from 'react';
+const THINKING = { Icon: Sparkles, label: 'Sto pensando…' };
+const TOOL_PHASES = {
+  documents: { Icon: FileSearch, label: 'Cerco nei documenti…' },
+  data: { Icon: Database, label: 'Faccio i conti sui dati…' },
+  export: { Icon: FileSpreadsheet, label: 'Preparo il file…' }
+};
 
-const WIDTH = 120;
-const HEIGHT = 40;
-const COUNT = 22;
-
-const newParticle = () => ({
-  angle: Math.random() * Math.PI * 2,
-  radius: 6 + Math.random() * 15,
-  speed: 0.015 + Math.random() * 0.03,
-  size: 1 + Math.random() * 1.6,
-  x: WIDTH / 2,
-  y: HEIGHT / 2,
-  vx: 0,
-  vy: 0
-});
-
-function ParticleSwarm({ fast }) {
-  const canvasRef = useRef(null);
-  const fastRef = useRef(fast);
-  const pointer = useRef(null);
-  const burstRequested = useRef(false);
-
-  useEffect(() => {
-    fastRef.current = fast;
-  }, [fast]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const ratio = window.devicePixelRatio || 1;
-    canvas.width = WIDTH * ratio;
-    canvas.height = HEIGHT * ratio;
-    ctx.scale(ratio, ratio);
-    const color = getComputedStyle(canvas).color;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const particles = Array.from({ length: COUNT }, newParticle);
-
-    let frame;
-    const draw = () => {
-      ctx.clearRect(0, 0, WIDTH, HEIGHT);
-      const cx = pointer.current?.x ?? WIDTH / 2;
-      const cy = pointer.current?.y ?? HEIGHT / 2;
-      const burst = burstRequested.current;
-      burstRequested.current = false;
-      for (const p of particles) {
-        if (burst) {
-          // a click flings every particle outward; the spring below pulls them back in
-          const angle = Math.random() * Math.PI * 2;
-          p.vx = Math.cos(angle) * 5;
-          p.vy = Math.sin(angle) * 5;
-        }
-        if (!reduceMotion) p.angle += p.speed * (fastRef.current ? 2.2 : 1);
-        const targetX = cx + Math.cos(p.angle) * p.radius * 2;
-        const targetY = cy + Math.sin(p.angle * 1.3) * p.radius * 0.95;
-        // a spring toward the orbit point: pointer moves and bursts decay smoothly instead of snapping
-        p.vx = (p.vx + (targetX - p.x) * 0.06) * 0.82;
-        p.vy = (p.vy + (targetY - p.y) * 0.06) * 0.82;
-        p.x += p.vx;
-        p.y += p.vy;
-        ctx.globalAlpha = 0.35 + p.size * 0.12;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      frame = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
-  const track = event => {
-    const box = event.currentTarget.getBoundingClientRect();
-    pointer.current = { x: event.clientX - box.left, y: event.clientY - box.top };
-  };
+/** @param {{runningKind?: string}} props `kind` of the tool running right now, if any. */
+export default function WorkingIndicator({ runningKind }) {
+  const { Icon, label } = TOOL_PHASES[runningKind] || THINKING;
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ width: WIDTH, height: HEIGHT }}
-      className="shrink-0 cursor-crosshair text-brand-500"
-      onPointerMove={track}
-      onPointerLeave={() => (pointer.current = null)}
-      onClick={() => (burstRequested.current = true)}
-      aria-hidden="true"
-    />
-  );
-}
-
-export default function WorkingIndicator({ status }) {
-  const writing = status === 'writing';
-  return (
-    <div className="flex items-center gap-1" style={{ animation: 'var(--animate-fade-in)' }} role="status">
-      <ParticleSwarm fast={writing} />
-      <span
-        key={writing ? 'writing' : 'thinking'}
-        className="shimmer-text text-[13px] font-medium"
-        style={{ animation: 'var(--animate-fade-in)' }}
-      >
-        {writing ? 'Scrivo la risposta…' : 'Sto pensando…'}
+    <div
+      key={label}
+      className="flex w-fit max-w-full items-center gap-2.5 rounded-card border border-line bg-white py-2 pl-2 pr-4 shadow-soft"
+      style={{ animation: 'var(--animate-fade-in)' }}
+      role="status"
+    >
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-brand-50 text-brand-500">
+        <Icon size={16} />
       </span>
+      <span className="shimmer-text text-[13px] font-medium">{label}</span>
     </div>
   );
 }

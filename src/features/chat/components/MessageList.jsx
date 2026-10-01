@@ -2,7 +2,7 @@
  * The conversation: welcome screen when empty, then messages, activity rows and — under the latest
  * reply only — suggested next steps. Always follows the bottom.
  *
- * While the assistant works, the tools' own cards are not shown: one `WorkingIndicator` (no step labels) stands in for
+ * While the assistant works, the tools' own cards are not shown: one `WorkingIndicator` stands in for
  * all of them. Once the turn ends only the useful ones remain (a file to download, a source to open),
  * once per source — failed or repeated calls are the model's business, not the operator's.
  */
@@ -33,6 +33,9 @@ export default function MessageList({ messages, status, userName, onAsk, onNavig
   const lastReplyIndex = messages.map(m => m.role).lastIndexOf('assistant');
   const lastUserIndex = messages.map(m => m.role).lastIndexOf('user');
   const busy = status !== 'idle';
+  const runningKind = messages
+    .slice(lastUserIndex + 1)
+    .findLast(m => m.role === 'activity' && m.outcome === 'running')?.kind;
   const shownSources = new Set();
 
   return (
@@ -64,7 +67,8 @@ export default function MessageList({ messages, status, userName, onAsk, onNavig
           );
         })}
 
-        {busy && <WorkingIndicator status={status} />}
+        {/* once the reply streams it is on screen: a second indicator under it only flickers */}
+        {busy && status !== 'writing' && <WorkingIndicator runningKind={runningKind} />}
         <div ref={bottomRef} />
       </div>
     </div>
