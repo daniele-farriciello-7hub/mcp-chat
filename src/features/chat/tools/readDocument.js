@@ -32,6 +32,7 @@ export async function runReadDocumentCall(call, { catalog, round, index, onActiv
   const catalogName = catalog.find(entry => entry.id === id)?.name;
   const activityId = `read-${round}-${index}`;
   onActivityStart(activityId, {
+    kind: 'documents',
     label: catalogName ? 'Sto leggendo' : 'Sto leggendo un documento',
     documentName: catalogName,
     // same document already opened earlier in this exchange: skip a second identical card

@@ -53,6 +53,7 @@ export async function runQueryDatabaseCall(
   // genuinely different query (even on the same table) is new work and keeps its own card
   const normalizedSql = typeof sql === 'string' ? sql.trim().replace(/\s+/g, ' ') : null;
   onActivityStart(activityId, {
+    kind: 'data',
     label: 'Sto interrogando',
     databaseLabel: connectionLabel || 'il database',
     dedupeKey: normalizedSql ? `query:${connectionId}:${normalizedSql}` : undefined,

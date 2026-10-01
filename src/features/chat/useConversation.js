@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { streamAgentReply } from './agent';
 
 let messageCounter = 0;
+let turnCounter = 0;
 const newMessageId = () => `m${++messageCounter}`;
 
 /**
@@ -36,6 +37,9 @@ export function useConversation({ context, isAdmin = false }) {
       if (status !== 'idle') return;
       append({ role: 'user', text });
       setStatus('thinking');
+      // tools name their activities by round and position (`read-0-0`), so every turn reuses the
+      // same ids: without a per-turn prefix a later turn's end event rewrote an earlier card
+      const turn = `t${++turnCounter}:`;
 
       await streamAgentReply({
         text,
@@ -45,7 +49,8 @@ export function useConversation({ context, isAdmin = false }) {
         // forwarded as-is: every tool's activity payload (label, detail, documentName,
         // databaseLabel, sql for admins…) reaches ActivityRow without listing each field here,
         // so a new field a tool starts sending doesn't need a matching change in this file
-        onActivityStart: (id, payload) => {
+        onActivityStart: (rawId, payload) => {
+          const id = turn + rawId;
           setStatus('working');
           setMessages(current => {
             // a tool whose result can't have changed since the last time it ran in this exchange
@@ -63,7 +68,8 @@ export function useConversation({ context, isAdmin = false }) {
         },
         // the label changes tense when the work ends ("Sto leggendo" -> "Letto"); a field a tool
         // doesn't set on end (e.g. label, sql) simply keeps its value from the start payload
-        onActivityEnd: (id, payload) => {
+        onActivityEnd: (rawId, payload) => {
+          const id = turn + rawId;
           setMessages(current => current.map(m => (m.id === id ? { ...m, ...payload } : m)));
           setStatus('thinking');
         },

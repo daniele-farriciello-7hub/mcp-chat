@@ -2,9 +2,8 @@
  * What the assistant is doing, said as it would say it to a person: never function names,
  * parameters or JSON. `outcome` is 'running' | 'done' | 'failed'.
  *
- * The one exception is `sql`: `query_database` attaches it only when the signed-in operator is an
- * admin (`tools/queryDatabase.js`), collapsed behind "Mostra query" so it never clutters the row
- * for everyone else who wouldn't get anything from raw SQL anyway.
+ * Only finished, useful cards reach this component (`MessageList.jsx` filters the rest): the source
+ * a document answer came from, or the data an operator can download. No SQL is shown here.
  *
  * `columns`/`rows` ride along on a successful `query_database` or `export_excel` result (for every
  * operator, not just admins — it's the data they already received, not the query that produced it)
@@ -14,27 +13,10 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Check,
-  ChevronDown,
-  CircleAlert,
-  Database,
-  Download,
-  ExternalLink,
-  FileText,
-  Loader2,
-  LoaderCircle
-} from 'lucide-react';
+import { Check, Database, Download, ExternalLink, FileText, Loader2 } from 'lucide-react';
 import Tooltip from '@/shared/ui/Tooltip';
 import { getDocumentUrlById } from '@/features/documents/documentStore';
 import { downloadXlsx, slugify } from '@/shared/xlsx';
-
-const BORDER = { running: 'border-brand-200', failed: 'border-warn/40', done: 'border-ok/30' };
-const BADGE = {
-  running: 'bg-brand-50 text-brand-500',
-  failed: 'bg-warn-soft text-warn',
-  done: 'bg-ok-soft text-ok'
-};
 
 /** Opens the document the assistant just read, so the operator can check the source. */
 function OpenDocumentButton({ documentId, documentName }) {
@@ -123,53 +105,16 @@ function DownloadButton({ filenameHint, columns, rows }) {
   );
 }
 
-/** "Mostra query" toggle, admin-only (`activity.sql` is only ever set for one). */
-function QueryDisclosure({ sql }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="mt-1">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        aria-expanded={open}
-        className="flex items-center gap-1 text-[10px] font-medium text-slate-soft transition hover:text-brand-600"
-      >
-        <ChevronDown size={10} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-        {open ? 'Nascondi query' : 'Mostra query'}
-      </button>
-      {open && (
-        <pre className="mt-1 overflow-x-auto rounded-lg bg-surface px-2 py-1.5 text-[10px] leading-snug text-ink">
-          <code>{sql}</code>
-        </pre>
-      )}
-    </div>
-  );
-}
-
 export default function ActivityRow({ activity }) {
-  const {
-    label,
-    documentName,
-    documentId,
-    databaseLabel,
-    exportTitle,
-    detail,
-    sql,
-    columns,
-    rows,
-    outcome = 'running',
-    message
-  } = activity;
+  const { label, documentName, documentId, databaseLabel, exportTitle, columns, rows } = activity;
 
   return (
     <div
-      className={`flex items-start gap-2.5 rounded-card border bg-white px-3 py-2 shadow-soft ${BORDER[outcome]}`}
+      className="flex items-start gap-2.5 rounded-card border border-ok/30 bg-white px-3 py-2 shadow-soft"
       style={{ animation: 'var(--animate-fade-up)' }}
     >
-      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${BADGE[outcome]}`}>
-        {outcome === 'running' && <LoaderCircle size={14} className="animate-spin" />}
-        {outcome === 'done' && <Check size={14} />}
-        {outcome === 'failed' && <CircleAlert size={14} />}
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-ok-soft text-ok">
+        <Check size={14} />
       </span>
 
       <div className="min-w-0 flex-1">
@@ -191,11 +136,7 @@ export default function ActivityRow({ activity }) {
               <span className="font-semibold">{databaseLabel}</span>
             </>
           )}
-          {outcome === 'running' && <span className="font-normal text-slate-soft"> · in corso</span>}
         </div>
-        {detail && outcome !== 'failed' && <div className="mt-0.5 text-[11px] text-slate-soft">{detail}</div>}
-        {outcome === 'failed' && message && <div className="mt-0.5 text-[11px] text-ink">{message}</div>}
-        {sql && <QueryDisclosure sql={sql} />}
       </div>
 
       {documentId && <OpenDocumentButton documentId={documentId} documentName={documentName} />}
