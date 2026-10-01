@@ -129,3 +129,32 @@ export async function withConnection(connectionId, fn) {
     throw error;
   }
 }
+
+/** Session variable read by the customer's star views ("le mie pratiche" and the views around it). */
+const USER_VARIABLE = '@assistente_utente_email';
+
+/**
+ * Runs one statement as `email`: sets the session variable on a dedicated pooled socket, runs the
+ * statement on that same socket, then clears it before the socket goes back to the pool — a pooled
+ * connection keeps its variables, so without the reset the next caller would inherit this identity.
+ * If the reset itself fails the socket is destroyed instead of released. The views return nothing
+ * when the variable is NULL, so any path that skips the SET fails closed.
+ */
+export async function queryAsUser(connectionId, email, statement) {
+  if (!email) throw new DatabaseConnectionError('no user email for a user-scoped connection');
+  return withConnection(connectionId, async pool => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.query(`SET ${USER_VARIABLE} = ?`, [email]);
+      const [rows] = await connection.query(statement);
+      return rows;
+    } finally {
+      const clean = await connection
+        .query(`SET ${USER_VARIABLE} = NULL`)
+        .then(() => true)
+        .catch(() => false);
+      if (clean) connection.release();
+      else connection.destroy();
+    }
+  });
+}

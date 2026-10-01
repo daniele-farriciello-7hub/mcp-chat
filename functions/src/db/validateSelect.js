@@ -27,6 +27,24 @@ function stripComments(sql) {
     .replace(/#[^\n]*/g, ' ');
 }
 
+/**
+ * Blanks out string literals and quoted identifiers, so a check for `@` does not trip on an email
+ * written inside quotes (`WHERE email = 'a@b.it'`). Handles doubled quotes and backslash escapes.
+ */
+function stripQuoted(sql) {
+  return sql.replace(/'(?:[^'\\]|\\.|'')*'|"(?:[^"\\]|\\.|"")*"|`(?:[^`]|``)*`/g, "''");
+}
+
+/**
+ * The star views filter on the session variable `@assistente_utente_email`, set by the back-end
+ * (`mysqlClient.js` → `queryAsUser`) before each query. A query that reads or assigns a
+ * user variable (`@x`, `@x := …`, `SELECT … INTO @x`) could impersonate someone else, so any `@`
+ * or `:=` outside quotes is refused — a legitimate question never needs one.
+ */
+function touchesSessionVariables(strippedSql) {
+  return /@|:=/.test(stripQuoted(strippedSql));
+}
+
 /** True if `sql` has a second statement after a `;` that is not just trailing whitespace/semicolons. */
 function hasStackedStatement(sql) {
   const firstSemicolon = sql.indexOf(';');
@@ -86,6 +104,9 @@ export function validateSelect(sql, { enabledTables, maxRows, timeoutSeconds }) 
     throw new InvalidQueryError('statement contains a disallowed keyword');
   if (OUTFILE.test(stripped)) throw new InvalidQueryError('writing to a file is not allowed');
   if (SYSTEM_SCHEMA.test(stripped)) throw new InvalidQueryError('system tables are not allowed');
+  if (touchesSessionVariables(stripped)) {
+    throw new InvalidQueryError('variables (@name, :=) are not allowed outside quoted strings');
+  }
 
   const tables = referencedTables(stripped);
   const defined = definedNames(stripped);

@@ -22,7 +22,8 @@ const emptyForm = {
   user: '',
   password: '',
   ssl: false,
-  allowSampling: false
+  allowSampling: false,
+  userScoped: false
 };
 
 export default function ConnectionForm({ connection, onSaved, onCancel }) {
@@ -73,6 +74,7 @@ export default function ConnectionForm({ connection, onSaved, onCancel }) {
         password: form.password || null,
         ssl: form.ssl,
         allowSampling: form.allowSampling,
+        userScoped: form.userScoped,
         enabled: connection ? connection.enabled : false
       });
       onSaved(id);
@@ -146,6 +148,12 @@ export default function ConnectionForm({ connection, onSaved, onCancel }) {
         onChange={v => set('allowSampling', v)}
         label="Leggi righe di esempio per le schede"
         description="Alcune righe reali vengono mandate a Gemini solo per aiutarlo a scrivere la scheda di ogni tabella."
+      />
+      <Switch
+        checked={form.userScoped}
+        onChange={v => set('userScoped', v)}
+        label="Ognuno vede solo le sue pratiche"
+        description="Da attivare quando la connessione usa le viste filtrate per utente: prima di ogni domanda il database riceve l’email di chi chiede (@assistente_utente_email) e mostra solo le pratiche che può vedere. Senza viste, non filtra nulla."
       />
 
       <div className="flex items-center gap-2 pt-1">

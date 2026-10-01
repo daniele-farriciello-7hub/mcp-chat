@@ -15,6 +15,7 @@ import {
   DatabaseConnectionError,
   describeConnectionError,
   forgetPool,
+  queryAsUser,
   testConnectionConfig,
   withConnection
 } from '../db/mysqlClient.js';
@@ -81,6 +82,7 @@ async function actionSave(user, body) {
     user: requireString(body, 'user'),
     ssl: Boolean(body.ssl),
     allowSampling: Boolean(body.allowSampling),
+    userScoped: Boolean(body.userScoped),
     enabled: Boolean(body.enabled),
     updatedAt: FieldValue.serverTimestamp()
   };
@@ -173,7 +175,7 @@ async function actionSample(_user, body) {
   }
 }
 
-async function actionQuery(_user, body) {
+async function actionQuery(user, body) {
   const connectionId = requireString(body, 'connectionId');
   const sql = requireString(body, 'sql');
 
@@ -205,10 +207,19 @@ async function actionQuery(_user, body) {
     throw error;
   }
 
+  // user-scoped: the connection points at the customer's star views, which filter on who is asking
+  // (`queryAsUser`). The email comes from the verified Firebase token, never from the request body.
+  const { userScoped } = connection.data();
+  if (userScoped && (!user.email || user.emailVerified !== true)) {
+    throw new HttpError(403, 'this account has no verified email to filter the data by');
+  }
+
   const started = Date.now();
   let rows;
   try {
-    rows = await withConnection(connectionId, async pool => (await pool.query(statement))[0]);
+    rows = userScoped
+      ? await queryAsUser(connectionId, user.email, statement)
+      : await withConnection(connectionId, async pool => (await pool.query(statement))[0]);
   } catch (error) {
     throw new HttpError(400, error?.sqlMessage || error?.message || 'query failed');
   }

@@ -41,7 +41,7 @@ function isAppAdmin(userDoc) {
 
 /**
  * @param {string} idToken the Firebase ID token, without "Bearer "
- * @returns {Promise<{uid: string, email?: string, canUse: boolean, isAdmin: boolean}>}
+ * @returns {Promise<{uid: string, email?: string, emailVerified?: boolean, canUse: boolean, isAdmin: boolean}>}
  */
 export async function verifyAppUser(idToken) {
   if (!idToken || typeof idToken !== 'string') throw new InvalidTokenError('missing token');
@@ -59,6 +59,7 @@ export async function verifyAppUser(idToken) {
   return {
     uid: decoded.uid,
     email: decoded.email,
+    emailVerified: decoded.email_verified,
     canUse: canUseApp(userDoc),
     isAdmin: isAppAdmin(userDoc)
   };
