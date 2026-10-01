@@ -55,7 +55,6 @@ export async function runDescribeTableCall(call, { schema, round, index, onActiv
 
   const activityId = `describe-${round}-${index}`;
   onActivityStart(activityId, {
-    kind: 'data',
     label: table ? 'Sto controllando la struttura di' : 'Sto controllando una tabella',
     databaseLabel: table ? table.name : undefined,
     // same table already described earlier in this exchange: the answer would be identical, so

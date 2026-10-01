@@ -1,53 +1,112 @@
 /**
- * The one line shown while the assistant works: what it is doing in plain words, and a bar that
- * says how far along it is — never which document, table or query. Always starts at "Sto pensando…"
- * and ends at "Scrivo la risposta…"; in between it follows the kind of tool being used.
+ * What shows while the assistant works: a small swarm of particles that follows the pointer and
+ * bursts on click, next to one honest line. It never says what the assistant is doing — a step
+ * label would promise work that sometimes ends at once — only the two states that are always true:
+ * "Sto pensando…" until the reply starts, "Scrivo la risposta…" while it streams.
  */
-import { Database, FileSearch, FileSpreadsheet, Pencil, Sparkles } from 'lucide-react';
+'use client';
 
-const THINKING = { Icon: Sparkles, label: 'Sto pensando…' };
-const WRITING = { Icon: Pencil, label: 'Scrivo la risposta…' };
-const TOOL_PHASES = {
-  documents: { Icon: FileSearch, label: 'Cerco nei documenti…' },
-  data: { Icon: Database, label: 'Faccio i conti sui dati…' },
-  export: { Icon: FileSpreadsheet, label: 'Preparo il file…' }
-};
+import { useEffect, useRef } from 'react';
 
-const SEGMENTS = 4;
+const WIDTH = 120;
+const HEIGHT = 40;
+const COUNT = 22;
 
-/**
- * @param {{status: string, kinds: string[]}} props `kinds`: the `kind` of every tool started in the
- *   current turn, oldest first. The bar moves one notch for the first tool, one for the second and
- *   stays there for the rest, so a long chain of calls never looks like it went backwards.
- */
-export default function WorkingIndicator({ status, kinds }) {
-  const writing = status === 'writing';
-  const step = writing ? SEGMENTS - 1 : Math.min(kinds.length, SEGMENTS - 2);
-  const phase = writing ? WRITING : kinds.length ? TOOL_PHASES[kinds.at(-1)] || THINKING : THINKING;
-  const { Icon, label } = phase;
+const newParticle = () => ({
+  angle: Math.random() * Math.PI * 2,
+  radius: 6 + Math.random() * 15,
+  speed: 0.015 + Math.random() * 0.03,
+  size: 1 + Math.random() * 1.6,
+  x: WIDTH / 2,
+  y: HEIGHT / 2,
+  vx: 0,
+  vy: 0
+});
 
+function ParticleSwarm({ fast }) {
+  const canvasRef = useRef(null);
+  const fastRef = useRef(fast);
+  const pointer = useRef(null);
+  const burstRequested = useRef(false);
+
+  useEffect(() => {
+    fastRef.current = fast;
+  }, [fast]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = WIDTH * ratio;
+    canvas.height = HEIGHT * ratio;
+    ctx.scale(ratio, ratio);
+    const color = getComputedStyle(canvas).color;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const particles = Array.from({ length: COUNT }, newParticle);
+
+    let frame;
+    const draw = () => {
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      const cx = pointer.current?.x ?? WIDTH / 2;
+      const cy = pointer.current?.y ?? HEIGHT / 2;
+      const burst = burstRequested.current;
+      burstRequested.current = false;
+      for (const p of particles) {
+        if (burst) {
+          // a click flings every particle outward; the spring below pulls them back in
+          const angle = Math.random() * Math.PI * 2;
+          p.vx = Math.cos(angle) * 5;
+          p.vy = Math.sin(angle) * 5;
+        }
+        if (!reduceMotion) p.angle += p.speed * (fastRef.current ? 2.2 : 1);
+        const targetX = cx + Math.cos(p.angle) * p.radius * 2;
+        const targetY = cy + Math.sin(p.angle * 1.3) * p.radius * 0.95;
+        // a spring toward the orbit point: pointer moves and bursts decay smoothly instead of snapping
+        p.vx = (p.vx + (targetX - p.x) * 0.06) * 0.82;
+        p.vy = (p.vy + (targetY - p.y) * 0.06) * 0.82;
+        p.x += p.vx;
+        p.y += p.vy;
+        ctx.globalAlpha = 0.35 + p.size * 0.12;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      frame = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const track = event => {
+    const box = event.currentTarget.getBoundingClientRect();
+    pointer.current = { x: event.clientX - box.left, y: event.clientY - box.top };
+  };
   return (
-    <div
-      className="rounded-card border border-line bg-white px-3 py-2.5 shadow-soft"
-      style={{ animation: 'var(--animate-fade-in)' }}
-      role="status"
-    >
-      <div key={label} className="flex items-center gap-2.5" style={{ animation: 'var(--animate-fade-in)' }}>
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-brand-50 text-brand-500">
-          <Icon size={16} />
-        </span>
-        <span className="shimmer-text text-[13px] font-medium">{label}</span>
-      </div>
-      <div className="mt-2.5 flex gap-1.5" aria-hidden="true">
-        {Array.from({ length: SEGMENTS }, (_, i) => (
-          <span
-            key={i}
-            className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
-              i < step ? 'bg-brand-500' : i === step ? 'animate-pulse bg-brand-500' : 'bg-line'
-            }`}
-          />
-        ))}
-      </div>
+    <canvas
+      ref={canvasRef}
+      style={{ width: WIDTH, height: HEIGHT }}
+      className="shrink-0 cursor-crosshair text-brand-500"
+      onPointerMove={track}
+      onPointerLeave={() => (pointer.current = null)}
+      onClick={() => (burstRequested.current = true)}
+      aria-hidden="true"
+    />
+  );
+}
+
+export default function WorkingIndicator({ status }) {
+  const writing = status === 'writing';
+  return (
+    <div className="flex items-center gap-1" style={{ animation: 'var(--animate-fade-in)' }} role="status">
+      <ParticleSwarm fast={writing} />
+      <span
+        key={writing ? 'writing' : 'thinking'}
+        className="shimmer-text text-[13px] font-medium"
+        style={{ animation: 'var(--animate-fade-in)' }}
+      >
+        {writing ? 'Scrivo la risposta…' : 'Sto pensando…'}
+      </span>
     </div>
   );
 }

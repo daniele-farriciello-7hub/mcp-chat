@@ -59,7 +59,7 @@ export async function runExportExcelCall(call, { round, index, onActivityStart, 
   const safeColumns = Array.isArray(columns) ? columns.filter(c => typeof c === 'string') : [];
   const safeRows = Array.isArray(rows) ? rows.filter(Array.isArray) : [];
 
-  onActivityStart(activityId, { kind: 'export', label: 'Preparo il file' });
+  onActivityStart(activityId, { label: 'Preparo il file' });
 
   if (!safeColumns.length || !safeRows.length) {
     onActivityEnd(activityId, { outcome: 'failed', label: 'Niente da esportare' });
