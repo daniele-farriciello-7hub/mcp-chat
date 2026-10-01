@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "mappa-contatti-217007"
+  },
+  "targets": {
+    "mappa-contatti-217007": {
+      "hosting": {
+        "app-corrente": [
+          "assistente-7hub"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

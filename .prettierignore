@@ -1,0 +1,7 @@
+node_modules
+functions/node_modules
+.next
+out
+.firebase
+package-lock.json
+functions/package-lock.json
