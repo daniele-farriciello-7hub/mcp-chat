@@ -13,6 +13,7 @@ import Button from '@/shared/ui/Button';
 import MarkdownTextarea from '@/shared/ui/MarkdownTextarea';
 import PromptAttachments from '@/shared/ui/PromptAttachments';
 import Section from '@/shared/ui/Section';
+import ModelPicker from '@/features/settings/components/ModelPicker';
 import Slider from '@/shared/ui/Slider';
 import { HELP_TEXT_CLASS } from '@/shared/ui/formStyles';
 import { useConnections } from '../useConnections';
@@ -106,6 +107,25 @@ export default function DatabaseTab({ settings, onChange }) {
           <p className={HELP_TEXT_CLASS}>
             Il nome dello strumento è <code>query_database</code>: risponde solo con SELECT sulle tabelle
             attivate, mai in scrittura.
+          </p>
+        </Section>
+
+        <Section
+          title="Chi risponde sul database"
+          description="Il modello che prende il posto di «Chi risponde» appena la conversazione tocca il database: scrive le query, le corregge e dà la risposta."
+        >
+          <ModelPicker
+            value={settings.databaseModel}
+            onChange={value => onChange('databaseModel', value)}
+            inherit={{
+              name: 'Lo stesso di «Chi risponde»',
+              description: 'Un solo modello per tutto. Nessuna chiamata in più.'
+            }}
+          />
+          <p className={HELP_TEXT_CLASS}>
+            Il cambio avviene a metà domanda, quando il primo modello vuole interrogare il database: la
+            domanda viene riposta al modello scelto qui, che da lì in poi scrive le query e la risposta. Costa
+            una chiamata in più per quella domanda; le domande senza database restano sul modello normale.
           </p>
         </Section>
 
