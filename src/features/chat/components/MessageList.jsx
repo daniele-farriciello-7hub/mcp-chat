@@ -33,9 +33,9 @@ export default function MessageList({ messages, status, userName, onAsk, onNavig
   const lastReplyIndex = messages.map(m => m.role).lastIndexOf('assistant');
   const lastUserIndex = messages.map(m => m.role).lastIndexOf('user');
   const busy = status !== 'idle';
-  const runningKind = messages
-    .slice(lastUserIndex + 1)
-    .findLast(m => m.role === 'activity' && m.outcome === 'running')?.kind;
+  const currentActivities = messages.slice(lastUserIndex + 1).filter(m => m.role === 'activity');
+  const runningKind = currentActivities.findLast(m => m.outcome === 'running')?.kind;
+  const doneKinds = currentActivities.filter(m => m.outcome === 'done' && m.kind).map(m => m.kind);
   const shownSources = new Set();
 
   return (
@@ -68,7 +68,7 @@ export default function MessageList({ messages, status, userName, onAsk, onNavig
         })}
 
         {/* once the reply streams it is on screen: a second indicator under it only flickers */}
-        {busy && status !== 'writing' && <WorkingIndicator runningKind={runningKind} />}
+        {busy && status !== 'writing' && <WorkingIndicator runningKind={runningKind} doneKinds={doneKinds} />}
         <div ref={bottomRef} />
       </div>
     </div>

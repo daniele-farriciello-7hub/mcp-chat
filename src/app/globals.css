@@ -247,3 +247,42 @@ input[type='range']::-moz-range-thumb {
   background: var(--color-brand-500);
   box-shadow: var(--shadow-soft);
 }
+
+/* Trail of finished steps in the working indicator: each new one pops in, the current one ripples. */
+@keyframes step-pop {
+  from {
+    transform: scale(0.4) rotate(-25deg);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes step-ring {
+  from {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+.step-pop {
+  animation: step-pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.step-ring::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--color-brand-500);
+  animation: step-ring 1.4s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-pop,
+  .step-ring::after {
+    animation: none;
+  }
+}
