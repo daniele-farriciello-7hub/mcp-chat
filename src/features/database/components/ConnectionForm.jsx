@@ -23,7 +23,8 @@ const emptyForm = {
   password: '',
   ssl: false,
   allowSampling: false,
-  userScoped: false
+  userScoped: false,
+  requireVerifiedEmail: true
 };
 
 export default function ConnectionForm({ connection, onSaved, onCancel }) {
@@ -75,6 +76,7 @@ export default function ConnectionForm({ connection, onSaved, onCancel }) {
         ssl: form.ssl,
         allowSampling: form.allowSampling,
         userScoped: form.userScoped,
+        requireVerifiedEmail: form.requireVerifiedEmail,
         enabled: connection ? connection.enabled : false
       });
       onSaved(id);
@@ -154,6 +156,12 @@ export default function ConnectionForm({ connection, onSaved, onCancel }) {
         onChange={v => set('userScoped', v)}
         label="Filtra i dati per utente"
         description="Ognuno vede solo i dati che gli competono. Da attivare quando la connessione usa viste filtrate: prima di ogni domanda il database riceve l’email di chi chiede (@assistente_utente_email) e le viste mostrano solo ciò che quella persona può vedere. Senza viste, non filtra nulla."
+      />
+      <Switch
+        checked={form.requireVerifiedEmail !== false}
+        onChange={v => set('requireVerifiedEmail', v)}
+        label="Richiedi email verificata"
+        description="Tienilo SEMPRE attivo in produzione. Spegnilo solo per provare l'assistente con account creati con mail e password non ancora verificati: da spento, chi ha un account dell'app vede i dati della mail con cui l'account è registrato, anche se nessuno ha verificato che la mail sia sua."
       />
 
       <div className="flex items-center gap-2 pt-1">

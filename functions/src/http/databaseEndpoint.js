@@ -83,6 +83,8 @@ async function actionSave(user, body) {
     ssl: Boolean(body.ssl),
     allowSampling: Boolean(body.allowSampling),
     userScoped: Boolean(body.userScoped),
+    // false only on purpose, for tests with unverified email/password accounts; missing = true
+    requireVerifiedEmail: body.requireVerifiedEmail !== false,
     enabled: Boolean(body.enabled),
     updatedAt: FieldValue.serverTimestamp()
   };
@@ -209,9 +211,13 @@ async function actionQuery(user, body) {
 
   // user-scoped: the connection points at the customer's star views, which filter on who is asking
   // (`queryAsUser`). The email comes from the verified Firebase token, never from the request body.
-  const { userScoped } = connection.data();
-  if (userScoped && (!user.email || user.emailVerified !== true)) {
+  const { userScoped, requireVerifiedEmail } = connection.data();
+  const mustBeVerified = requireVerifiedEmail !== false; // missing field = verified email required
+  if (userScoped && (!user.email || (mustBeVerified && user.emailVerified !== true))) {
     throw new HttpError(403, 'this account has no verified email to filter the data by');
+  }
+  if (userScoped && !mustBeVerified && user.emailVerified !== true) {
+    console.warn('database query with UNVERIFIED email (test mode)', { uid: user.uid, connectionId });
   }
 
   const started = Date.now();
