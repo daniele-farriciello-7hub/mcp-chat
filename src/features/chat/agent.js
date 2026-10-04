@@ -22,8 +22,8 @@ import { getSettings, trimHistory } from '@/features/settings/settingsStore';
 import { describeModelError } from './errors';
 import { buildSystemInstruction, toModelHistory } from './systemPrompt';
 import { READ_DOCUMENT_TOOL } from './tools/readDocument';
-import { QUERY_DATABASE_TOOL } from './tools/queryDatabase';
-import { DESCRIBE_TABLE_TOOL } from './tools/describeTable';
+import { QUERY_DATABASE_TOOL, QUERY_DATABASE_TOOL_NAME } from './tools/queryDatabase';
+import { DESCRIBE_TABLE_TOOL, DESCRIBE_TABLE_TOOL_NAME } from './tools/describeTable';
 import { EXPORT_EXCEL_TOOL } from './tools/exportExcel';
 import { runToolCalls } from './tools/runToolCalls';
 
@@ -34,6 +34,8 @@ import { runToolCalls } from './tools/runToolCalls';
  * model: 1152 tokens of thinking left 44 for the text. Only added when a ceiling is set at all.
  */
 const THINKING_HEADROOM_TOKENS = 2000;
+
+const DATABASE_TOOL_NAMES = new Set([QUERY_DATABASE_TOOL_NAME, DESCRIBE_TABLE_TOOL_NAME]);
 
 export async function streamAgentReply({
   text,
@@ -75,36 +77,44 @@ export async function streamAgentReply({
       ...(hasDataSource ? EXPORT_EXCEL_TOOL.functionDeclarations : [])
     ];
 
-    const model = getModel({
-      model: settings.chatModel,
-      systemInstruction: buildSystemInstruction({
-        instructions: settings.instructions,
-        instructionsAttachments: settings.instructionsAttachments,
-        context,
-        catalog,
-        documentSelection: settings.documentSelectionInstructions,
-        documentSelectionAttachments: settings.documentSelectionAttachments,
-        schema,
-        databaseInstructions: settings.databaseInstructions,
-        databaseSelection: settings.databaseSelectionInstructions,
-        databaseAttachments: settings.databaseAttachments,
-        databaseSelectionAttachments: settings.databaseSelectionAttachments
-      }),
-      generationConfig: {
-        temperature: settings.temperature,
-        // 0 means "no ceiling of ours": the field is left out and the model's own limit applies
-        ...(settings.maxOutputTokens > 0
-          ? { maxOutputTokens: settings.maxOutputTokens + THINKING_HEADROOM_TOKENS }
-          : {}),
-        // an unknown value would silently disable thinking, so fall back to the default
-        thinkingConfig: {
-          thinkingLevel:
-            ThinkingLevel[settings.thinkingLevel] || ThinkingLevel[DEFAULT_SETTINGS.thinkingLevel]
-        }
-      },
-      tools: toolDeclarations.length ? [{ functionDeclarations: toolDeclarations }] : undefined
-    });
-    const chat = model.startChat({ history: toModelHistory(trimHistory(history, settings.historyLimit)) });
+    const buildModel = modelId =>
+      getModel({
+        model: modelId,
+        systemInstruction: buildSystemInstruction({
+          instructions: settings.instructions,
+          instructionsAttachments: settings.instructionsAttachments,
+          context,
+          catalog,
+          documentSelection: settings.documentSelectionInstructions,
+          documentSelectionAttachments: settings.documentSelectionAttachments,
+          schema,
+          databaseInstructions: settings.databaseInstructions,
+          databaseSelection: settings.databaseSelectionInstructions,
+          databaseAttachments: settings.databaseAttachments,
+          databaseSelectionAttachments: settings.databaseSelectionAttachments
+        }),
+        generationConfig: {
+          temperature: settings.temperature,
+          // 0 means "no ceiling of ours": the field is left out and the model's own limit applies
+          ...(settings.maxOutputTokens > 0
+            ? { maxOutputTokens: settings.maxOutputTokens + THINKING_HEADROOM_TOKENS }
+            : {}),
+          // an unknown value would silently disable thinking, so fall back to the default
+          thinkingConfig: {
+            thinkingLevel:
+              ThinkingLevel[settings.thinkingLevel] || ThinkingLevel[DEFAULT_SETTINGS.thinkingLevel]
+          }
+        },
+        tools: toolDeclarations.length ? [{ functionDeclarations: toolDeclarations }] : undefined
+      });
+    const modelHistory = toModelHistory(trimHistory(history, settings.historyLimit));
+    let chat = buildModel(settings.chatModel).startChat({ history: modelHistory });
+    // set only when it differs from the chat model; see the switch inside the loop below
+    const databaseModelId =
+      schema.length && settings.databaseModel && settings.databaseModel !== settings.chatModel
+        ? settings.databaseModel
+        : null;
+    let onDatabaseModel = false;
 
     // a 503/429 can surface either when opening the stream or while reading its chunks; retrying
     // the whole round is safe as long as no text has reached the user yet — once it has, a retry
@@ -126,13 +136,24 @@ export async function streamAgentReply({
     let outOfRounds = false;
     let message = text;
     for (let round = 0; round < maxRounds; round++) {
-      const response = await streamRound(message);
+      let response = await streamRound(message);
+      let calls = response.functionCalls();
+      // The first model is about to touch the database: hand the turn to the database model instead.
+      // Its call is dropped unrun and the same message goes to a fresh chat on the other model, so it
+      // is that model — not this one — that writes the SQL, fixes it and answers. The original question
+      // is what is replayed, even from a later round: a function response has no meaning in a chat
+      // that never saw the call it answers. It only happens once per turn; every later round, the final answer included, stays on the database model.
+      if (databaseModelId && !onDatabaseModel && calls?.some(call => DATABASE_TOOL_NAMES.has(call.name))) {
+        onDatabaseModel = true;
+        chat = buildModel(databaseModelId).startChat({ history: modelHistory });
+        response = await streamRound(text);
+        calls = response.functionCalls();
+      }
       if (response.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
         emit('\n\n[Risposta interrotta: ha superato la lunghezza massima impostata.]');
         break;
       }
 
-      const calls = response.functionCalls();
       if (!calls?.length) break;
       message = await runToolCalls(calls, {
         catalog,

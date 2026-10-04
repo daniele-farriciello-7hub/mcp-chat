@@ -78,6 +78,9 @@ Rispondi esclusivamente con JSON conforme allo schema.`;
 export const DEFAULT_SETTINGS = {
   chatModel: DEFAULT_CHAT_MODEL,
   indexingModel: DEFAULT_INDEXING_MODEL,
+  // '' = the same model as chatModel. Otherwise it takes over for the rest of a turn as soon as the
+  // assistant reaches for the database (chat/agent.js), and so writes the SQL and the answer.
+  databaseModel: '',
   indexingInstructions: DEFAULT_INDEXING_INSTRUCTIONS,
   indexingAttachments: [], // [{ name, content }] — see shared/promptAttachments.js
   documentSelectionInstructions: DEFAULT_DOCUMENT_SELECTION_INSTRUCTIONS,

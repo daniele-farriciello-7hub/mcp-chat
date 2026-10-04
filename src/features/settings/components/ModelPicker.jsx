@@ -1,10 +1,14 @@
 import { Check } from 'lucide-react';
 import { MODELS } from '@/features/settings/models';
 
-export default function ModelPicker({ value, onChange }) {
+/** `inherit`: an extra first choice with the empty id, for a model setting that may follow another. */
+export default function ModelPicker({ value, onChange, inherit }) {
+  const options = inherit
+    ? [{ id: '', name: inherit.name, description: inherit.description }, ...MODELS]
+    : MODELS;
   return (
     <div className="flex flex-col gap-2">
-      {MODELS.map(model => {
+      {options.map(model => {
         const selected = model.id === value;
         return (
           <button
