@@ -2,7 +2,7 @@
  * The current upload batch as one collapsible card: a single line with progress while uploading,
  * and when finished, what happened plus the obvious next step — indexing what was just uploaded.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, Circle, FileWarning, Loader2, Sparkles, X } from 'lucide-react';
 import Button from '@/shared/ui/Button';
 import Tooltip from '@/shared/ui/Tooltip';
@@ -41,12 +41,15 @@ export default function UploadProgressPanel({
 
   // a batch that needs a decision (duplicates) or failed outright opens on its own — but only to
   // open it, never to close it: replacing one duplicate briefly sets `running` again, and that
-  // must not collapse a list the admin still has other duplicates to go through in.
-  useEffect(() => {
-    if (!summary.running && (summary.duplicates > 0 || (summary.failed > 0 && summary.done === 0))) {
-      setExpanded(true);
-    }
-  }, [summary.running, summary.duplicates, summary.failed, summary.done]);
+  // must not collapse a list the admin still has other duplicates to go through in. Done while
+  // rendering, on the false → true edge, rather than in an effect that would render twice.
+  const needsAttention =
+    !summary.running && (summary.duplicates > 0 || (summary.failed > 0 && summary.done === 0));
+  const [attentionSeen, setAttentionSeen] = useState(false);
+  if (needsAttention !== attentionSeen) {
+    setAttentionSeen(needsAttention);
+    if (needsAttention) setExpanded(true);
+  }
 
   if (uploads.length === 0) return null;
 
