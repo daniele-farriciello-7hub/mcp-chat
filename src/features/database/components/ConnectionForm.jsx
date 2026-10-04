@@ -161,7 +161,7 @@ export default function ConnectionForm({ connection, onSaved, onCancel }) {
         checked={form.requireVerifiedEmail !== false}
         onChange={v => set('requireVerifiedEmail', v)}
         label="Richiedi email verificata"
-        description="Tienilo SEMPRE attivo in produzione. Spegnilo solo per provare l'assistente con account creati con mail e password non ancora verificati: da spento, chi ha un account dell'app vede i dati della mail con cui l'account è registrato, anche se nessuno ha verificato che la mail sia sua."
+        description="Tienilo sempre attivo in produzione. Spegnilo solo per provare l’assistente con account email e password non ancora verificati. Da spento, ognuno vede i dati dell’email con cui è registrato il suo account, anche se nessuno ha verificato che quella email sia davvero sua."
       />
 
       <div className="flex items-center gap-2 pt-1">
