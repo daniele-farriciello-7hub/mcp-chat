@@ -80,9 +80,16 @@ export function topDocuments(conversations, limit = 8) {
 export function usersIn(conversations) {
   const users = new Map();
   for (const c of conversations) {
-    if (!users.has(c.uid)) users.set(c.uid, c.userName || c.email || c.uid);
+    if (!users.has(c.uid)) {
+      users.set(c.uid, {
+        uid: c.uid,
+        label: c.userName || c.email || c.uid,
+        email: c.email,
+        name: c.userName
+      });
+    }
   }
-  return [...users].map(([uid, label]) => ({ uid, label })).sort((a, b) => a.label.localeCompare(b.label));
+  return [...users.values()].sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /** 'in corso' | 'chiusa' (reset) | 'fine giornata': an open conversation of an earlier day is over. */

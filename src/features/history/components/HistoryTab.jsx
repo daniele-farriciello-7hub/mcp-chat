@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import Section from '@/shared/ui/Section';
 import Switch from '@/shared/ui/Switch';
@@ -24,6 +24,8 @@ import {
 } from '../aggregate';
 import { BarList, DayBars } from './HistoryCharts';
 import ConversationDetail from './ConversationDetail';
+import UserMultiSelect from './UserMultiSelect';
+import { loadAppUsers } from '../appUsers';
 
 const RETENTION_OPTIONS = [7, 30, 90, 180, 365];
 const RANGES = [
@@ -155,7 +157,8 @@ function ConversationTable({ conversations, today, onOpen }) {
 
 export default function HistoryTab({ settings, onChange }) {
   const [rangeDays, setRangeDays] = useState(30);
-  const [userId, setUserId] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState(() => new Set());
+  const [appUsers, setAppUsers] = useState([]);
   const [open, setOpen] = useState(null);
   // the chart's first day, fixed when the tab opens like the data it shows
   const [openedAt] = useState(() => Date.now());
@@ -163,10 +166,24 @@ export default function HistoryTab({ settings, onChange }) {
 
   const today = romeDay();
   const fromDay = romeDay(new Date(openedAt - (rangeDays - 1) * 24 * 60 * 60 * 1000));
-  const users = useMemo(() => usersIn(loaded), [loaded]);
+  useEffect(() => {
+    loadAppUsers()
+      .then(setAppUsers)
+      .catch(error => console.warn('[history] reading the users failed:', error?.message || error));
+  }, []);
+
+  // everyone allowed to use the app, plus anyone seen in the loaded conversations who no longer is
+  // (removed later): their history must stay reachable
+  const users = useMemo(() => {
+    const byUid = new Map(appUsers.map(u => [u.uid, u]));
+    for (const u of usersIn(loaded)) {
+      if (!byUid.has(u.uid)) byUid.set(u.uid, { uid: u.uid, email: u.email || u.label, name: u.name || '' });
+    }
+    return [...byUid.values()].sort((a, b) => a.email.localeCompare(b.email));
+  }, [appUsers, loaded]);
   const conversations = useMemo(
-    () => (userId ? loaded.filter(c => c.uid === userId) : loaded),
-    [loaded, userId]
+    () => (selectedUsers.size ? loaded.filter(c => selectedUsers.has(c.uid)) : loaded),
+    [loaded, selectedUsers]
   );
   const numbers = useMemo(() => kpis(conversations), [conversations]);
 
@@ -223,19 +240,7 @@ export default function HistoryTab({ settings, onChange }) {
               </option>
             ))}
           </select>
-          <select
-            value={userId}
-            onChange={e => setUserId(e.target.value)}
-            className={`${INPUT_CLASS} w-auto min-w-0 flex-1`}
-            aria-label="Utente"
-          >
-            <option value="">Tutti gli utenti</option>
-            {users.map(u => (
-              <option key={u.uid} value={u.uid}>
-                {u.label}
-              </option>
-            ))}
-          </select>
+          <UserMultiSelect users={users} selected={selectedUsers} onChange={setSelectedUsers} />
         </div>
 
         {error && (
@@ -272,7 +277,7 @@ export default function HistoryTab({ settings, onChange }) {
             <Section title="Strumenti usati">
               <BarList items={toolTotals(conversations)} />
             </Section>
-            {!userId && (
+            {selectedUsers.size !== 1 && (
               <Section title="Utenti più attivi" description="Per numero di domande.">
                 <BarList items={topUsers(conversations)} />
               </Section>
