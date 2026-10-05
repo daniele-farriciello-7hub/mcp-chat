@@ -2,7 +2,8 @@ export const SETTINGS_TABS = [
   { id: 'model', name: 'Modello IA' },
   { id: 'shortcuts', name: 'Scorciatoie' },
   { id: 'documents', name: 'Documenti' },
-  { id: 'database', name: 'Database' }
+  { id: 'database', name: 'Database' },
+  { id: 'history', name: 'Storico' }
 ];
 
 export default function SettingsTabs({ activeTab, onChange }) {

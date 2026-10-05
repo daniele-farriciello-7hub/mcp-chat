@@ -3,12 +3,14 @@
  * conversation. The Documents tab saves on its own, so it has no save bar. The Database tab is
  * mixed: connections and tables save on their own too, but the database instructions and query
  * limits inside it are part of this shared settings object — same "Salva" bar as every other tab.
+ * Storico is mixed the same way: its three history settings use the bar, the data below is read-only.
  */
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import DocumentsTab from '@/features/documents/components/DocumentsTab';
 import DatabaseTab from '@/features/database/components/DatabaseTab';
+import HistoryTab from '@/features/history/components/HistoryTab';
 import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
 import { getSettings, saveSettings } from '@/features/settings/settingsStore';
 import ModelSettingsTab from './ModelSettingsTab';
@@ -87,6 +89,7 @@ export default function SettingsPanel({ onClose }) {
         )}
         {activeTab === 'documents' && <DocumentsTab />}
         {activeTab === 'database' && <DatabaseTab settings={settings} onChange={update} />}
+        {activeTab === 'history' && <HistoryTab settings={settings} onChange={update} />}
 
         {!savesItself && (
           <div className="mt-8 border-t border-line pt-4">
