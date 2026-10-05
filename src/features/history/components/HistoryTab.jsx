@@ -6,7 +6,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, MessagesSquare } from 'lucide-react';
 import Section from '@/shared/ui/Section';
 import Switch from '@/shared/ui/Switch';
 import { HELP_TEXT_CLASS, INPUT_CLASS } from '@/shared/ui/formStyles';
@@ -92,11 +92,16 @@ function HistorySettings({ settings, onChange }) {
 }
 
 /** A chart in its own bordered card, title inside, so each one reads as a unit on the page. */
-function ChartCard({ title, description, children }) {
+function ChartCard({ title, description, action, children }) {
   return (
     <section className="rounded-xl border border-line bg-white p-3.5 shadow-soft">
-      <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{title}</h3>
-      {description && <p className="mt-0.5 text-[11px] text-slate-soft">{description}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{title}</h3>
+          {description && <p className="mt-0.5 text-[11px] text-slate-soft">{description}</p>}
+        </div>
+        {action}
+      </div>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -112,8 +117,18 @@ function Kpi({ value, label }) {
 }
 
 function ConversationTable({ conversations, today, onOpen }) {
-  if (!conversations.length)
-    return <p className="text-[12px] text-slate-soft">Nessuna conversazione nel periodo.</p>;
+  if (!conversations.length) {
+    return (
+      <div className="flex flex-col items-center gap-1.5 rounded-xl bg-surface px-4 py-8 text-center">
+        <MessagesSquare size={22} className="text-slate-soft" />
+        <p className="text-[13px] font-semibold text-ink">Nessuna conversazione nel periodo</p>
+        <p className="max-w-xs text-[11px] text-slate-soft">
+          Prova un periodo più lungo o un altro utente. Le conversazioni compaiono qui solo con il salvataggio
+          attivo.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="overflow-x-auto rounded-xl border border-line">
       <table className="w-full text-left text-[12px]">
@@ -299,29 +314,37 @@ export default function HistoryTab({ settings, onChange }) {
               <BarList items={topDocuments(conversations)} emptyText="Nessun documento aperto nel periodo." />
             </ChartCard>
 
-            <Section title="Conversazioni">
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={exportList}
-                  disabled={!conversations.length}
-                  className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-[12px] font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50 disabled:opacity-40"
-                >
-                  <Download size={13} /> Scarica come Excel
-                </button>
-              </div>
+            <ChartCard
+              title="Conversazioni"
+              description={
+                conversations.length
+                  ? `${conversations.length} nel periodo · clicca una riga per leggerla`
+                  : undefined
+              }
+              action={
+                conversations.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={exportList}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-[12px] font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50"
+                  >
+                    <Download size={13} /> Scarica Excel
+                  </button>
+                )
+              }
+            >
               <ConversationTable conversations={conversations} today={today} onOpen={setOpen} />
               {cursor && (
                 <button
                   type="button"
                   onClick={loadMore}
                   disabled={loading}
-                  className="self-center text-[12px] font-semibold text-brand-600 hover:underline disabled:opacity-40"
+                  className="mx-auto mt-3 block text-[12px] font-semibold text-brand-600 hover:underline disabled:opacity-40"
                 >
                   {loading ? 'Carico…' : 'Carica altre conversazioni'}
                 </button>
               )}
-            </Section>
+            </ChartCard>
           </>
         )}
       </div>
