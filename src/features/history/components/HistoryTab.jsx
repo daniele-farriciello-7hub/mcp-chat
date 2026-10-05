@@ -150,11 +150,12 @@ function ChartCard({ title, description, action, children }) {
   );
 }
 
-function Kpi({ value, label }) {
+function Kpi({ value, label, hint }) {
   return (
-    <div className="rounded-xl bg-surface px-3 py-2.5">
+    <div className="rounded-xl bg-surface px-3 py-2.5" title={hint}>
       <div className="text-[11px] text-slate-soft">{label}</div>
       <div className="text-[18px] font-bold tabular-nums text-ink">{value}</div>
+      {hint && <div className="mt-0.5 text-[10px] leading-snug text-slate-soft">{hint}</div>}
     </div>
   );
 }
@@ -335,14 +336,9 @@ export default function HistoryTab({ settings, onChange }) {
               <Kpi label="Domande per conversazione" value={numbers.questionsPerConversation.toFixed(1)} />
               <Kpi label="Risposte con errore" value={`${(numbers.errorRate * 100).toFixed(1)}%`} />
               <Kpi
-                label="Token (ingresso · uscita · ragion.)"
-                value={
-                  <span className="text-[13px]">
-                    {[numbers.tokens.input, numbers.tokens.output, numbers.tokens.thinking]
-                      .map(formatNumber)
-                      .join(' · ')}
-                  </span>
-                }
+                label="Token usati"
+                value={formatNumber(numbers.tokens.input + numbers.tokens.output + numbers.tokens.thinking)}
+                hint={`${formatNumber(numbers.tokens.input)} letti · ${formatNumber(numbers.tokens.output)} scritti · ${formatNumber(numbers.tokens.thinking)} di ragionamento`}
               />
             </div>
 
