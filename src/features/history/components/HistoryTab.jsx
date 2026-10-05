@@ -52,63 +52,85 @@ const minutesBetween = (a, b) => {
   return ms > 0 ? Math.max(1, Math.round(ms / 60000)) : null;
 };
 
+/**
+ * Three short sections instead of one long list of options. Duration and notice only matter once
+ * saving is on, so they stay hidden until then — one decision at a time.
+ */
 function HistorySettings({ settings, onChange }) {
+  const enabled = Boolean(settings.historyEnabled);
+  const noticeOn = settings.showHistoryNotice !== false;
   return (
-    <Section
-      title="Salvataggio delle conversazioni"
-      description="Le conversazioni restano salvate per utente e riprendono dopo un ricaricamento. Ne inizia una nuova con «Nuova conversazione» o quando cambia il giorno."
-    >
-      <Switch
-        checked={Boolean(settings.historyEnabled)}
-        onChange={value => onChange('historyEnabled', value)}
-        label="Salva le conversazioni"
-        description="Prima di attivarlo servono le regole di sicurezza di Firestore per lo storico (ognuno legge solo le sue, gli amministratori tutte) e l’ok di chi segue la privacy: senza regole, un operatore potrebbe leggere le conversazioni degli altri."
-      />
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] font-semibold text-ink">Per quanto tempo conservarle</span>
-        <select
-          value={settings.historyRetentionDays}
-          onChange={e => onChange('historyRetentionDays', Number(e.target.value))}
-          className={INPUT_CLASS}
+    <>
+      <Section
+        title="Salvataggio"
+        description="Le conversazioni restano salvate per utente e riprendono dopo un ricaricamento. Ne inizia una nuova con «Nuova conversazione» o quando cambia il giorno."
+      >
+        <Switch
+          checked={enabled}
+          onChange={value => onChange('historyEnabled', value)}
+          label="Salva le conversazioni"
+          description="Prima di attivarlo servono le regole di sicurezza di Firestore per lo storico e l’ok di chi segue la privacy: senza regole, un operatore potrebbe leggere le conversazioni degli altri."
+        />
+        {!enabled && (
+          <p className={HELP_TEXT_CLASS}>
+            Attivalo per scegliere per quanto conservarle e cosa dire agli operatori.
+          </p>
+        )}
+      </Section>
+
+      {enabled && (
+        <Section
+          title="Conservazione"
+          description="Dopo questo periodo le conversazioni vengono cancellate da sole. Vale per quelle nuove; la cancellazione può arrivare fino a un giorno dopo."
         >
-          {RETENTION_OPTIONS.map(days => (
-            <option key={days} value={days}>
-              {days} giorni{days === 30 ? ' (consigliato)' : ''}
-            </option>
-          ))}
-        </select>
-        <span className={HELP_TEXT_CLASS}>
-          Vale per le conversazioni nuove. La cancellazione automatica può arrivare fino a un giorno dopo la
-          scadenza.
-        </span>
-      </label>
-      <Switch
-        checked={settings.showHistoryNotice !== false}
-        onChange={value => onChange('showHistoryNotice', value)}
-        label="Avvisa gli operatori"
-        description="Mostra un avviso nella schermata iniziale della chat, sotto quello sull’AI. Toglierlo è una scelta da concordare con chi segue la privacy."
-      />
-      {settings.showHistoryNotice !== false && (
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-semibold text-ink">Testo dell’avviso</span>
-          <textarea
-            rows={3}
-            value={settings.historyNoticeText || ''}
-            onChange={e => onChange('historyNoticeText', e.target.value)}
-            placeholder={DEFAULT_HISTORY_NOTICE}
-            className={`${INPUT_CLASS} resize-y`}
-          />
-          <span className={HELP_TEXT_CLASS}>
-            Scrivi {'{giorni}'} dove vuoi il numero di giorni di conservazione. Lasciato vuoto, vale il testo
-            suggerito.
-          </span>
-          <span className="rounded-xl bg-surface px-3 py-2 text-[11px] leading-snug text-slate-soft">
-            <span className="font-semibold text-ink">Gli operatori vedranno: </span>
-            {historyNotice(settings.historyNoticeText, settings.historyRetentionDays)}
-          </span>
-        </label>
+          <select
+            value={settings.historyRetentionDays}
+            onChange={e => onChange('historyRetentionDays', Number(e.target.value))}
+            className={INPUT_CLASS}
+            aria-label="Per quanto tempo conservarle"
+          >
+            {RETENTION_OPTIONS.map(days => (
+              <option key={days} value={days}>
+                {days} giorni{days === 30 ? ' (consigliato)' : ''}
+              </option>
+            ))}
+          </select>
+        </Section>
       )}
-    </Section>
+
+      {enabled && (
+        <Section
+          title="Avviso agli operatori"
+          description="Compare nella schermata iniziale della chat, sotto quello sull’AI. Toglierlo è una scelta da concordare con chi segue la privacy."
+        >
+          <Switch
+            checked={noticeOn}
+            onChange={value => onChange('showHistoryNotice', value)}
+            label="Mostra l’avviso"
+          />
+          {noticeOn && (
+            <>
+              <textarea
+                rows={2}
+                value={settings.historyNoticeText || ''}
+                onChange={e => onChange('historyNoticeText', e.target.value)}
+                placeholder={DEFAULT_HISTORY_NOTICE}
+                className={`${INPUT_CLASS} resize-y`}
+                aria-label="Testo dell’avviso"
+              />
+              <p className="rounded-xl bg-surface px-3 py-2 text-[11px] leading-snug text-slate-soft">
+                <span className="font-semibold text-ink">Gli operatori vedranno: </span>
+                {historyNotice(settings.historyNoticeText, settings.historyRetentionDays)}
+              </p>
+              <p className={HELP_TEXT_CLASS}>
+                {'{giorni}'} diventa il numero di giorni scelto sopra. Lasciato vuoto, vale il testo
+                suggerito.
+              </p>
+            </>
+          )}
+        </Section>
+      )}
+    </>
   );
 }
 
@@ -276,6 +298,10 @@ export default function HistoryTab({ settings, onChange }) {
       <HistorySettings settings={settings} onChange={onChange} />
 
       <div className="flex flex-col gap-4 border-t border-line pt-4">
+        <Section
+          title="Utilizzo"
+          description="Come viene usato l’assistente, da chi e con quali strumenti."
+        />
         <div className="flex flex-wrap gap-2">
           <select
             value={rangeDays}
