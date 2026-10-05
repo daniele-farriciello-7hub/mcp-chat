@@ -4,18 +4,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSettings } from '@/features/settings/settingsStore';
 import {
   endConversation,
-  ensureConversation,
-  loadActive,
+  recordQuestion,
   recordTurn,
-  recordUserMessage
-} from '@/features/history/conversationStore';
+  restoreConversation
+} from '@/features/history/historyApi';
+import { romeDay } from '@/features/history/romeDay';
 import { streamAgentReply } from './agent';
 
 let turnCounter = 0;
+// activity ids are only unique within a page load (`t1:read-0-0`); stored, they must not collide
+// with the same ids from an earlier load in the same conversation
+const pageLoadId = Math.random().toString(36).slice(2, 8);
 const newMessageId = () =>
   globalThis.crypto?.randomUUID?.() || `m${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 
-// a slow or failing Firestore must not keep the input locked: past this the chat opens empty
+// a slow or cold history function must not keep the input locked: past this the chat opens empty
 const RESTORE_TIMEOUT_MS = 3000;
 
 const warn = what => error => console.warn(`[history] ${what} failed:`, error?.message || error);
@@ -45,13 +48,15 @@ function markInterrupted(messages) {
  * yet), 'writing' (streaming).
  *
  * With `historyEnabled` on (settings, `features/history`), the conversation survives a reload: it is
- * written when a question is sent and when its reply ends, and read back on mount. A new one starts
- * only on "Nuova conversazione" or when the day changes in Rome. Off, nothing is read or written.
+ * written when a question is sent and when its reply ends, and read back on mount — always through
+ * the `history` function (`historyApi.js`), never straight to Firestore. A new one starts only on
+ * "Nuova conversazione" or when the day changes in Rome. Off, nothing is read or written. Saving
+ * never delays the reply: the calls run alongside it and a failure only logs a warning.
  */
 export function useConversation({ uid, context, isAdmin = false }) {
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState(uid ? 'restoring' : 'idle');
-  const conversationRef = useRef(null); // { id, expiresAt } of the stored conversation, if any
+  const conversationRef = useRef(null); // { id, day } of the stored conversation, if any
   const settingsRef = useRef(null);
   const sentRef = useRef(false); // a question went out before the restore came back
 
@@ -67,9 +72,9 @@ export function useConversation({ uid, context, isAdmin = false }) {
       const settings = await getSettings();
       settingsRef.current = settings;
       if (!settings.historyEnabled) return;
-      const active = await loadActive(uid).catch(warn('restore'));
+      const active = await restoreConversation().catch(warn('restore'));
       if (cancelled || sentRef.current || !active) return;
-      conversationRef.current = { id: active.id, expiresAt: active.expiresAt };
+      conversationRef.current = { id: active.id, day: active.day };
       setMessages(markInterrupted(active.messages));
     })().finally(() => {
       clearTimeout(timeout);
@@ -99,32 +104,6 @@ export function useConversation({ uid, context, isAdmin = false }) {
     });
   }, []);
 
-  /**
-   * The stored conversation this question belongs to. If it is not the one on screen (the day
-   * changed, or another tab started a new one), the screen starts over too: what the model sees
-   * must match what the operator sees.
-   */
-  const resolveConversation = useCallback(
-    async settings => {
-      try {
-        const conversation = await ensureConversation(uid, {
-          email: context?.user?.email,
-          userName: context?.user?.name,
-          chatModel: settings.chatModel,
-          page: context?.page,
-          retentionDays: settings.historyRetentionDays
-        });
-        const changed = conversationRef.current && conversationRef.current.id !== conversation.id;
-        conversationRef.current = conversation;
-        return { conversation, startedOver: changed || conversation.isNew };
-      } catch (error) {
-        warn('opening the conversation')(error);
-        return { conversation: null, startedOver: false };
-      }
-    },
-    [uid, context]
-  );
-
   const send = useCallback(
     async text => {
       if (status !== 'idle') return;
@@ -138,28 +117,36 @@ export function useConversation({ uid, context, isAdmin = false }) {
       const logging = Boolean(uid && settings.historyEnabled);
 
       let history = messages;
-      let conversation = null;
+      // resolves to the stored conversation ({id, day, isNew}) or null; the turn's write waits on it
+      let stored = Promise.resolve(null);
       if (logging) {
-        const resolved = await resolveConversation(settings);
-        conversation = resolved.conversation;
-        if (resolved.startedOver && messages.length) {
-          // a new conversation: keep only the question just asked, on screen and for the model
+        // the day changed since this conversation started: a new one begins, on screen and for the
+        // model alike (the server closes the old one when it records this question)
+        if (conversationRef.current && conversationRef.current.day !== romeDay() && messages.length) {
           history = [];
           setMessages(current => current.slice(current.findIndex(m => m.id === questionId)));
         }
-        if (conversation) {
-          recordUserMessage(conversation, {
-            id: questionId,
-            text,
-            clientAt: questionAt,
-            isFirst: conversation.isNew
-          }).catch(warn('saving the question'));
-        }
+        stored = recordQuestion({
+          id: questionId,
+          text,
+          clientAt: questionAt,
+          userName: context?.user?.name,
+          page: context?.page,
+          chatModel: settings.chatModel
+        })
+          .then(conversation => {
+            if (conversation) conversationRef.current = { id: conversation.id, day: conversation.day };
+            return conversation;
+          })
+          .catch(error => {
+            warn('saving the question')(error);
+            return null;
+          });
       }
 
       // tools name their activities by round and position (`read-0-0`), so every turn reuses the
       // same ids: without a per-turn prefix a later turn's end event rewrote an earlier card
-      const turn = `t${++turnCounter}:`;
+      const turn = `t${pageLoadId}${++turnCounter}:`;
       // what this turn did, kept here for the history write at the end: React state is not
       // readable from inside these callbacks without going stale
       const activities = new Map();
@@ -212,29 +199,33 @@ export function useConversation({ uid, context, isAdmin = false }) {
         onDone: ({ card, suggestions, usage, model, durationMs, firstTokenMs, error } = {}) => {
           if (card || suggestions) updateLastReply(m => ({ ...m, card, suggestions }));
           setStatus('idle');
-          if (conversation) {
-            recordTurn(conversation, {
-              activities: [...activities.values()],
-              reply: { id: replyId || newMessageId(), text: replyText, clientAt: Date.now() },
-              model,
-              usage,
-              durationMs,
-              firstTokenMs,
-              error
-            }).catch(warn('saving the reply'));
-          }
+          stored
+            .then(
+              conversation =>
+                conversation &&
+                recordTurn({
+                  conversationId: conversation.id,
+                  activities: [...activities.values()],
+                  reply: { id: replyId || newMessageId(), text: replyText, clientAt: Date.now() },
+                  model,
+                  usage,
+                  durationMs,
+                  firstTokenMs,
+                  error
+                })
+            )
+            .catch(warn('saving the reply'));
         }
       });
     },
-    [status, uid, context, isAdmin, messages, append, updateLastReply, resolveConversation]
+    [status, uid, context, isAdmin, messages, append, updateLastReply]
   );
 
   const reset = useCallback(() => {
-    const conversation = conversationRef.current;
     conversationRef.current = null;
-    // without a local id (restore timed out, say) the store closes whatever the pointer says is open
+    // the server closes whichever conversation of this user is open, known here or not
     if (uid && settingsRef.current?.historyEnabled) {
-      endConversation(uid, conversation?.id).catch(warn('closing the conversation'));
+      endConversation().catch(warn('closing the conversation'));
     }
     setMessages([]);
     setStatus('idle');

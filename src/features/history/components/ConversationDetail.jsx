@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import MessageBubble from '@/features/chat/components/MessageBubble';
-import { loadTranscript } from '../conversationStore';
+import { loadTranscript } from '../historyApi';
 
 const OUTCOME = { done: 'text-ok', failed: 'text-danger', running: 'text-warn' };
 

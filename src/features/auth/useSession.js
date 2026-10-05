@@ -31,7 +31,7 @@ function appPermissions(userDoc) {
   return null;
 }
 
-export function canUseApp(userDoc) {
+function canUseApp(userDoc) {
   if (!userDoc || userDoc.isActive === false) return false;
   return Boolean(appPermissions(userDoc));
 }
