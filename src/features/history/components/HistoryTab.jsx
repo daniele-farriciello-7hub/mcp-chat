@@ -91,6 +91,17 @@ function HistorySettings({ settings, onChange }) {
   );
 }
 
+/** A chart in its own bordered card, title inside, so each one reads as a unit on the page. */
+function ChartCard({ title, description, children }) {
+  return (
+    <section className="rounded-xl border border-line bg-white p-3.5 shadow-soft">
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{title}</h3>
+      {description && <p className="mt-0.5 text-[11px] text-slate-soft">{description}</p>}
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
 function Kpi({ value, label }) {
   return (
     <div className="rounded-xl bg-surface px-3 py-2.5">
@@ -181,9 +192,11 @@ export default function HistoryTab({ settings, onChange }) {
     }
     return [...byUid.values()].sort((a, b) => a.email.localeCompare(b.email));
   }, [appUsers, loaded]);
+  // none ticked and all ticked both mean everyone (UserMultiSelect)
+  const filtering = selectedUsers.size > 0 && selectedUsers.size < users.length;
   const conversations = useMemo(
-    () => (selectedUsers.size ? loaded.filter(c => selectedUsers.has(c.uid)) : loaded),
-    [loaded, selectedUsers]
+    () => (filtering ? loaded.filter(c => selectedUsers.has(c.uid)) : loaded),
+    [loaded, selectedUsers, filtering]
   );
   const numbers = useMemo(() => kpis(conversations), [conversations]);
 
@@ -271,20 +284,20 @@ export default function HistoryTab({ settings, onChange }) {
               />
             </div>
 
-            <Section title="Domande per giorno">
+            <ChartCard title="Domande per giorno">
               <DayBars series={questionsPerDay(conversations, fromDay, today)} />
-            </Section>
-            <Section title="Strumenti usati">
+            </ChartCard>
+            <ChartCard title="Strumenti usati">
               <BarList items={toolTotals(conversations)} />
-            </Section>
-            {selectedUsers.size !== 1 && (
-              <Section title="Utenti più attivi" description="Per numero di domande.">
+            </ChartCard>
+            {!(filtering && selectedUsers.size === 1) && (
+              <ChartCard title="Utenti più attivi" description="Per numero di domande.">
                 <BarList items={topUsers(conversations)} />
-              </Section>
+              </ChartCard>
             )}
-            <Section title="Documenti più consultati" description="In quante conversazioni è stato aperto.">
+            <ChartCard title="Documenti più consultati" description="In quante conversazioni è stato aperto.">
               <BarList items={topDocuments(conversations)} emptyText="Nessun documento aperto nel periodo." />
-            </Section>
+            </ChartCard>
 
             <Section title="Conversazioni">
               <div className="flex justify-end">

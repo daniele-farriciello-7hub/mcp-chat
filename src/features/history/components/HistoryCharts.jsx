@@ -16,8 +16,15 @@ export function DayBars({ series }) {
   const max = Math.max(1, ...series.map(d => d.value));
   const labelEvery = Math.ceil(series.length / 7);
 
+  const empty = !series.some(d => d.value > 0);
+
   return (
     <div className="relative">
+      {empty && (
+        <p className="absolute inset-x-0 top-12 text-center text-[12px] text-slate-soft">
+          Nessuna domanda nel periodo.
+        </p>
+      )}
       <div
         className="flex h-32 items-end gap-0.5 border-b border-line"
         role="img"
@@ -44,7 +51,7 @@ export function DayBars({ series }) {
           </span>
         ))}
       </div>
-      {hover !== null && (
+      {hover !== null && !empty && (
         <div
           className="pointer-events-none absolute -top-2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg bg-ink px-2 py-1 text-[11px] text-white shadow-soft"
           style={{ left: `${((hover + 0.5) / series.length) * 100}%` }}
