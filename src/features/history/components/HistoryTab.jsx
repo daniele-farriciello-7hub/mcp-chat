@@ -12,6 +12,7 @@ import Switch from '@/shared/ui/Switch';
 import { HELP_TEXT_CLASS, INPUT_CLASS } from '@/shared/ui/formStyles';
 import { downloadXlsx } from '@/shared/xlsx';
 import { useHistoryData } from '../useHistoryData';
+import { DEFAULT_HISTORY_NOTICE, historyNotice } from '../historyNotice';
 import { romeDay } from '../romeDay';
 import {
   conversationState,
@@ -85,8 +86,28 @@ function HistorySettings({ settings, onChange }) {
         checked={settings.showHistoryNotice !== false}
         onChange={value => onChange('showHistoryNotice', value)}
         label="Avvisa gli operatori"
-        description="Mostra nella schermata iniziale che le conversazioni sono conservate e visibili agli amministratori. Toglierlo è una scelta da concordare con chi segue la privacy."
+        description="Mostra un avviso nella schermata iniziale della chat, sotto quello sull’AI. Toglierlo è una scelta da concordare con chi segue la privacy."
       />
+      {settings.showHistoryNotice !== false && (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-semibold text-ink">Testo dell’avviso</span>
+          <textarea
+            rows={3}
+            value={settings.historyNoticeText || ''}
+            onChange={e => onChange('historyNoticeText', e.target.value)}
+            placeholder={DEFAULT_HISTORY_NOTICE}
+            className={`${INPUT_CLASS} resize-y`}
+          />
+          <span className={HELP_TEXT_CLASS}>
+            Scrivi {'{giorni}'} dove vuoi il numero di giorni di conservazione. Lasciato vuoto, vale il testo
+            suggerito.
+          </span>
+          <span className="rounded-xl bg-surface px-3 py-2 text-[11px] leading-snug text-slate-soft">
+            <span className="font-semibold text-ink">Gli operatori vedranno: </span>
+            {historyNotice(settings.historyNoticeText, settings.historyRetentionDays)}
+          </span>
+        </label>
+      )}
     </Section>
   );
 }

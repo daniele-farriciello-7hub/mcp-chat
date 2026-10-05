@@ -114,6 +114,8 @@ export const DEFAULT_SETTINGS = {
   historyRetentionDays: 30,
   // tells operators their conversations are kept and visible to admins
   showHistoryNotice: true,
+  // its text; {giorni} becomes historyRetentionDays. Empty = this default (see historyNotice.js)
+  historyNoticeText: '',
   shortcuts: [
     {
       icon: 'documents',

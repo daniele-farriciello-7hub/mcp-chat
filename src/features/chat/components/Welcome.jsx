@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
 import { getSettings } from '@/features/settings/settingsStore';
 import ShortcutIcon from '@/features/settings/components/ShortcutIcon';
 import AgentMark from './AgentMark';
+import { historyNotice } from '@/features/history/historyNotice';
 
 const greeting = () => {
   const hour = new Date().getHours();
@@ -21,15 +22,17 @@ const greeting = () => {
 export default function Welcome({ userName, onAsk }) {
   const [shortcuts, setShortcuts] = useState(DEFAULT_SETTINGS.shortcuts);
   const [showAiNotice, setShowAiNotice] = useState(DEFAULT_SETTINGS.showAiNotice);
-  // days the conversations are kept, or null when operators are not told (or nothing is kept)
-  const [historyDays, setHistoryDays] = useState(null);
+  // the history notice, or null when operators are not told (or nothing is kept)
+  const [historyText, setHistoryText] = useState(null);
 
   useEffect(() => {
     getSettings().then(settings => {
       setShortcuts(settings.shortcuts);
       setShowAiNotice(settings.showAiNotice !== false);
-      setHistoryDays(
-        settings.historyEnabled && settings.showHistoryNotice !== false ? settings.historyRetentionDays : null
+      setHistoryText(
+        settings.historyEnabled && settings.showHistoryNotice !== false
+          ? historyNotice(settings.historyNoticeText, settings.historyRetentionDays)
+          : null
       );
     });
   }, []);
@@ -87,11 +90,11 @@ export default function Welcome({ userName, onAsk }) {
           usarle in una pratica.
         </p>
       )}
-      {historyDays && (
+      {historyText && (
         <p
           className={`relative z-10 px-4 pb-3 text-[11px] leading-snug text-slate-soft ${showAiNotice ? '' : 'pt-5'}`}
         >
-          Le conversazioni sono conservate {historyDays} giorni e sono visibili agli amministratori.
+          {historyText}
         </p>
       )}
     </div>
