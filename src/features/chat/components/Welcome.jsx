@@ -21,11 +21,16 @@ const greeting = () => {
 export default function Welcome({ userName, onAsk }) {
   const [shortcuts, setShortcuts] = useState(DEFAULT_SETTINGS.shortcuts);
   const [showAiNotice, setShowAiNotice] = useState(DEFAULT_SETTINGS.showAiNotice);
+  // days the conversations are kept, or null when operators are not told (or nothing is kept)
+  const [historyDays, setHistoryDays] = useState(null);
 
   useEffect(() => {
     getSettings().then(settings => {
       setShortcuts(settings.shortcuts);
       setShowAiNotice(settings.showAiNotice !== false);
+      setHistoryDays(
+        settings.historyEnabled && settings.showHistoryNotice !== false ? settings.historyRetentionDays : null
+      );
     });
   }, []);
 
@@ -80,6 +85,13 @@ export default function Welcome({ userName, onAsk }) {
         <p className="relative z-10 px-4 pb-3 pt-5 text-[11px] leading-snug text-slate-soft">
           Le risposte sono generate da un sistema di intelligenza artificiale e vanno verificate prima di
           usarle in una pratica.
+        </p>
+      )}
+      {historyDays && (
+        <p
+          className={`relative z-10 px-4 pb-3 text-[11px] leading-snug text-slate-soft ${showAiNotice ? '' : 'pt-5'}`}
+        >
+          Le conversazioni sono conservate {historyDays} giorni e sono visibili agli amministratori.
         </p>
       )}
     </div>

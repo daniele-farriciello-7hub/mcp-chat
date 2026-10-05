@@ -107,6 +107,13 @@ export const DEFAULT_SETTINGS = {
   historyLimit: { unit: 'messages', value: 20 },
   // the AI Act requires making clear the user is talking to an automated system
   showAiNotice: true,
+  // conversation history (features/history). Off until the Firestore rules for it are deployed
+  // and the DPO has signed off: until then nothing is written and nothing is restored.
+  historyEnabled: false,
+  // feeds `expiresAt`, read by the Firestore TTL policy; 30 days is the recommended default
+  historyRetentionDays: 30,
+  // tells operators their conversations are kept and visible to admins
+  showHistoryNotice: true,
   shortcuts: [
     {
       icon: 'documents',

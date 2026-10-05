@@ -122,7 +122,7 @@ export function buildSystemInstruction({
  */
 export function toModelHistory(messages = []) {
   const history = messages
-    .filter(m => (m.role === 'user' || m.role === 'assistant') && m.text?.trim())
+    .filter(m => (m.role === 'user' || m.role === 'assistant') && m.text?.trim() && !m.unanswered)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.text }] }));
   const firstUser = history.findIndex(entry => entry.role === 'user');
   return firstUser === -1 ? [] : history.slice(firstUser);

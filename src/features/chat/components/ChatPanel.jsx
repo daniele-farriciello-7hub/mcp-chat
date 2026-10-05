@@ -8,8 +8,8 @@ import ChatHeader from './ChatHeader';
 import ChatInput from './ChatInput';
 import MessageList from './MessageList';
 
-export default function ChatPanel({ context, email, isAdmin = false, onNavigate, onClose, onSignOut }) {
-  const { messages, status, send, reset } = useConversation({ context, isAdmin });
+export default function ChatPanel({ context, uid, email, isAdmin = false, onNavigate, onClose, onSignOut }) {
+  const { messages, status, send, reset } = useConversation({ uid, context, isAdmin });
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (settingsOpen) {
@@ -26,7 +26,9 @@ export default function ChatPanel({ context, email, isAdmin = false, onNavigate,
         status={status}
         email={email}
         onOpenSettings={isAdmin ? () => setSettingsOpen(true) : undefined}
-        onReset={messages.length > 0 ? reset : undefined}
+        // hidden mid-reply: closing the conversation while its last turn is still being written
+        // would leave that turn's history write pointing at a conversation already ended
+        onReset={messages.length > 0 && status === 'idle' ? reset : undefined}
         onSignOut={onSignOut}
         onClose={onClose}
       />

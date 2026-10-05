@@ -4,6 +4,7 @@ import AgentMark from './AgentMark';
 
 const STATUS_LABELS = {
   idle: 'Online',
+  restoring: 'Riprendo la conversazione…',
   working: 'Sto lavorando…',
   thinking: 'Sto pensando…',
   writing: 'Sto scrivendo…'

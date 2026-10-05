@@ -38,6 +38,7 @@ export default function StandalonePage() {
     <div className="h-dvh">
       <ChatPanel
         context={{ user: { name: session.displayName, email: session.user.email } }}
+        uid={session.user.uid}
         email={session.user.email}
         isAdmin={session.isAdmin}
         onSignOut={session.signOut}

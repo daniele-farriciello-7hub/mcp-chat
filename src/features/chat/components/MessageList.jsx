@@ -22,6 +22,10 @@ export default function MessageList({ messages, status, userName, onAsk, onNavig
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, status]);
 
+  // reading back today's conversation: an empty pane for an instant beats a welcome screen that
+  // flashes and is replaced by the restored messages
+  if (messages.length === 0 && status === 'restoring') return <div className="min-h-0 flex-1" />;
+
   if (messages.length === 0) {
     return (
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -32,7 +36,7 @@ export default function MessageList({ messages, status, userName, onAsk, onNavig
 
   const lastReplyIndex = messages.map(m => m.role).lastIndexOf('assistant');
   const lastUserIndex = messages.map(m => m.role).lastIndexOf('user');
-  const busy = status !== 'idle';
+  const busy = status === 'thinking' || status === 'working' || status === 'writing';
   const currentActivities = messages.slice(lastUserIndex + 1).filter(m => m.role === 'activity');
   const runningKind = currentActivities.findLast(m => m.outcome === 'running')?.kind;
   const doneKinds = currentActivities.filter(m => m.outcome === 'done' && m.kind).map(m => m.kind);
@@ -54,6 +58,14 @@ export default function MessageList({ messages, status, userName, onAsk, onNavig
             if (shownSources.has(source)) return null;
             shownSources.add(source);
             return <ActivityRow key={message.id} activity={message} />;
+          }
+
+          if (message.role === 'notice') {
+            return (
+              <p key={message.id} className="text-center text-[11px] italic text-slate-soft">
+                {message.text}
+              </p>
+            );
           }
 
           const isLastReply = i === lastReplyIndex;

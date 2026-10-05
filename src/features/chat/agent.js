@@ -5,7 +5,8 @@
  *   onActivityEnd(id, { outcome, message })  that thing finished: 'done' | 'failed'
  *   onReplyStart()                           text is about to arrive
  *   onChunk(text)                            a piece of text
- *   onDone({ card, suggestions })            end of the reply
+ *   onDone({ usage, model, durationMs,       end of the reply, with what history records
+ *           firstTokenMs, error })
  *
  * Besides talking, the assistant can open indexed documents (tools/readDocument.js), query an
  * enabled database connection (tools/queryDatabase.js), and offer a CSV download of a table it put
@@ -49,13 +50,25 @@ export async function streamAgentReply({
   onDone
 }) {
   let replyStarted = false;
+  const startedAt = Date.now();
+  let firstTokenMs = null;
   const emit = chunk => {
     if (!replyStarted) {
       onReplyStart();
       replyStarted = true;
+      firstTokenMs = Date.now() - startedAt;
     }
     onChunk(chunk);
   };
+  // summed over every round, tool rounds and the out-of-rounds one included: each one is billed
+  const usage = { input: 0, output: 0, thinking: 0 };
+  const addUsage = metadata => {
+    usage.input += metadata?.promptTokenCount || 0;
+    usage.output += metadata?.candidatesTokenCount || 0;
+    usage.thinking += metadata?.thoughtsTokenCount || 0;
+  };
+  let usedModel = null;
+  let failed = false;
 
   try {
     const settings = await getSettings();
@@ -107,8 +120,15 @@ export async function streamAgentReply({
         },
         tools: toolDeclarations.length ? [{ functionDeclarations: toolDeclarations }] : undefined
       });
-    const modelHistory = toModelHistory(trimHistory(history, settings.historyLimit));
+    // user/assistant only, before trimming: restored activity rows would otherwise eat the limit
+    const modelHistory = toModelHistory(
+      trimHistory(
+        history.filter(m => m.role === 'user' || m.role === 'assistant'),
+        settings.historyLimit
+      )
+    );
     let chat = buildModel(settings.chatModel).startChat({ history: modelHistory });
+    usedModel = settings.chatModel;
     // set only when it differs from the chat model; see the switch inside the loop below
     const databaseModelId =
       schema.length && settings.databaseModel && settings.databaseModel !== settings.chatModel
@@ -127,7 +147,9 @@ export async function streamAgentReply({
             const chunkText = chunk.text();
             if (chunkText) emit(chunkText);
           }
-          return stream.response;
+          const response = await stream.response;
+          addUsage(response.usageMetadata);
+          return response;
         },
         { attempts: 3, shouldRetry: error => !replyStarted && isTransientError(error) }
       );
@@ -146,6 +168,7 @@ export async function streamAgentReply({
       if (databaseModelId && !onDatabaseModel && calls?.some(call => DATABASE_TOOL_NAMES.has(call.name))) {
         onDatabaseModel = true;
         chat = buildModel(databaseModelId).startChat({ history: modelHistory });
+        usedModel = databaseModelId;
         response = await streamRound(text);
         calls = response.functionCalls();
       }
@@ -184,7 +207,8 @@ export async function streamAgentReply({
   } catch (error) {
     // the operator sees a readable sentence; the real cause stays in the console
     console.error('[agent] model request failed:', error);
+    failed = true;
     emit(describeModelError(error));
   }
-  return onDone();
+  return onDone({ usage, model: usedModel, durationMs: Date.now() - startedAt, firstTokenMs, error: failed });
 }

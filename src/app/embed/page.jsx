@@ -56,6 +56,7 @@ export default function EmbedPage() {
     <div className="h-dvh">
       <ChatPanel
         context={{ ...hostContext, user: { name: session.displayName, email: session.user.email } }}
+        uid={session.user.uid}
         email={session.user.email}
         isAdmin={session.isAdmin}
         onNavigate={url => postToHost({ type: 'navigate', url }, hostOrigin)}
