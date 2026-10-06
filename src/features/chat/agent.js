@@ -143,12 +143,16 @@ export async function streamAgentReply({
       withRetry(
         async () => {
           const stream = await chat.sendMessageStream(message);
+          // the usage arrives on the stream's last chunk; the aggregated response does not always
+          // carry it over (seen as all zeros with Firebase AI Logic), so keep the last one seen
+          let usageMetadata = null;
           for await (const chunk of stream.stream) {
+            if (chunk.usageMetadata) usageMetadata = chunk.usageMetadata;
             const chunkText = chunk.text();
             if (chunkText) emit(chunkText);
           }
           const response = await stream.response;
-          addUsage(response.usageMetadata);
+          addUsage(response.usageMetadata || usageMetadata);
           return response;
         },
         { attempts: 3, shouldRetry: error => !replyStarted && isTransientError(error) }
