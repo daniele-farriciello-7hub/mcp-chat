@@ -1,7 +1,8 @@
 /**
  * One conversation, read-only, for an admin: the messages as the operator saw them, plus what is
  * hidden from operators — every tool step (failed ones included), the SQL when it was recorded, the
- * model, tokens and timings of each reply.
+ * model, tokens and timings of each reply. Tool steps are hidden until asked for, so the transcript
+ * reads like the chat did.
  */
 'use client';
 
@@ -44,11 +45,15 @@ function ReplyMeta({ message }) {
 export default function ConversationDetail({ conversation, onBack }) {
   const [messages, setMessages] = useState(null);
   const [error, setError] = useState(null);
+  // the conversation reads like the chat did; tool steps (and their SQL) only on request
+  const [showSteps, setShowSteps] = useState(false);
 
   useEffect(() => {
     loadTranscript(conversation.id).then(setMessages).catch(setError);
   }, [conversation.id]);
 
+  const steps = messages?.filter(m => m.role === 'activity').length || 0;
+  const visible = showSteps ? messages : messages?.filter(m => m.role !== 'activity');
   const started = conversation.startedAt?.toDate?.();
   return (
     <div className="flex flex-col gap-4">
@@ -71,8 +76,14 @@ export default function ConversationDetail({ conversation, onBack }) {
       {error && <p className="text-[12px] text-danger">Non riesco a leggere questa conversazione.</p>}
       {!messages && !error && <Loader2 size={16} className="animate-spin text-brand-500" />}
       {messages?.length === 0 && <p className="text-[12px] text-slate-soft">Nessun messaggio salvato.</p>}
+      {steps > 0 && (
+        <label className="flex w-fit cursor-pointer items-center gap-2 text-[11px] text-slate-soft">
+          <input type="checkbox" checked={showSteps} onChange={e => setShowSteps(e.target.checked)} />
+          Mostra i passi degli strumenti ({steps})
+        </label>
+      )}
       <div className="flex flex-col gap-3">
-        {messages?.map(m =>
+        {visible?.map(m =>
           m.role === 'activity' ? (
             <ActivityLine key={m.id} activity={m.activity || {}} />
           ) : (
