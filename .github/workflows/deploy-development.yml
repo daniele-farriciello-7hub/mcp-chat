@@ -1,0 +1,52 @@
+# Push to `development` → https://assistente-7hub-development.web.app (the site only).
+#
+# Same Firebase project as production: the development site uses the production Cloud Functions,
+# Firestore data and settings. Function changes are tried locally with the emulator, and reach the
+# real functions only through `production`.
+# Secret (repo Settings → Secrets and variables → Actions):
+#   FIREBASE_SERVICE_ACCOUNT  JSON key of a service account allowed to deploy Hosting
+name: Deploy development
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-development
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check secrets
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: '[ -n "$FIREBASE_SERVICE_ACCOUNT" ] || { echo "::error::Secret FIREBASE_SERVICE_ACCOUNT mancante"; exit 1; }'
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+
+      - name: Deploy hosting
+        run: npx --yes firebase-tools@13 deploy --only hosting:development --project mappa-contatti-217007 --non-interactive

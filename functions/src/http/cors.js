@@ -7,7 +7,10 @@ export const ALLOWED_ORIGINS = [
   'http://localhost:3001',
   'http://127.0.0.1:3001',
   'https://assistente-7hub.web.app',
-  'https://assistente-7hub.firebaseapp.com'
+  'https://assistente-7hub.firebaseapp.com',
+  // the development site (branch `development`): same project, so it calls these same functions
+  'https://assistente-7hub-development.web.app',
+  'https://assistente-7hub-development.firebaseapp.com'
 ];
 
 /** Allows listed browser origins only. Returns false when the request was rejected (response already sent). */

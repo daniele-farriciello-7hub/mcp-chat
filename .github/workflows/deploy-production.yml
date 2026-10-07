@@ -1,0 +1,62 @@
+# Push to `production` → https://assistente-7hub.web.app and the Cloud Functions.
+#
+# The functions are shared by both sites (one Firebase project), so only this branch deploys them.
+# Secrets (repo Settings → Secrets and variables → Actions):
+#   FIREBASE_SERVICE_ACCOUNT  JSON key of a service account allowed to deploy Hosting and Functions
+#   DB_CRED_KEY               the key that decrypts the stored database passwords (functions/.env.*):
+#                             deploying the functions without it would break every database connection
+name: Deploy production
+
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Check secrets
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DB_CRED_KEY: ${{ secrets.DB_CRED_KEY }}
+        run: |
+          [ -n "$FIREBASE_SERVICE_ACCOUNT" ] || { echo "::error::Secret FIREBASE_SERVICE_ACCOUNT mancante"; exit 1; }
+          [ -n "$DB_CRED_KEY" ] || { echo "::error::Secret DB_CRED_KEY mancante: le function non vengono deployate senza"; exit 1; }
+
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix functions
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DB_CRED_KEY: ${{ secrets.DB_CRED_KEY }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+          printf 'DB_CRED_KEY=%s\n' "$DB_CRED_KEY" > functions/.env.mappa-contatti-217007
+
+      - name: Deploy hosting and functions
+        run: npx --yes firebase-tools@13 deploy --only hosting:production,functions --project mappa-contatti-217007 --non-interactive

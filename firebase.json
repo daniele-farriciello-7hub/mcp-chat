@@ -3,57 +3,120 @@
     {
       "source": "functions",
       "codebase": "assistente",
-      "ignore": ["node_modules", ".git", "*.log", "scripts/**"]
+      "ignore": [
+        "node_modules",
+        ".git",
+        "*.log",
+        "scripts/**"
+      ]
     }
   ],
-  "hosting": {
-    "target": "app-corrente",
-    "public": "out",
-    "cleanUrls": true,
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "headers": [
-      {
-        "source": "/_next/static/**",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "public, max-age=31536000, immutable"
-          }
-        ]
-      },
-      {
-        "source": "**/*.@(html|txt|json)",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          }
-        ]
-      },
-      {
-        "source": "/",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          }
-        ]
-      },
-      {
-        "source": "/embed",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          },
-          {
-            "key": "Content-Security-Policy",
-            "value": "frame-ancestors 'self' https://7hub.it https://*.7hub.it http://localhost:3000"
-          }
-        ]
-      }
-    ]
-  },
+  "hosting": [
+    {
+      "target": "production",
+      "public": "out",
+      "cleanUrls": true,
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "/_next/static/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "source": "**/*.@(html|txt|json)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "source": "/",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "source": "/embed",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            },
+            {
+              "key": "Content-Security-Policy",
+              "value": "frame-ancestors 'self' https://7hub.it https://*.7hub.it http://localhost:3000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "development",
+      "public": "out",
+      "cleanUrls": true,
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "/_next/static/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        },
+        {
+          "source": "**/*.@(html|txt|json)",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "source": "/",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "source": "/embed",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            },
+            {
+              "key": "Content-Security-Policy",
+              "value": "frame-ancestors 'self' https://7hub.it https://*.7hub.it http://localhost:3000"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "emulators": {
     "functions": {
       "port": 5001

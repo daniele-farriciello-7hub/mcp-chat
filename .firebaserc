@@ -5,8 +5,11 @@
   "targets": {
     "mappa-contatti-217007": {
       "hosting": {
-        "app-corrente": [
+        "production": [
           "assistente-7hub"
+        ],
+        "development": [
+          "assistente-7hub-development"
         ]
       }
     }
