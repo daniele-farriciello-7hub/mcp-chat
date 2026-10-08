@@ -22,7 +22,7 @@ import {
   restore,
   transcript
 } from '../history/historyStore.js';
-import { ShortcutsError, loadShortcuts, saveShortcuts } from '../shortcuts/personalShortcuts.js';
+import { ShortcutsError, loadShortcutsWithLimit, saveShortcuts } from '../shortcuts/personalShortcuts.js';
 
 const OPERATOR_ACTIONS = {
   restore: user => restore(user).then(conversation => ({ conversation })),
@@ -30,7 +30,7 @@ const OPERATOR_ACTIONS = {
   turn: (user, body) => recordTurn(user, body),
   reset: user => endConversation(user),
   // the caller's own welcome-screen shortcuts: not history, so they work with history off too
-  shortcuts: user => loadShortcuts(user),
+  shortcuts: user => loadShortcutsWithLimit(user),
   saveShortcuts: (user, body) => saveShortcuts(user, body)
 };
 const ALWAYS_ON = new Set(['shortcuts', 'saveShortcuts']);

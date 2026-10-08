@@ -83,10 +83,14 @@ export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [limit, setLimit] = useState(null); // set by the admin; null = no limit
 
   useEffect(() => {
     loadPersonalShortcuts()
-      .then(setShortcuts)
+      .then(result => {
+        setShortcuts(result.shortcuts);
+        setLimit(result.limit);
+      })
       .catch(e => {
         console.warn('[shortcuts] load failed:', e?.message || e);
         setShortcuts([]);
@@ -107,6 +111,7 @@ export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
     }
   };
 
+  const full = limit !== null && shortcuts !== null && shortcuts.length >= limit;
   if (shortcuts === null) {
     return inPanel ? <SkeletonCards count={3} /> : null;
   }
@@ -116,7 +121,7 @@ export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
       {inPanel ? (
         <p className="mb-3 text-[11px] leading-snug text-slate-soft">
           Le domande che fai spesso, a portata di un tocco nella schermata iniziale della chat. Le vedi solo
-          tu.
+          tu.{limit !== null && ` Puoi averne fino a ${limit}.`}
         </p>
       ) : (
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-soft">
@@ -212,6 +217,12 @@ export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
             onCancel={() => setEditing(null)}
             onSave={draft => persist([...shortcuts, draft])}
           />
+        ) : full ? (
+          inPanel && (
+            <p className="rounded-xl bg-surface px-3 py-2.5 text-center text-[12px] text-slate-soft">
+              Hai raggiunto il massimo di {limit} scorciatoie: per aggiungerne una, eliminane un’altra.
+            </p>
+          )
         ) : (
           <button
             type="button"

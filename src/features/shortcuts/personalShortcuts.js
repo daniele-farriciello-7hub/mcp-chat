@@ -6,9 +6,10 @@
 
 import { callFunction } from '@/shared/firebase/functions';
 
+/** @returns {Promise<{shortcuts: object[], limit: number | null}>} limit null = no limit */
 export async function loadPersonalShortcuts() {
-  const { shortcuts } = await callFunction('history', 'shortcuts');
-  return shortcuts || [];
+  const { shortcuts, limit } = await callFunction('history', 'shortcuts');
+  return { shortcuts: shortcuts || [], limit: limit ?? null };
 }
 
 export async function savePersonalShortcuts(shortcuts) {

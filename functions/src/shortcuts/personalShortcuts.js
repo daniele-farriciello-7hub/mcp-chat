@@ -9,6 +9,13 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 // No limit for the operator. This only keeps the list inside Firestore's 1 MB per document (each
 // shortcut is at most ~1.3 KB), so an absurd list gets a clear error instead of a failed write.
 const MAX_SHORTCUTS = 500;
+
+/** The admin's limit (`personalShortcutsLimit` in the settings; 0 or missing = none), at most 500. */
+async function adminLimit() {
+  const snapshot = await getFirestore().doc('apps/assistente-7hub/config/settings').get();
+  const limit = Number(snapshot.exists ? snapshot.data().personalShortcutsLimit : 0);
+  return limit > 0 ? Math.min(Math.round(limit), MAX_SHORTCUTS) : MAX_SHORTCUTS;
+}
 const LIMITS = { icon: 30, title: 60, description: 120, prompt: 1000 };
 
 const docOf = uid => getFirestore().doc(`apps/assistente-7hub/chatUsers/${uid}/private/shortcuts`);
@@ -27,10 +34,21 @@ export async function loadShortcuts(user) {
   return { shortcuts: snapshot.exists ? snapshot.data().items || [] : [] };
 }
 
+/** The list plus the limit, for the browser to know whether to offer "Aggiungi". */
+export async function loadShortcutsWithLimit(user) {
+  const [{ shortcuts }, limit] = await Promise.all([loadShortcuts(user), adminLimit()]);
+  return { shortcuts, limit: limit === MAX_SHORTCUTS ? null : limit };
+}
+
 /** Replaces the caller's list: what the browser shows is what is stored, in the same order. */
 export async function saveShortcuts(user, body) {
   if (!Array.isArray(body.shortcuts)) throw new ShortcutsError('shortcuts must be a list');
-  if (body.shortcuts.length > MAX_SHORTCUTS) throw new ShortcutsError(`at most ${MAX_SHORTCUTS} shortcuts`);
+  const limit = await adminLimit();
+  const current = (await loadShortcuts(user)).shortcuts.length;
+  // lowering the limit deletes nothing: a list already over it may be edited or shortened, not grown
+  if (body.shortcuts.length > limit && body.shortcuts.length > current) {
+    throw new ShortcutsError(`Puoi avere al massimo ${limit} scorciatoie personali.`);
+  }
   const items = body.shortcuts.map(s => ({
     icon: clean(s?.icon, LIMITS.icon) || 'question',
     title: clean(s?.title, LIMITS.title),
