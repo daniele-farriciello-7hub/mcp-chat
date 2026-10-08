@@ -189,11 +189,11 @@ export default function DatabaseTab({ settings, onChange }) {
             onChange={value => onChange('exportTimeoutSeconds', value)}
           />
           <p className={HELP_TEXT_CLASS}>
-            Quanto può lavorare il database del gestionale (MariaDB) per estrarre le righe di un export: oltre
-            questo tempo è il database stesso a fermare la query, e l’operatore vede «Non riuscito, riprova».
-            Non riguarda il modello AI. Massimo 50 secondi, perché l’intero export (query, creazione del file
-            e invio) deve chiudersi entro il minuto concesso al server. Con molte colonne, un file vicino alle
-            200.000 righe può comunque non riuscire.
+            Quanto può lavorare il database per estrarre le righe di un export, per tutte le connessioni qui
+            sopra: oltre questo tempo è il database stesso a fermare la query, e l’operatore vede «Non
+            riuscito, riprova». Non riguarda il modello AI. Massimo 50 secondi, perché l’intero export (query,
+            creazione del file e invio) deve chiudersi entro il minuto concesso al server. Con molte colonne,
+            un file vicino alle 200.000 righe può comunque non riuscire.
           </p>
         </Section>
       </div>
