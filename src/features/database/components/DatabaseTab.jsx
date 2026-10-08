@@ -159,6 +159,38 @@ export default function DatabaseTab({ settings, onChange }) {
             significa risposte più pesanti da rimandare al modello, non necessariamente più utili.
           </p>
         </Section>
+
+        <Section
+          title="Limiti degli export Excel"
+          description="Per i file Excel che il server genera dal database: le righe non passano dal modello, quindi possono essere molte di più delle query normali."
+        >
+          <Slider
+            label="Righe massime per file"
+            reading={`${settings.exportMaxRows.toLocaleString('it-IT')} righe`}
+            min={1000}
+            max={200000}
+            step={1000}
+            value={settings.exportMaxRows}
+            rangeLabels={['Più prudente', 'File più grandi']}
+            onChange={value => onChange('exportMaxRows', value)}
+          />
+          <Slider
+            label="Timeout per l’export"
+            reading={`${settings.exportTimeoutSeconds} s`}
+            min={10}
+            max={50}
+            step={5}
+            value={settings.exportTimeoutSeconds}
+            rangeLabels={['Fallisce prima', 'Aspetta di più']}
+            onChange={value => onChange('exportTimeoutSeconds', value)}
+          />
+          <p className={HELP_TEXT_CLASS}>
+            Ogni export rilegge le righe dal database del gestionale e porta fuori dati di clienti: tienilo al
+            minimo che serve. Oltre il tetto il file contiene solo le prime righe e l’assistente lo dice.
+            Massimo 200.000 righe e 50 secondi; con molte colonne un file molto grande può comunque non
+            riuscire.
+          </p>
+        </Section>
       </div>
     </div>
   );

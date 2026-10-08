@@ -249,10 +249,38 @@ async function actionQuery(user, body) {
 
 // ── large exports: the rows go straight from the database into a file, never through the model ──
 
-/** Most rows one export file may hold. */
-export const EXPORT_MAX_ROWS = 50_000;
-const EXPORT_TIMEOUT_SECONDS = 45;
+/**
+ * Bounds of the admin's export settings (`exportMaxRows`, `exportTimeoutSeconds`). The values come
+ * from the settings document, read here on the server — never from the request, so nobody can raise
+ * them by calling this endpoint by hand — and are clamped: 50s keeps the query inside the function's
+ * 60s timeout, 200k rows inside its memory and the 32 MB response limit.
+ */
+const EXPORT_LIMITS = {
+  rows: { min: 1_000, max: 200_000, fallback: 50_000 },
+  seconds: { min: 10, max: 50, fallback: 45 }
+};
 const PREVIEW_ROWS = 3;
+const SETTINGS_TTL_MS = 30_000;
+
+const clamp = (value, { min, max, fallback }) =>
+  Number.isFinite(Number(value)) && Number(value) > 0
+    ? Math.min(max, Math.max(min, Number(value)))
+    : fallback;
+
+let exportSettingsCache = null; // { at, value }
+async function exportLimits() {
+  if (exportSettingsCache && Date.now() - exportSettingsCache.at < SETTINGS_TTL_MS) {
+    return exportSettingsCache.value;
+  }
+  const snapshot = await getFirestore().doc(`${ROOT}/config/settings`).get();
+  const data = snapshot.exists ? snapshot.data() : {};
+  const value = {
+    maxRows: clamp(data.exportMaxRows, EXPORT_LIMITS.rows),
+    timeoutSeconds: clamp(data.exportTimeoutSeconds, EXPORT_LIMITS.seconds)
+  };
+  exportSettingsCache = { at: Date.now(), value };
+  return value;
+}
 
 /**
  * The model's query wrapped as a derived table, so a count, a preview or the export cap apply on
@@ -265,13 +293,14 @@ const wrapped = (checked, outer) => `SELECT ${outer} FROM (${checked}) AS export
 async function actionExportPreview(user, body) {
   const { sql, enabledTables, run, validate } = await queryContext(user, body);
   const checked = validate(() => checkSelect(sql, { enabledTables }));
+  const { maxRows, timeoutSeconds } = await exportLimits();
 
   let rowCount;
   let sample;
   try {
-    const [{ n }] = await run(timeBoxed(wrapped(checked, 'COUNT(*) AS n'), EXPORT_TIMEOUT_SECONDS));
+    const [{ n }] = await run(timeBoxed(wrapped(checked, 'COUNT(*) AS n'), timeoutSeconds));
     rowCount = Number(n);
-    sample = await run(timeBoxed(`${wrapped(checked, '*')} LIMIT ${PREVIEW_ROWS}`, EXPORT_TIMEOUT_SECONDS));
+    sample = await run(timeBoxed(`${wrapped(checked, '*')} LIMIT ${PREVIEW_ROWS}`, timeoutSeconds));
   } catch (error) {
     if (!(error instanceof HttpError)) throw error;
     // the query cannot be wrapped: count by fetching, one row past the cap
@@ -279,8 +308,8 @@ async function actionExportPreview(user, body) {
       validate(() =>
         validateSelect(sql, {
           enabledTables,
-          maxRows: EXPORT_MAX_ROWS + 1,
-          timeoutSeconds: EXPORT_TIMEOUT_SECONDS
+          maxRows: maxRows + 1,
+          timeoutSeconds: timeoutSeconds
         })
       )
     );
@@ -290,10 +319,10 @@ async function actionExportPreview(user, body) {
 
   const { columns, rows } = serializeRows(sample, { maxRows: PREVIEW_ROWS });
   return {
-    rowCount: Math.min(rowCount, EXPORT_MAX_ROWS),
+    rowCount: Math.min(rowCount, maxRows),
     totalRows: rowCount,
-    capped: rowCount > EXPORT_MAX_ROWS,
-    maxRows: EXPORT_MAX_ROWS,
+    capped: rowCount > maxRows,
+    maxRows: maxRows,
     columns,
     sample: rows
   };
@@ -303,10 +332,11 @@ async function actionExportPreview(user, body) {
 async function actionExportFile(user, body) {
   const { sql, enabledTables, run, validate } = await queryContext(user, body);
   const checked = validate(() => checkSelect(sql, { enabledTables }));
+  const { maxRows, timeoutSeconds } = await exportLimits();
 
   let rows;
   try {
-    rows = await run(timeBoxed(`${wrapped(checked, '*')} LIMIT ${EXPORT_MAX_ROWS}`, EXPORT_TIMEOUT_SECONDS));
+    rows = await run(timeBoxed(`${wrapped(checked, '*')} LIMIT ${maxRows}`, timeoutSeconds));
   } catch (error) {
     if (!(error instanceof HttpError)) throw error;
     rows = (
@@ -314,12 +344,12 @@ async function actionExportFile(user, body) {
         validate(() =>
           validateSelect(sql, {
             enabledTables,
-            maxRows: EXPORT_MAX_ROWS,
-            timeoutSeconds: EXPORT_TIMEOUT_SECONDS
+            maxRows: maxRows,
+            timeoutSeconds: timeoutSeconds
           })
         )
       )
-    ).slice(0, EXPORT_MAX_ROWS);
+    ).slice(0, maxRows);
   }
 
   const title = typeof body.title === 'string' ? body.title : '';
