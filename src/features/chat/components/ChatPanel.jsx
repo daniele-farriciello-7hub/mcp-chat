@@ -20,7 +20,7 @@ export default function ChatPanel({ context, uid, email, isAdmin = false, onNavi
         {isAdmin ? (
           <SettingsPanel onClose={() => setSettingsOpen(false)} />
         ) : (
-          <UserSettingsPanel onClose={() => setSettingsOpen(false)} />
+          <UserSettingsPanel uid={uid} onClose={() => setSettingsOpen(false)} />
         )}
       </div>
     );

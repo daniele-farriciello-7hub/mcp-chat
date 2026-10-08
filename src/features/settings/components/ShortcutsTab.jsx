@@ -79,8 +79,8 @@ export default function ShortcutsTab({ shortcuts, onChange, personalLimit = 0, o
           </h3>
           <p className="mt-1 text-[11px] leading-snug text-slate-soft">
             Ogni operatore non admin può crearsi le sue dall’ingranaggio o dalla schermata iniziale. Le vede
-            solo lui; qui sotto le vedi tutte. Per averne una tua, creala qui sopra scegliendo te stesso in
-            «Per chi».
+            solo lui; qui sotto le vedi tutte. Le tue, da admin, sono quelle qui sopra con «Per chi» uguale a
+            te: le puoi creare anche dalla schermata iniziale.
           </p>
         </div>
         <Switch

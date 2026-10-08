@@ -13,7 +13,7 @@ import ShortcutIcon from '@/features/settings/components/ShortcutIcon';
 import AgentMark from './AgentMark';
 import { historyNotice } from '@/features/history/historyNotice';
 import PersonalShortcuts from '@/features/shortcuts/PersonalShortcuts';
-import { shortcutsFor } from '@/features/shortcuts/personalShortcuts';
+import { isOnlyFor, shortcutsFor } from '@/features/shortcuts/personalShortcuts';
 
 const greeting = () => {
   const hour = new Date().getHours();
@@ -22,15 +22,19 @@ const greeting = () => {
   return 'Buonasera';
 };
 
+// for an admin, shortcuts assigned to them alone are "theirs" and show under «Le tue scorciatoie»
+const sharedFor = (shortcuts, uid, isAdmin) =>
+  shortcutsFor(shortcuts, uid).filter(s => !(isAdmin && isOnlyFor(s, uid)));
+
 export default function Welcome({ uid, isAdmin = false, userName, onAsk }) {
-  const [shortcuts, setShortcuts] = useState(shortcutsFor(DEFAULT_SETTINGS.shortcuts, uid));
+  const [shortcuts, setShortcuts] = useState(sharedFor(DEFAULT_SETTINGS.shortcuts, uid, isAdmin));
   const [showAiNotice, setShowAiNotice] = useState(DEFAULT_SETTINGS.showAiNotice);
   // the history notice, or null when operators are not told (or nothing is kept)
   const [historyText, setHistoryText] = useState(null);
 
   useEffect(() => {
     getSettings().then(settings => {
-      setShortcuts(shortcutsFor(settings.shortcuts, uid));
+      setShortcuts(sharedFor(settings.shortcuts, uid, isAdmin));
       setShowAiNotice(settings.showAiNotice !== false);
       setHistoryText(
         settings.historyEnabled && settings.showHistoryNotice !== false
@@ -38,7 +42,7 @@ export default function Welcome({ uid, isAdmin = false, userName, onAsk }) {
           : null
       );
     });
-  }, [uid]);
+  }, [uid, isAdmin]);
 
   return (
     <div className="wash-ai relative flex min-h-full flex-col">
@@ -86,8 +90,8 @@ export default function Welcome({ uid, isAdmin = false, userName, onAsk }) {
         </div>
       )}
 
-      {/* admins have no personal shortcuts: theirs are admin ones assigned to themselves */}
-      {uid && !isAdmin && <PersonalShortcuts onAsk={onAsk} />}
+      {/* operators: private shortcuts; admins: admin shortcuts assigned to themselves alone */}
+      {uid && <PersonalShortcuts uid={uid} isAdmin={isAdmin} onAsk={onAsk} />}
 
       <div className="flex-1" />
 

@@ -12,7 +12,7 @@ import IconPicker from '@/features/settings/components/IconPicker';
 import ShortcutIcon from '@/features/settings/components/ShortcutIcon';
 import { INPUT_CLASS } from '@/shared/ui/formStyles';
 import { SkeletonCards } from '@/shared/ui/Skeleton';
-import { loadPersonalShortcuts, savePersonalShortcuts } from './personalShortcuts';
+import { loadOwnShortcuts, saveOwnShortcuts } from './personalShortcuts';
 
 const EMPTY = { icon: 'question', title: '', description: '', prompt: '' };
 
@@ -76,7 +76,7 @@ function ShortcutForm({ initial, onSave, onCancel, saving, error }) {
   );
 }
 
-export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
+export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChanged, variant = 'welcome' }) {
   const inPanel = variant === 'panel';
   const [shortcuts, setShortcuts] = useState(null); // null while loading
   const [editing, setEditing] = useState(null); // null | 'new' | index
@@ -86,7 +86,7 @@ export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
   const [limit, setLimit] = useState(null); // set by the admin; null = no limit
 
   useEffect(() => {
-    loadPersonalShortcuts()
+    loadOwnShortcuts({ uid, isAdmin })
       .then(result => {
         setShortcuts(result.shortcuts);
         setLimit(result.limit);
@@ -95,13 +95,14 @@ export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
         console.warn('[shortcuts] load failed:', e?.message || e);
         setShortcuts([]);
       });
-  }, []);
+  }, [uid, isAdmin]);
 
   const persist = async next => {
     setSaving(true);
     setError(null);
     try {
-      setShortcuts(await savePersonalShortcuts(next));
+      setShortcuts(await saveOwnShortcuts({ uid, isAdmin }, next));
+      onChanged?.();
       setEditing(null);
       setConfirmDelete(null);
     } catch (e) {
