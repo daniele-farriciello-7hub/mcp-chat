@@ -174,21 +174,26 @@ export default function DatabaseTab({ settings, onChange }) {
             rangeLabels={['Più prudente', 'File più grandi']}
             onChange={value => onChange('exportMaxRows', value)}
           />
+          <p className={HELP_TEXT_CLASS}>
+            Se la richiesta trova più righe, il file contiene solo le prime e l’assistente lo dice. Ogni
+            export porta fuori dati di clienti: tienilo al minimo che serve.
+          </p>
           <Slider
-            label="Timeout per l’export"
+            label="Tempo massimo della query sul database"
             reading={`${settings.exportTimeoutSeconds} s`}
             min={10}
             max={50}
             step={5}
             value={settings.exportTimeoutSeconds}
-            rangeLabels={['Fallisce prima', 'Aspetta di più']}
+            rangeLabels={['Si ferma prima', 'Aspetta di più']}
             onChange={value => onChange('exportTimeoutSeconds', value)}
           />
           <p className={HELP_TEXT_CLASS}>
-            Ogni export rilegge le righe dal database del gestionale e porta fuori dati di clienti: tienilo al
-            minimo che serve. Oltre il tetto il file contiene solo le prime righe e l’assistente lo dice.
-            Massimo 200.000 righe e 50 secondi; con molte colonne un file molto grande può comunque non
-            riuscire.
+            Quanto può lavorare il database del gestionale (MariaDB) per estrarre le righe di un export: oltre
+            questo tempo è il database stesso a fermare la query, e l’operatore vede «Non riuscito, riprova».
+            Non riguarda il modello AI. Massimo 50 secondi, perché l’intero export (query, creazione del file
+            e invio) deve chiudersi entro il minuto concesso al server. Con molte colonne, un file vicino alle
+            200.000 righe può comunque non riuscire.
           </p>
         </Section>
       </div>
