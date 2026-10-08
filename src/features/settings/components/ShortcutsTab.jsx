@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import ShortcutEditor from './ShortcutEditor';
+import AllPersonalShortcuts from '@/features/shortcuts/AllPersonalShortcuts';
 import Switch from '@/shared/ui/Switch';
 import { HELP_TEXT_CLASS, INPUT_CLASS } from '@/shared/ui/formStyles';
 import { loadAppUsers } from '@/features/history/appUsers';
@@ -77,7 +78,9 @@ export default function ShortcutsTab({ shortcuts, onChange, personalLimit = 0, o
             Scorciatoie personali
           </h3>
           <p className="mt-1 text-[11px] leading-snug text-slate-soft">
-            Ogni operatore può crearsi le sue dall’ingranaggio o dalla schermata iniziale. Le vede solo lui.
+            Ogni operatore non admin può crearsi le sue dall’ingranaggio o dalla schermata iniziale. Le vede
+            solo lui; qui sotto le vedi tutte. Per averne una tua, creala qui sopra scegliendo te stesso in
+            «Per chi».
           </p>
         </div>
         <Switch
@@ -107,6 +110,7 @@ export default function ShortcutsTab({ shortcuts, onChange, personalLimit = 0, o
           Abbassarlo non cancella niente: chi ne ha già di più le tiene, ma non può aggiungerne finché non
           scende sotto il limite.
         </p>
+        <AllPersonalShortcuts />
       </div>
     </div>
   );

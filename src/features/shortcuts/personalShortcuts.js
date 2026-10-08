@@ -20,3 +20,9 @@ export async function savePersonalShortcuts(shortcuts) {
 /** The admin's shortcuts this user should see: those for everyone, and those assigned to them. */
 export const shortcutsFor = (shortcuts, uid) =>
   (shortcuts || []).filter(s => !s.uids?.length || (uid && s.uids.includes(uid)));
+
+/** Admin only (checked by the server): every operator's personal shortcuts, by owner. */
+export async function loadAllPersonalShortcuts() {
+  const { owners } = await callFunction('history', 'allShortcuts');
+  return owners || [];
+}

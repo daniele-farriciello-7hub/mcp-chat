@@ -60,3 +60,35 @@ export async function saveShortcuts(user, body) {
   await docOf(user.uid).set({ items, updatedAt: FieldValue.serverTimestamp() });
   return { shortcuts: items };
 }
+
+/**
+ * Admin only: every operator's personal shortcuts, with who they belong to. One read of the
+ * `chatUsers` pointers plus their `private/shortcuts` documents, all under this app's path.
+ */
+export async function listAllShortcuts() {
+  const db = getFirestore();
+  const pointers = await db.collection('apps/assistente-7hub/chatUsers').listDocuments();
+  const docs = pointers.length
+    ? await db.getAll(...pointers.map(ref => ref.collection('private').doc('shortcuts')))
+    : [];
+  const owners = docs.filter(d => d.exists && (d.data().items || []).length);
+  const users = owners.length
+    ? await db.getAll(...owners.map(d => db.doc(`users/${d.ref.parent.parent.id}`)))
+    : [];
+  const byUid = new Map(users.filter(u => u.exists).map(u => [u.id, u.data()]));
+  return {
+    owners: owners
+      .map(d => {
+        const uid = d.ref.parent.parent.id;
+        const user = byUid.get(uid) || {};
+        return {
+          uid,
+          email: user.email || '',
+          name: user.nome || '',
+          shortcuts: d.data().items,
+          updatedAt: d.data().updatedAt?.toMillis?.() ?? null
+        };
+      })
+      .sort((a, b) => (a.email || a.uid).localeCompare(b.email || b.uid))
+  };
+}

@@ -22,7 +22,7 @@ const greeting = () => {
   return 'Buonasera';
 };
 
-export default function Welcome({ uid, userName, onAsk }) {
+export default function Welcome({ uid, isAdmin = false, userName, onAsk }) {
   const [shortcuts, setShortcuts] = useState(shortcutsFor(DEFAULT_SETTINGS.shortcuts, uid));
   const [showAiNotice, setShowAiNotice] = useState(DEFAULT_SETTINGS.showAiNotice);
   // the history notice, or null when operators are not told (or nothing is kept)
@@ -86,7 +86,8 @@ export default function Welcome({ uid, userName, onAsk }) {
         </div>
       )}
 
-      {uid && <PersonalShortcuts onAsk={onAsk} />}
+      {/* admins have no personal shortcuts: theirs are admin ones assigned to themselves */}
+      {uid && !isAdmin && <PersonalShortcuts onAsk={onAsk} />}
 
       <div className="flex-1" />
 

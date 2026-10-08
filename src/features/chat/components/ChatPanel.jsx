@@ -41,6 +41,7 @@ export default function ChatPanel({ context, uid, email, isAdmin = false, onNavi
       />
       <MessageList
         uid={uid}
+        isAdmin={isAdmin}
         messages={messages}
         status={status}
         userName={context?.user?.name?.trim()}

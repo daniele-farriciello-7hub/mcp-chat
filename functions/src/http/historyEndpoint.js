@@ -4,7 +4,7 @@
  * read on every call.
  *
  * `restore`, `question`, `turn`, `reset` act on the caller's own conversations only — the user comes
- * from the token, never from the body. `list`, `transcript` and `users` read everyone's and are
+ * from the token, never from the body. `list`, `transcript`, `users` and `allShortcuts` read everyone's and are
  * admin-only.
  * Writes are refused (204, nothing stored) while `historyEnabled` is off in the settings: the
  * server does not take the browser's word for it.
@@ -22,7 +22,12 @@ import {
   restore,
   transcript
 } from '../history/historyStore.js';
-import { ShortcutsError, loadShortcutsWithLimit, saveShortcuts } from '../shortcuts/personalShortcuts.js';
+import {
+  ShortcutsError,
+  listAllShortcuts,
+  loadShortcutsWithLimit,
+  saveShortcuts
+} from '../shortcuts/personalShortcuts.js';
 
 const OPERATOR_ACTIONS = {
   restore: user => restore(user).then(conversation => ({ conversation })),
@@ -37,7 +42,8 @@ const ALWAYS_ON = new Set(['shortcuts', 'saveShortcuts']);
 const ADMIN_ACTIONS = {
   list: (_user, body) => listConversations(body),
   transcript: (_user, body) => transcript(body),
-  users: () => appUsers()
+  users: () => appUsers(),
+  allShortcuts: () => listAllShortcuts()
 };
 // these change data; with history off they are accepted and ignored, so an old tab does not error
 const WRITE_ACTIONS = new Set(['question', 'turn', 'reset']);
