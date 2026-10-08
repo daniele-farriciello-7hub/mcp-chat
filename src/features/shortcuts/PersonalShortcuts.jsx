@@ -12,7 +12,7 @@ import IconPicker from '@/features/settings/components/IconPicker';
 import ShortcutIcon from '@/features/settings/components/ShortcutIcon';
 import { INPUT_CLASS } from '@/shared/ui/formStyles';
 import { SkeletonCards } from '@/shared/ui/Skeleton';
-import { MAX_PERSONAL_SHORTCUTS, loadPersonalShortcuts, savePersonalShortcuts } from './personalShortcuts';
+import { loadPersonalShortcuts, savePersonalShortcuts } from './personalShortcuts';
 
 const EMPTY = { icon: 'question', title: '', description: '', prompt: '' };
 
@@ -110,14 +110,13 @@ export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
   if (shortcuts === null) {
     return inPanel ? <SkeletonCards count={3} /> : null;
   }
-  const full = shortcuts.length >= MAX_PERSONAL_SHORTCUTS;
 
   return (
     <div className={inPanel ? '' : 'relative z-10 mt-5 px-4'}>
       {inPanel ? (
         <p className="mb-3 text-[11px] leading-snug text-slate-soft">
           Le domande che fai spesso, a portata di un tocco nella schermata iniziale della chat. Le vedi solo
-          tu. Massimo {MAX_PERSONAL_SHORTCUTS}.
+          tu.
         </p>
       ) : (
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-soft">
@@ -214,18 +213,16 @@ export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
             onSave={draft => persist([...shortcuts, draft])}
           />
         ) : (
-          !full && (
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                setEditing('new');
-              }}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-line py-2.5 text-[13px] font-medium text-brand-600 transition hover:border-brand-300 hover:bg-brand-50/50"
-            >
-              <Plus size={15} /> Aggiungi una scorciatoia
-            </button>
-          )
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setEditing('new');
+            }}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-line py-2.5 text-[13px] font-medium text-brand-600 transition hover:border-brand-300 hover:bg-brand-50/50"
+          >
+            <Plus size={15} /> Aggiungi una scorciatoia
+          </button>
         )}
       </div>
     </div>

@@ -6,8 +6,6 @@
 
 import { callFunction } from '@/shared/firebase/functions';
 
-export const MAX_PERSONAL_SHORTCUTS = 12;
-
 export async function loadPersonalShortcuts() {
   const { shortcuts } = await callFunction('history', 'shortcuts');
   return shortcuts || [];

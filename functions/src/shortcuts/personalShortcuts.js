@@ -6,7 +6,9 @@
  */
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
-const MAX_SHORTCUTS = 12;
+// No limit for the operator. This only keeps the list inside Firestore's 1 MB per document (each
+// shortcut is at most ~1.3 KB), so an absurd list gets a clear error instead of a failed write.
+const MAX_SHORTCUTS = 500;
 const LIMITS = { icon: 30, title: 60, description: 120, prompt: 1000 };
 
 const docOf = uid => getFirestore().doc(`apps/assistente-7hub/chatUsers/${uid}/private/shortcuts`);
