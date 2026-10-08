@@ -27,7 +27,15 @@ function HeaderButton({ onClick, label, children }) {
 }
 
 /** The mark keeps morphing until the assistant is idle again: alive without writing "please wait". */
-export default function ChatHeader({ status, email, onOpenSettings, onReset, onSignOut, onClose }) {
+export default function ChatHeader({
+  status,
+  email,
+  onOpenSettings,
+  settingsLabel = 'Configurazione',
+  onReset,
+  onSignOut,
+  onClose
+}) {
   const busy = status !== 'idle';
   return (
     <div className="relative z-10 flex items-center gap-3 border-b border-line bg-white/90 px-4 py-3 backdrop-blur">
@@ -48,7 +56,7 @@ export default function ChatHeader({ status, email, onOpenSettings, onReset, onS
       </div>
 
       {onOpenSettings && (
-        <HeaderButton onClick={onOpenSettings} label="Configurazione">
+        <HeaderButton onClick={onOpenSettings} label={settingsLabel}>
           <Settings size={18} />
         </HeaderButton>
       )}

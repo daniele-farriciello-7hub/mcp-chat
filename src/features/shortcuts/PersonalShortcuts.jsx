@@ -1,6 +1,8 @@
 /**
- * "Le tue scorciatoie" on the welcome screen: the operator's own, created and edited right there.
- * Tapping one asks its question; the pencil edits, the bin removes (after a confirmation tap).
+ * The operator's own shortcuts. Two places, one component:
+ *   - `variant="welcome"`: "Le tue scorciatoie" on the welcome screen; tapping one asks its question.
+ *   - `variant="panel"`: the settings panel (the gear, for every user): tapping one edits it.
+ * The pencil edits, the bin removes (after a confirmation tap).
  */
 'use client';
 
@@ -73,7 +75,8 @@ function ShortcutForm({ initial, onSave, onCancel, saving, error }) {
   );
 }
 
-export default function PersonalShortcuts({ onAsk }) {
+export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
+  const inPanel = variant === 'panel';
   const [shortcuts, setShortcuts] = useState(null); // null while loading
   const [editing, setEditing] = useState(null); // null | 'new' | index
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -103,14 +106,28 @@ export default function PersonalShortcuts({ onAsk }) {
     }
   };
 
-  if (shortcuts === null) return null;
+  if (shortcuts === null) {
+    return inPanel ? <Loader2 size={16} className="animate-spin text-brand-500" /> : null;
+  }
   const full = shortcuts.length >= MAX_PERSONAL_SHORTCUTS;
 
   return (
-    <div className="relative z-10 mt-5 px-4">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-soft">
-        Le tue scorciatoie
-      </div>
+    <div className={inPanel ? '' : 'relative z-10 mt-5 px-4'}>
+      {inPanel ? (
+        <p className="mb-3 text-[11px] leading-snug text-slate-soft">
+          Le domande che fai spesso, a portata di un tocco nella schermata iniziale della chat. Le vedi solo
+          tu. Massimo {MAX_PERSONAL_SHORTCUTS}.
+        </p>
+      ) : (
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-soft">
+          Le tue scorciatoie
+        </div>
+      )}
+      {inPanel && !shortcuts.length && editing !== 'new' && (
+        <p className="mb-2 rounded-xl bg-surface px-3 py-3 text-center text-[12px] text-slate-soft">
+          Non hai ancora scorciatoie personali.
+        </p>
+      )}
       <div className="flex flex-col gap-2">
         {shortcuts.map((shortcut, i) =>
           editing === i ? (
@@ -129,7 +146,7 @@ export default function PersonalShortcuts({ onAsk }) {
             >
               <button
                 type="button"
-                onClick={() => onAsk(shortcut.prompt)}
+                onClick={() => (inPanel ? setEditing(i) : onAsk(shortcut.prompt))}
                 className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3 text-left"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500">
@@ -169,7 +186,7 @@ export default function PersonalShortcuts({ onAsk }) {
                       setEditing(i);
                     }}
                     aria-label={`Modifica ${shortcut.title}`}
-                    className="rounded-lg p-1.5 text-slate-soft opacity-0 transition hover:bg-surface hover:text-ink focus:opacity-100 group-hover:opacity-100"
+                    className={`rounded-lg p-1.5 text-slate-soft ${inPanel ? '' : 'opacity-0 focus:opacity-100 group-hover:opacity-100'} transition hover:bg-surface hover:text-ink`}
                   >
                     <Pencil size={14} />
                   </button>
@@ -177,7 +194,7 @@ export default function PersonalShortcuts({ onAsk }) {
                     type="button"
                     onClick={() => setConfirmDelete(i)}
                     aria-label={`Elimina ${shortcut.title}`}
-                    className="rounded-lg p-1.5 text-slate-soft opacity-0 transition hover:bg-danger-soft hover:text-danger focus:opacity-100 group-hover:opacity-100"
+                    className={`rounded-lg p-1.5 text-slate-soft ${inPanel ? '' : 'opacity-0 focus:opacity-100 group-hover:opacity-100'} transition hover:bg-danger-soft hover:text-danger`}
                   >
                     <Trash2 size={14} />
                   </button>

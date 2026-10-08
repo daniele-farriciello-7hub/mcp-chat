@@ -3,7 +3,8 @@ export const SETTINGS_TABS = [
   { id: 'shortcuts', name: 'Scorciatoie' },
   { id: 'documents', name: 'Documenti' },
   { id: 'database', name: 'Database' },
-  { id: 'history', name: 'Storico' }
+  { id: 'history', name: 'Storico' },
+  { id: 'personal', name: 'Personali' }
 ];
 
 export default function SettingsTabs({ activeTab, onChange }) {

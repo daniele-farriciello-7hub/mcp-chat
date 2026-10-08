@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import DocumentsTab from '@/features/documents/components/DocumentsTab';
 import DatabaseTab from '@/features/database/components/DatabaseTab';
 import HistoryTab from '@/features/history/components/HistoryTab';
+import PersonalShortcuts from '@/features/shortcuts/PersonalShortcuts';
 import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
 import { getSettings, saveSettings } from '@/features/settings/settingsStore';
 import ModelSettingsTab from './ModelSettingsTab';
@@ -75,7 +76,7 @@ export default function SettingsPanel({ onClose }) {
   // settings object on that tab: no save bar, no reset block. Database is mixed (see the comment
   // above) and keeps both — its connections/tables ignore the reset regardless, since they never
   // come from DEFAULT_SETTINGS in the first place.
-  const savesItself = activeTab === 'documents';
+  const savesItself = activeTab === 'documents' || activeTab === 'personal';
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -90,6 +91,7 @@ export default function SettingsPanel({ onClose }) {
         {activeTab === 'documents' && <DocumentsTab />}
         {activeTab === 'database' && <DatabaseTab settings={settings} onChange={update} />}
         {activeTab === 'history' && <HistoryTab settings={settings} onChange={update} />}
+        {activeTab === 'personal' && <PersonalShortcuts variant="panel" />}
 
         {!savesItself && (
           <div className="mt-8 border-t border-line pt-4">
