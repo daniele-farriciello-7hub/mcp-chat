@@ -11,6 +11,7 @@ import { Check, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import IconPicker from '@/features/settings/components/IconPicker';
 import ShortcutIcon from '@/features/settings/components/ShortcutIcon';
 import { INPUT_CLASS } from '@/shared/ui/formStyles';
+import { SkeletonCards } from '@/shared/ui/Skeleton';
 import { MAX_PERSONAL_SHORTCUTS, loadPersonalShortcuts, savePersonalShortcuts } from './personalShortcuts';
 
 const EMPTY = { icon: 'question', title: '', description: '', prompt: '' };
@@ -107,7 +108,7 @@ export default function PersonalShortcuts({ onAsk, variant = 'welcome' }) {
   };
 
   if (shortcuts === null) {
-    return inPanel ? <Loader2 size={16} className="animate-spin text-brand-500" /> : null;
+    return inPanel ? <SkeletonCards count={3} /> : null;
   }
   const full = shortcuts.length >= MAX_PERSONAL_SHORTCUTS;
 
