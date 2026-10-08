@@ -6,8 +6,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Loader2, MessagesSquare } from 'lucide-react';
+import { Download, MessagesSquare } from 'lucide-react';
 import Section from '@/shared/ui/Section';
+import { SkeletonDashboard } from '@/shared/ui/Skeleton';
 import Switch from '@/shared/ui/Switch';
 import { HELP_TEXT_CLASS, INPUT_CLASS } from '@/shared/ui/formStyles';
 import { downloadXlsx } from '@/shared/xlsx';
@@ -325,9 +326,10 @@ export default function HistoryTab({ settings, onChange }) {
             è normale.
           </p>
         )}
-        {loading && !loaded.length && <Loader2 size={16} className="animate-spin text-brand-500" />}
+        {loading && !loaded.length && <SkeletonDashboard />}
 
-        {!error && (
+        {/* first load: the skeleton stands in for tiles and charts, not zeros that look like data */}
+        {!error && !(loading && !loaded.length) && (
           <>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <Kpi label="Conversazioni" value={formatNumber(numbers.conversations)} />

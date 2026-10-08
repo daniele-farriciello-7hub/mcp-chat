@@ -4,7 +4,7 @@
  * read on every call.
  *
  * `restore`, `question`, `turn`, `reset` act on the caller's own conversations only — the user comes
- * from the token, never from the body. `list`, `transcript` and `users` read everyone's and are
+ * from the token, never from the body. `list`, `transcript`, `users` and `allShortcuts` read everyone's and are
  * admin-only.
  * Writes are refused (204, nothing stored) while `historyEnabled` is off in the settings: the
  * server does not take the browser's word for it.
@@ -22,17 +22,28 @@ import {
   restore,
   transcript
 } from '../history/historyStore.js';
+import {
+  ShortcutsError,
+  listAllShortcuts,
+  loadShortcutsWithLimit,
+  saveShortcuts
+} from '../shortcuts/personalShortcuts.js';
 
 const OPERATOR_ACTIONS = {
   restore: user => restore(user).then(conversation => ({ conversation })),
   question: (user, body, settings) => recordQuestion(user, body, settings.retentionDays),
   turn: (user, body) => recordTurn(user, body),
-  reset: user => endConversation(user)
+  reset: user => endConversation(user),
+  // the caller's own welcome-screen shortcuts: not history, so they work with history off too
+  shortcuts: user => loadShortcutsWithLimit(user),
+  saveShortcuts: (user, body) => saveShortcuts(user, body)
 };
+const ALWAYS_ON = new Set(['shortcuts', 'saveShortcuts']);
 const ADMIN_ACTIONS = {
   list: (_user, body) => listConversations(body),
   transcript: (_user, body) => transcript(body),
-  users: () => appUsers()
+  users: () => appUsers(),
+  allShortcuts: () => listAllShortcuts()
 };
 // these change data; with history off they are accepted and ignored, so an old tab does not error
 const WRITE_ACTIONS = new Set(['question', 'turn', 'reset']);
@@ -65,13 +76,15 @@ export async function handleHistoryRequest(req, res) {
 
   try {
     const settings = await historySettings();
-    if (!settings.enabled && !isAdminAction) {
+    if (!settings.enabled && !isAdminAction && !ALWAYS_ON.has(action)) {
       if (WRITE_ACTIONS.has(action)) return res.status(200).json({ disabled: true });
       return res.status(200).json({ conversation: null, disabled: true });
     }
     return res.status(200).json(await handler(user, req.body || {}, settings));
   } catch (error) {
-    if (error instanceof HistoryError) return res.status(error.status).json({ error: error.message });
+    if (error instanceof HistoryError || error instanceof ShortcutsError) {
+      return res.status(error.status).json({ error: error.message });
+    }
     console.error(`history ${action} failed`, error);
     return res.status(500).json({ error: 'Internal service error.' });
   }

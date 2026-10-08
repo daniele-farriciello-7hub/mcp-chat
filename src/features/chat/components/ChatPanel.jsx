@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import SettingsPanel from '@/features/settings/components/SettingsPanel';
+import UserSettingsPanel from '@/features/settings/components/UserSettingsPanel';
 import { useConversation } from '@/features/chat/useConversation';
 import ChatHeader from './ChatHeader';
 import ChatInput from './ChatInput';
@@ -15,7 +16,12 @@ export default function ChatPanel({ context, uid, email, isAdmin = false, onNavi
   if (settingsOpen) {
     return (
       <div className="panel-root">
-        <SettingsPanel onClose={() => setSettingsOpen(false)} />
+        {/* admins get the whole configuration; everyone else only their own shortcuts */}
+        {isAdmin ? (
+          <SettingsPanel onClose={() => setSettingsOpen(false)} />
+        ) : (
+          <UserSettingsPanel uid={uid} onClose={() => setSettingsOpen(false)} />
+        )}
       </div>
     );
   }
@@ -25,7 +31,8 @@ export default function ChatPanel({ context, uid, email, isAdmin = false, onNavi
       <ChatHeader
         status={status}
         email={email}
-        onOpenSettings={isAdmin ? () => setSettingsOpen(true) : undefined}
+        onOpenSettings={uid ? () => setSettingsOpen(true) : undefined}
+        settingsLabel={isAdmin ? 'Configurazione' : 'Le mie scorciatoie'}
         // hidden mid-reply: closing the conversation while its last turn is still being written
         // would leave that turn's history write pointing at a conversation already ended
         onReset={messages.length > 0 && status === 'idle' ? reset : undefined}
@@ -33,6 +40,8 @@ export default function ChatPanel({ context, uid, email, isAdmin = false, onNavi
         onClose={onClose}
       />
       <MessageList
+        uid={uid}
+        isAdmin={isAdmin}
         messages={messages}
         status={status}
         userName={context?.user?.name?.trim()}

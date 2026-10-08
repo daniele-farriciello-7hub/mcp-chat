@@ -5,7 +5,10 @@ export const isTransientError = error => TRANSIENT_ERROR.test(String(error?.mess
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 /** Runs `task`, retrying transient failures (overload, rate limit, 5xx) with exponential backoff. */
-export async function withRetry(task, { attempts = 4, baseDelayMs = 2000, shouldRetry = isTransientError } = {}) {
+export async function withRetry(
+  task,
+  { attempts = 4, baseDelayMs = 2000, shouldRetry = isTransientError } = {}
+) {
   for (let attempt = 1; ; attempt++) {
     try {
       return await task();

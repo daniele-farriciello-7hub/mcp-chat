@@ -4,9 +4,10 @@ import { INPUT_CLASS } from '@/shared/ui/formStyles';
 import Tooltip from '@/shared/ui/Tooltip';
 import IconPicker from './IconPicker';
 import ShortcutIcon from './ShortcutIcon';
+import UserMultiSelect from '@/features/history/components/UserMultiSelect';
 
 /** How the shortcut looks in the welcome screen; also the row you tap to expand the editor. */
-function ShortcutPreview({ icon, title, description }) {
+function ShortcutPreview({ icon, title, description, uids }) {
   return (
     <span className="flex min-w-0 flex-1 items-center gap-2.5">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-brand-50 text-brand-500">
@@ -19,6 +20,9 @@ function ShortcutPreview({ icon, title, description }) {
         <span className="block truncate text-[11px] text-slate-soft">
           {description || 'Una riga che spiega a cosa serve'}
         </span>
+        <span className="block text-[10px] font-medium text-brand-600">
+          {uids?.length ? `Solo per ${uids.length} ${uids.length === 1 ? 'utente' : 'utenti'}` : 'Per tutti'}
+        </span>
       </span>
     </span>
   );
@@ -29,6 +33,7 @@ const ICON_BUTTON_CLASS =
 
 export default function ShortcutEditor({
   shortcut,
+  users,
   index,
   count,
   expanded,
@@ -81,6 +86,17 @@ export default function ShortcutEditor({
               value={shortcut.prompt}
               onChange={e => onChange('prompt', e.target.value)}
               className={INPUT_CLASS}
+            />
+          </Field>
+
+          <Field
+            label="Per chi"
+            help="Nessuno scelto: lo vedono tutti. Altrimenti solo gli utenti scelti, oltre alle loro scorciatoie personali."
+          >
+            <UserMultiSelect
+              users={users}
+              selected={new Set(shortcut.uids || [])}
+              onChange={selected => onChange('uids', [...selected])}
             />
           </Field>
 

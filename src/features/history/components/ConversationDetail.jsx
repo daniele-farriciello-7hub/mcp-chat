@@ -5,9 +5,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import MessageBubble from '@/features/chat/components/MessageBubble';
 import { loadTranscript } from '../historyApi';
+import { SkeletonConversation } from '@/shared/ui/Skeleton';
 
 function ReplyMeta({ message }) {
   const parts = [
@@ -50,7 +51,7 @@ export default function ConversationDetail({ conversation, onBack }) {
       </div>
 
       {error && <p className="text-[12px] text-danger">Non riesco a leggere questa conversazione.</p>}
-      {!messages && !error && <Loader2 size={16} className="animate-spin text-brand-500" />}
+      {!messages && !error && <SkeletonConversation />}
       {messages?.length === 0 && <p className="text-[12px] text-slate-soft">Nessun messaggio salvato.</p>}
       <div className="flex flex-col gap-3">
         {visible?.map(m => (

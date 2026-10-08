@@ -85,7 +85,12 @@ export default function SettingsPanel({ onClose }) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {activeTab === 'model' && <ModelSettingsTab settings={settings} onChange={update} />}
         {activeTab === 'shortcuts' && (
-          <ShortcutsTab shortcuts={settings.shortcuts} onChange={value => update('shortcuts', value)} />
+          <ShortcutsTab
+            shortcuts={settings.shortcuts}
+            onChange={value => update('shortcuts', value)}
+            personalLimit={settings.personalShortcutsLimit}
+            onPersonalLimitChange={value => update('personalShortcutsLimit', value)}
+          />
         )}
         {activeTab === 'documents' && <DocumentsTab />}
         {activeTab === 'database' && <DatabaseTab settings={settings} onChange={update} />}

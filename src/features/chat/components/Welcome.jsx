@@ -1,6 +1,7 @@
 /**
  * Opening screen: the assistant says who it is and what it can do. The greeting uses the operator's
- * name and the time of day; the shortcuts come from settings and tapping one asks the question.
+ * name and the time of day. Shortcuts: the admin's (for everyone, or assigned to this user) and the
+ * operator's own (`PersonalShortcuts`); tapping one asks the question.
  */
 'use client';
 
@@ -11,6 +12,8 @@ import { getSettings } from '@/features/settings/settingsStore';
 import ShortcutIcon from '@/features/settings/components/ShortcutIcon';
 import AgentMark from './AgentMark';
 import { historyNotice } from '@/features/history/historyNotice';
+import PersonalShortcuts from '@/features/shortcuts/PersonalShortcuts';
+import { isOnlyFor, shortcutsFor } from '@/features/shortcuts/personalShortcuts';
 
 const greeting = () => {
   const hour = new Date().getHours();
@@ -19,15 +22,19 @@ const greeting = () => {
   return 'Buonasera';
 };
 
-export default function Welcome({ userName, onAsk }) {
-  const [shortcuts, setShortcuts] = useState(DEFAULT_SETTINGS.shortcuts);
+// for an admin, shortcuts assigned to them alone are "theirs" and show under «Le tue scorciatoie»
+const sharedFor = (shortcuts, uid, isAdmin) =>
+  shortcutsFor(shortcuts, uid).filter(s => !(isAdmin && isOnlyFor(s, uid)));
+
+export default function Welcome({ uid, isAdmin = false, userName, onAsk }) {
+  const [shortcuts, setShortcuts] = useState(sharedFor(DEFAULT_SETTINGS.shortcuts, uid, isAdmin));
   const [showAiNotice, setShowAiNotice] = useState(DEFAULT_SETTINGS.showAiNotice);
   // the history notice, or null when operators are not told (or nothing is kept)
   const [historyText, setHistoryText] = useState(null);
 
   useEffect(() => {
     getSettings().then(settings => {
-      setShortcuts(settings.shortcuts);
+      setShortcuts(sharedFor(settings.shortcuts, uid, isAdmin));
       setShowAiNotice(settings.showAiNotice !== false);
       setHistoryText(
         settings.historyEnabled && settings.showHistoryNotice !== false
@@ -35,7 +42,7 @@ export default function Welcome({ userName, onAsk }) {
           : null
       );
     });
-  }, []);
+  }, [uid, isAdmin]);
 
   return (
     <div className="wash-ai relative flex min-h-full flex-col">
@@ -48,38 +55,43 @@ export default function Welcome({ userName, onAsk }) {
         </h2>
       </div>
 
-      <div className="relative z-10 px-4">
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-soft">
-          Cosa posso fare
-        </div>
-        <div className="flex flex-col gap-2">
-          {shortcuts.map(({ icon, title, description, prompt }, i) => {
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onAsk(prompt)}
-                className="group flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-3.5 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:bg-brand-50/60 hover:shadow-soft"
-                style={{ animation: 'var(--animate-fade-up)', animationDelay: `${i * 70}ms` }}
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500 transition-transform duration-300 group-hover:scale-110">
-                    <ShortcutIcon id={icon} size={18} strokeWidth={2.25} />
+      {shortcuts.length > 0 && (
+        <div className="relative z-10 px-4">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-soft">
+            Cosa posso fare
+          </div>
+          <div className="flex flex-col gap-2">
+            {shortcuts.map(({ icon, title, description, prompt }, i) => {
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onAsk(prompt)}
+                  className="group flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-3.5 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:bg-brand-50/60 hover:shadow-soft"
+                  style={{ animation: 'var(--animate-fade-up)', animationDelay: `${i * 70}ms` }}
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500 transition-transform duration-300 group-hover:scale-110">
+                      <ShortcutIcon id={icon} size={18} strokeWidth={2.25} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[14px] font-semibold text-ink">{title}</span>
+                      <span className="block text-[12px] leading-snug text-slate-soft">{description}</span>
+                    </span>
                   </span>
-                  <span className="min-w-0">
-                    <span className="block text-[14px] font-semibold text-ink">{title}</span>
-                    <span className="block text-[12px] leading-snug text-slate-soft">{description}</span>
-                  </span>
-                </span>
-                <ChevronRight
-                  size={16}
-                  className="shrink-0 text-slate-soft transition-transform group-hover:translate-x-0.5"
-                />
-              </button>
-            );
-          })}
+                  <ChevronRight
+                    size={16}
+                    className="shrink-0 text-slate-soft transition-transform group-hover:translate-x-0.5"
+                  />
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* operators: private shortcuts; admins: admin shortcuts assigned to themselves alone */}
+      {uid && <PersonalShortcuts uid={uid} isAdmin={isAdmin} onAsk={onAsk} />}
 
       <div className="flex-1" />
 

@@ -58,6 +58,16 @@ export async function getSettings({ refresh = false } = {}) {
   return cached;
 }
 
+/**
+ * Changes only the given fields, on top of a fresh read: for small edits made outside the settings
+ * panel (an admin's own shortcuts from the welcome screen), so they never overwrite settings someone
+ * else saved in the meantime with this tab's older copy.
+ */
+export async function saveSettingsFields(fields) {
+  await setDoc(settingsDoc(), fields, { merge: true });
+  return getSettings({ refresh: true });
+}
+
 export async function saveSettings(settings) {
   await setDoc(settingsDoc(), settings, { merge: true });
   cached = withDefaults(settings);

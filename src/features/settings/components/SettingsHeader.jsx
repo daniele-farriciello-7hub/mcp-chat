@@ -1,7 +1,12 @@
 import { ArrowLeft } from 'lucide-react';
 import Tooltip from '@/shared/ui/Tooltip';
 
-export default function SettingsHeader({ onClose, hasUnsavedChanges }) {
+export default function SettingsHeader({
+  onClose,
+  hasUnsavedChanges,
+  title = 'Configurazione',
+  subtitle = 'Vale per tutti, dalla conversazione successiva'
+}) {
   return (
     <div className="flex items-center gap-2 px-3 pb-2.5 pt-3">
       <Tooltip label="Torna alla chat" align="left">
@@ -15,8 +20,8 @@ export default function SettingsHeader({ onClose, hasUnsavedChanges }) {
         </button>
       </Tooltip>
       <div className="min-w-0 flex-1">
-        <div className="text-[15px] font-bold leading-tight text-ink">Configurazione</div>
-        <div className="text-[11px] text-slate-soft">Vale per tutti, dalla conversazione successiva</div>
+        <div className="text-[15px] font-bold leading-tight text-ink">{title}</div>
+        <div className="text-[11px] text-slate-soft">{subtitle}</div>
       </div>
       {hasUnsavedChanges && (
         <span className="flex shrink-0 items-center gap-1.5 rounded-pill bg-accent-soft px-2 py-1 text-[10px] font-semibold text-warn">

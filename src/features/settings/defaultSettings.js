@@ -121,6 +121,9 @@ export const DEFAULT_SETTINGS = {
   showHistoryNotice: true,
   // its text; {giorni} becomes historyRetentionDays. Empty = this default (see historyNotice.js)
   historyNoticeText: '',
+  // most personal shortcuts each operator may create; 0 = no limit. Enforced by the server
+  // (functions/src/shortcuts/personalShortcuts.js), which reads it from here
+  personalShortcutsLimit: 0,
   shortcuts: [
     {
       icon: 'documents',
