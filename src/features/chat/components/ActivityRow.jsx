@@ -17,6 +17,7 @@ import { Check, Database, Download, ExternalLink, FileText, Loader2 } from 'luci
 import Tooltip from '@/shared/ui/Tooltip';
 import { getDocumentUrlById } from '@/features/documents/documentStore';
 import { downloadXlsx, slugify } from '@/shared/xlsx';
+import { downloadFunctionFile } from '@/shared/firebase/functions';
 
 /** Opens the document the assistant just read, so the operator can check the source. */
 function OpenDocumentButton({ documentId, documentName }) {
@@ -105,8 +106,51 @@ function DownloadButton({ filenameHint, columns, rows }) {
   );
 }
 
+/**
+ * Download of a server-side export (`export_database`): the server runs the query again and builds
+ * the file on click, so it holds the data of that moment and no rows ever sit in the browser.
+ */
+function ServerDownloadButton({ exportQuery }) {
+  const [state, setState] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'failed'
+
+  const save = async () => {
+    setState('saving');
+    try {
+      await downloadFunctionFile('database', 'exportFile', exportQuery);
+      setState('saved');
+    } catch (error) {
+      console.error('[chat] server export failed:', error);
+      setState('failed');
+    }
+    setTimeout(() => setState('idle'), 3000);
+  };
+
+  const label =
+    state === 'saving' ? 'Preparo il file…' : state === 'failed' ? 'Non riuscito, riprova' : 'Scarica Excel';
+  return (
+    <Tooltip label={label} align="right" className="self-center">
+      <button
+        type="button"
+        onClick={save}
+        disabled={state === 'saving'}
+        aria-label={label}
+        className="rounded-lg p-1.5 text-slate-soft transition hover:bg-surface hover:text-brand-600 disabled:opacity-40"
+      >
+        {state === 'saved' ? (
+          <Check size={14} className="text-ok" />
+        ) : state === 'saving' ? (
+          <Loader2 size={14} className="animate-spin" />
+        ) : (
+          <Download size={14} className={state === 'failed' ? 'text-danger' : undefined} />
+        )}
+      </button>
+    </Tooltip>
+  );
+}
+
 export default function ActivityRow({ activity }) {
-  const { label, documentName, documentId, databaseLabel, exportTitle, columns, rows } = activity;
+  const { label, documentName, documentId, databaseLabel, exportTitle, columns, rows, detail, exportQuery } =
+    activity;
 
   return (
     <div
@@ -136,10 +180,13 @@ export default function ActivityRow({ activity }) {
               <span className="font-semibold">{databaseLabel}</span>
             </>
           )}
+          {exportQuery && exportTitle && <span className="font-semibold"> {exportTitle}</span>}
         </div>
+        {exportQuery && detail && <div className="mt-0.5 text-[11px] text-slate-soft">{detail}</div>}
       </div>
 
       {documentId && <OpenDocumentButton documentId={documentId} documentName={documentName} />}
+      {exportQuery && <ServerDownloadButton exportQuery={exportQuery} />}
       {rows?.length > 0 && (
         <DownloadButton filenameHint={exportTitle || databaseLabel} columns={columns} rows={rows} />
       )}

@@ -56,3 +56,37 @@ export async function callFunction(functionName, path, body = {}) {
   if (!response.ok) throw new FunctionCallError(data.error || `Errore ${response.status}`, response.status);
   return data;
 }
+
+/**
+ * POSTs like `callFunction`, for an action that answers with a file (`database/exportFile`), and
+ * saves it in the browser. The file name comes from the server's Content-Disposition.
+ */
+export async function downloadFunctionFile(functionName, path, body = {}) {
+  const user = auth.currentUser;
+  if (!user) throw new FunctionCallError('Devi essere autenticato.', 401);
+  const idToken = await user.getIdToken();
+
+  let response;
+  try {
+    response = await fetch(`${functionsBaseUrl()}/${functionName}/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify(body)
+    });
+  } catch {
+    throw new FunctionCallError('Il server non risponde. Controlla la connessione.', 0);
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new FunctionCallError(data.error || `Errore ${response.status}`, response.status);
+  }
+
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] || 'export.xlsx';
+  const url = URL.createObjectURL(await response.blob());
+  const link = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

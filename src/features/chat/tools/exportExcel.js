@@ -21,7 +21,8 @@ export const EXPORT_EXCEL_TOOL = {
       name: EXPORT_EXCEL_TOOL_NAME,
       description:
         'Mostra un pulsante per scaricare come file Excel una tabella di dati che hai già in mano — da ' +
-        'una query, da documenti che hai letto, o da un confronto che hai costruito tu. Usalo SOLO quando ' +
+        'documenti che hai letto, o da un confronto che hai costruito tu. Per le righe del database usa ' +
+        'invece export_database, che non ha bisogno che tu le riscriva. Usalo SOLO quando ' +
         "l'operatore ha chiesto esplicitamente di esportare, scaricare o avere un file: mai di tua " +
         'iniziativa. Non scrivere mai i dati nel testo della risposta, in un blocco di codice o altrove: ' +
         'chiama questo strumento, il pulsante compare da solo sopra alla risposta. Dopo averlo chiamato, ' +

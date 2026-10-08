@@ -14,7 +14,8 @@ initializeApp({ storageBucket: 'mappa-contatti-217007.firebasestorage.app' });
 export const tools = onRequest(handleToolRequest);
 // timeoutSeconds below the 60s gen2 default: a long-running query must not leave the browser
 // hanging past the function's own budget (plan edge case 18)
-export const database = onRequest({ timeoutSeconds: 30 }, handleDatabaseRequest);
+// 60s and 1GiB: an export (exportFile) runs a query of up to 45s and builds a file of up to 50k rows
+export const database = onRequest({ timeoutSeconds: 60, memory: '1GiB' }, handleDatabaseRequest);
 
 // conversation history: the browser never touches those collections, it goes through here
 export const history = onRequest({ timeoutSeconds: 30 }, handleHistoryRequest);

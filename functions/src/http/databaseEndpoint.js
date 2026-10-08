@@ -21,7 +21,8 @@ import {
 } from '../db/mysqlClient.js';
 import { scanSchema } from '../db/introspect.js';
 import { sampleTableRows } from '../db/sampleRows.js';
-import { InvalidQueryError, validateSelect } from '../db/validateSelect.js';
+import { InvalidQueryError, checkSelect, timeBoxed, validateSelect } from '../db/validateSelect.js';
+import { buildXlsx } from '../db/xlsx.js';
 import { serializeRows } from '../db/serializeRows.js';
 
 const ROOT = 'apps/assistente-7hub';
@@ -177,7 +178,11 @@ async function actionSample(_user, body) {
   }
 }
 
-async function actionQuery(user, body) {
+/**
+ * What every query action needs before running SQL: the enabled connection, its enabled tables (the
+ * allowlist), and a runner that applies the per-user filter when the connection is user-scoped.
+ */
+async function queryContext(user, body) {
   const connectionId = requireString(body, 'connectionId');
   const sql = requireString(body, 'sql');
 
@@ -188,26 +193,6 @@ async function actionQuery(user, body) {
 
   const tableSnap = await tablesCollection(connectionId).where('enabled', '==', true).get();
   const enabledTables = new Set(tableSnap.docs.map(d => d.data().name.toLowerCase()));
-
-  // both configurable from the admin panel (settings.maxQueryRows / settings.queryTimeoutSeconds);
-  // the ceiling on timeoutSeconds is enforced here regardless of what the client sends — it must
-  // stay well under the function's own 30s HTTP timeout (functions/index.js), with headroom for
-  // connection setup and row serialization, or the operator gets a raw 504 instead of a clean error
-  const maxRows = Number(body.maxRows) > 0 ? Number(body.maxRows) : 500;
-  const requestedTimeout = Number(body.timeoutSeconds) > 0 ? Number(body.timeoutSeconds) : 15;
-  const timeoutSeconds = Math.min(requestedTimeout, 25);
-
-  let statement;
-  try {
-    statement = validateSelect(sql, { enabledTables, maxRows, timeoutSeconds });
-  } catch (error) {
-    if (error instanceof InvalidQueryError) {
-      // the raw reason goes back to the model as-is: it needs the real cause to self-correct,
-      // not a sentence written for a human admin (plan edge case 16)
-      throw new HttpError(400, error.message);
-    }
-    throw error;
-  }
 
   // user-scoped: the connection points at the customer's star views, which filter on who is asking
   // (`queryAsUser`). The email comes from the verified Firebase token, never from the request body.
@@ -220,18 +205,154 @@ async function actionQuery(user, body) {
     console.warn('database query with UNVERIFIED email (test mode)', { uid: user.uid, connectionId });
   }
 
+  const run = async statement => {
+    try {
+      const rows = userScoped
+        ? await queryAsUser(connectionId, user.email, statement)
+        : await withConnection(connectionId, async pool => (await pool.query(statement))[0]);
+      return Array.isArray(rows) ? rows : [];
+    } catch (error) {
+      throw new HttpError(400, error?.sqlMessage || error?.message || 'query failed');
+    }
+  };
+
+  // the raw reason goes back to the model as-is: it needs the real cause to self-correct, not a
+  // sentence written for a human admin (plan edge case 16)
+  const validate = fn => {
+    try {
+      return fn();
+    } catch (error) {
+      if (error instanceof InvalidQueryError) throw new HttpError(400, error.message);
+      throw error;
+    }
+  };
+
+  return { connectionId, sql, enabledTables, run, validate };
+}
+
+async function actionQuery(user, body) {
+  const { sql, enabledTables, run, validate } = await queryContext(user, body);
+
+  // both configurable from the admin panel (settings.maxQueryRows / settings.queryTimeoutSeconds);
+  // the ceiling on timeoutSeconds is enforced here regardless of what the client sends — it must
+  // stay well under the function's own HTTP timeout (functions/index.js), with headroom for
+  // connection setup and row serialization, or the operator gets a raw 504 instead of a clean error
+  const maxRows = Number(body.maxRows) > 0 ? Number(body.maxRows) : 500;
+  const requestedTimeout = Number(body.timeoutSeconds) > 0 ? Number(body.timeoutSeconds) : 15;
+  const timeoutSeconds = Math.min(requestedTimeout, 25);
+
+  const statement = validate(() => validateSelect(sql, { enabledTables, maxRows, timeoutSeconds }));
   const started = Date.now();
+  const rows = await run(statement);
+  return { ...serializeRows(rows, { maxRows }), tookMs: Date.now() - started };
+}
+
+// ── large exports: the rows go straight from the database into a file, never through the model ──
+
+/** Most rows one export file may hold. */
+export const EXPORT_MAX_ROWS = 50_000;
+const EXPORT_TIMEOUT_SECONDS = 45;
+const PREVIEW_ROWS = 3;
+
+/**
+ * The model's query wrapped as a derived table, so a count, a preview or the export cap apply on
+ * top of whatever LIMIT or GROUP BY it already has. MariaDB rejects some shapes inside a derived
+ * table (a WITH clause, on older versions): callers fall back to the plain query.
+ */
+const wrapped = (checked, outer) => `SELECT ${outer} FROM (${checked}) AS export_rows`;
+
+/** For the model: how many rows the file would hold, the columns, a few rows to describe it. */
+async function actionExportPreview(user, body) {
+  const { sql, enabledTables, run, validate } = await queryContext(user, body);
+  const checked = validate(() => checkSelect(sql, { enabledTables }));
+
+  let rowCount;
+  let sample;
+  try {
+    const [{ n }] = await run(timeBoxed(wrapped(checked, 'COUNT(*) AS n'), EXPORT_TIMEOUT_SECONDS));
+    rowCount = Number(n);
+    sample = await run(timeBoxed(`${wrapped(checked, '*')} LIMIT ${PREVIEW_ROWS}`, EXPORT_TIMEOUT_SECONDS));
+  } catch (error) {
+    if (!(error instanceof HttpError)) throw error;
+    // the query cannot be wrapped: count by fetching, one row past the cap
+    const rows = await run(
+      validate(() =>
+        validateSelect(sql, {
+          enabledTables,
+          maxRows: EXPORT_MAX_ROWS + 1,
+          timeoutSeconds: EXPORT_TIMEOUT_SECONDS
+        })
+      )
+    );
+    rowCount = rows.length;
+    sample = rows.slice(0, PREVIEW_ROWS);
+  }
+
+  const { columns, rows } = serializeRows(sample, { maxRows: PREVIEW_ROWS });
+  return {
+    rowCount: Math.min(rowCount, EXPORT_MAX_ROWS),
+    totalRows: rowCount,
+    capped: rowCount > EXPORT_MAX_ROWS,
+    maxRows: EXPORT_MAX_ROWS,
+    columns,
+    sample: rows
+  };
+}
+
+/** The .xlsx itself, generated when the operator clicks: the data are those of that moment. */
+async function actionExportFile(user, body) {
+  const { sql, enabledTables, run, validate } = await queryContext(user, body);
+  const checked = validate(() => checkSelect(sql, { enabledTables }));
+
   let rows;
   try {
-    rows = userScoped
-      ? await queryAsUser(connectionId, user.email, statement)
-      : await withConnection(connectionId, async pool => (await pool.query(statement))[0]);
+    rows = await run(timeBoxed(`${wrapped(checked, '*')} LIMIT ${EXPORT_MAX_ROWS}`, EXPORT_TIMEOUT_SECONDS));
   } catch (error) {
-    throw new HttpError(400, error?.sqlMessage || error?.message || 'query failed');
+    if (!(error instanceof HttpError)) throw error;
+    rows = (
+      await run(
+        validate(() =>
+          validateSelect(sql, {
+            enabledTables,
+            maxRows: EXPORT_MAX_ROWS,
+            timeoutSeconds: EXPORT_TIMEOUT_SECONDS
+          })
+        )
+      )
+    ).slice(0, EXPORT_MAX_ROWS);
   }
-  const tookMs = Date.now() - started;
 
-  return { ...serializeRows(Array.isArray(rows) ? rows : [], { maxRows }), tookMs };
+  const title = typeof body.title === 'string' ? body.title : '';
+  return { file: { buffer: buildXlsx(rows), filename: exportFilename(title) } };
+}
+
+/** yyyymmdd-hhmm in Rome, like the browser-side export, so files sort together in Downloads. */
+function exportFilename(title) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Rome',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
+      .formatToParts(new Date())
+      .map(p => [p.type, p.value])
+  );
+  const slug = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  return (
+    ['assistente', slug, `${parts.year}${parts.month}${parts.day}-${parts.hour}${parts.minute}`]
+      .filter(Boolean)
+      .join('-') + '.xlsx'
+  );
 }
 
 const ADMIN_ACTIONS = {
@@ -241,7 +362,11 @@ const ADMIN_ACTIONS = {
   scan: actionScan,
   sample: actionSample
 };
-const OPERATOR_ACTIONS = { query: actionQuery };
+const OPERATOR_ACTIONS = {
+  query: actionQuery,
+  exportPreview: actionExportPreview,
+  exportFile: actionExportFile
+};
 
 export async function handleDatabaseRequest(req, res) {
   if (!applyCors(req, res)) return;
@@ -271,7 +396,14 @@ export async function handleDatabaseRequest(req, res) {
   if (isAdminAction && !user.isAdmin) return res.status(403).json({ error: 'Admin access required.' });
 
   try {
-    return res.status(200).json(await handler(user, req.body || {}));
+    const result = await handler(user, req.body || {});
+    if (result?.file) {
+      res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.set('Content-Disposition', `attachment; filename="${result.file.filename}"`);
+      res.set('Access-Control-Expose-Headers', 'Content-Disposition');
+      return res.status(200).send(result.file.buffer);
+    }
+    return res.status(200).json(result);
   } catch (error) {
     if (error instanceof HttpError) return res.status(error.status).json({ error: error.message });
     if (error?.name === 'DecryptionError' || error?.name === 'CredentialKeyError') {

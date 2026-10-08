@@ -7,12 +7,14 @@ import { READ_DOCUMENT_TOOL_NAME, runReadDocumentCall } from './readDocument';
 import { QUERY_DATABASE_TOOL_NAME, runQueryDatabaseCall } from './queryDatabase';
 import { DESCRIBE_TABLE_TOOL_NAME, runDescribeTableCall } from './describeTable';
 import { EXPORT_EXCEL_TOOL_NAME, runExportExcelCall } from './exportExcel';
+import { EXPORT_DATABASE_TOOL_NAME, runExportDatabaseCall } from './exportDatabase';
 
 const HANDLERS = {
   [READ_DOCUMENT_TOOL_NAME]: runReadDocumentCall,
   [QUERY_DATABASE_TOOL_NAME]: runQueryDatabaseCall,
   [DESCRIBE_TABLE_TOOL_NAME]: runDescribeTableCall,
-  [EXPORT_EXCEL_TOOL_NAME]: runExportExcelCall
+  [EXPORT_EXCEL_TOOL_NAME]: runExportExcelCall,
+  [EXPORT_DATABASE_TOOL_NAME]: runExportDatabaseCall
 };
 
 export async function runToolCalls(calls, context) {

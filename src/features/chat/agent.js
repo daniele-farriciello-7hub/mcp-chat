@@ -26,6 +26,7 @@ import { READ_DOCUMENT_TOOL } from './tools/readDocument';
 import { QUERY_DATABASE_TOOL, QUERY_DATABASE_TOOL_NAME } from './tools/queryDatabase';
 import { DESCRIBE_TABLE_TOOL, DESCRIBE_TABLE_TOOL_NAME } from './tools/describeTable';
 import { EXPORT_EXCEL_TOOL } from './tools/exportExcel';
+import { EXPORT_DATABASE_TOOL, EXPORT_DATABASE_TOOL_NAME } from './tools/exportDatabase';
 import { runToolCalls } from './tools/runToolCalls';
 
 /**
@@ -36,7 +37,11 @@ import { runToolCalls } from './tools/runToolCalls';
  */
 const THINKING_HEADROOM_TOKENS = 2000;
 
-const DATABASE_TOOL_NAMES = new Set([QUERY_DATABASE_TOOL_NAME, DESCRIBE_TABLE_TOOL_NAME]);
+const DATABASE_TOOL_NAMES = new Set([
+  QUERY_DATABASE_TOOL_NAME,
+  DESCRIBE_TABLE_TOOL_NAME,
+  EXPORT_DATABASE_TOOL_NAME
+]);
 
 export async function streamAgentReply({
   text,
@@ -85,7 +90,11 @@ export async function streamAgentReply({
     const toolDeclarations = [
       ...(catalog.length ? READ_DOCUMENT_TOOL.functionDeclarations : []),
       ...(schema.length
-        ? [...QUERY_DATABASE_TOOL.functionDeclarations, ...DESCRIBE_TABLE_TOOL.functionDeclarations]
+        ? [
+            ...QUERY_DATABASE_TOOL.functionDeclarations,
+            ...DESCRIBE_TABLE_TOOL.functionDeclarations,
+            ...EXPORT_DATABASE_TOOL.functionDeclarations
+          ]
         : []),
       ...(hasDataSource ? EXPORT_EXCEL_TOOL.functionDeclarations : [])
     ];

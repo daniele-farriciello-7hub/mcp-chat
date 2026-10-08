@@ -52,7 +52,9 @@ export default function MessageList({ messages, status, userName, onAsk, onNavig
       <div className="flex flex-col gap-3">
         {messages.map((message, i) => {
           if (message.role === 'activity') {
-            const useful = message.outcome === 'done' && (message.documentId || message.rows?.length);
+            const useful =
+              message.outcome === 'done' &&
+              (message.documentId || message.rows?.length || message.exportQuery);
             if (!useful || (busy && i > lastUserIndex)) return null;
             const source = message.dedupeKey || message.id;
             if (shownSources.has(source)) return null;

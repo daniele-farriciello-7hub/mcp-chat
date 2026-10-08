@@ -87,11 +87,10 @@ function definedNames(strippedSql) {
 }
 
 /**
- * @param {string} sql the model's query
- * @param {{enabledTables: Set<string>, maxRows: number, timeoutSeconds: number}} options
- * @returns {string} the SQL to execute — original text, LIMIT appended if missing, time-boxed
+ * Every check `validateSelect` makes, without bounding the query.
+ * @returns {string} the query, comments stripped and trailing semicolons removed
  */
-export function validateSelect(sql, { enabledTables, maxRows, timeoutSeconds }) {
+export function checkSelect(sql, { enabledTables }) {
   if (typeof sql !== 'string' || !sql.trim()) throw new InvalidQueryError('empty query');
   if (sql.includes('/*!')) throw new InvalidQueryError('MySQL executable comments are not allowed');
 
@@ -117,11 +116,23 @@ export function validateSelect(sql, { enabledTables, maxRows, timeoutSeconds }) 
     }
   }
 
-  const withoutTrailingSemicolon = stripped.replace(/;+\s*$/, '');
-  const hasLimit = /\bLIMIT\s+\d+/i.test(withoutTrailingSemicolon);
-  const bounded = hasLimit ? withoutTrailingSemicolon : `${withoutTrailingSemicolon} LIMIT ${maxRows}`;
+  return stripped.replace(/;+\s*$/, '');
+}
 
-  // MariaDB-specific: caps how long the server spends on this one statement, independent of the
-  // function's own HTTP timeout — see edge case 18.
-  return `SET STATEMENT max_statement_time=${Math.max(1, Math.round(timeoutSeconds))} FOR ${bounded}`;
+/**
+ * MariaDB-specific: caps how long the server spends on this one statement, independent of the
+ * function's own HTTP timeout — see edge case 18.
+ */
+export const timeBoxed = (statement, timeoutSeconds) =>
+  `SET STATEMENT max_statement_time=${Math.max(1, Math.round(timeoutSeconds))} FOR ${statement}`;
+
+/**
+ * @param {string} sql the model's query
+ * @param {{enabledTables: Set<string>, maxRows: number, timeoutSeconds: number}} options
+ * @returns {string} the SQL to execute — original text, LIMIT appended if missing, time-boxed
+ */
+export function validateSelect(sql, { enabledTables, maxRows, timeoutSeconds }) {
+  const checked = checkSelect(sql, { enabledTables });
+  const hasLimit = /\bLIMIT\s+\d+/i.test(checked);
+  return timeBoxed(hasLimit ? checked : `${checked} LIMIT ${maxRows}`, timeoutSeconds);
 }
