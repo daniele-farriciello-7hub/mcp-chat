@@ -1,11 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import ShortcutEditor from './ShortcutEditor';
+import { loadAppUsers } from '@/features/history/appUsers';
 
 const EMPTY_SHORTCUT = { icon: 'question', title: '', description: '', prompt: '' };
 
 export default function ShortcutsTab({ shortcuts, onChange }) {
   const [expandedIndex, setExpandedIndex] = useState(null);
+  const [users, setUsers] = useState([]);
+
+  // everyone who may use the app, for "Per chi" (admin-only on the server)
+  useEffect(() => {
+    loadAppUsers()
+      .then(setUsers)
+      .catch(error => console.warn('[shortcuts] reading the users failed:', error?.message || error));
+  }, []);
 
   const update = (index, key, value) =>
     onChange(shortcuts.map((shortcut, i) => (i === index ? { ...shortcut, [key]: value } : shortcut)));
@@ -33,13 +42,15 @@ export default function ShortcutsTab({ shortcuts, onChange }) {
     <div className="flex flex-col gap-2.5">
       <p className="text-[11px] leading-snug text-slate-soft">
         I riquadri che l’operatore vede aprendo la chat, nell’ordine in cui compaiono. Toccarne uno equivale a
-        scrivere la domanda.
+        scrivere la domanda. Ognuno può essere per tutti o solo per alcuni utenti; in più, ogni operatore può
+        crearsi le sue scorciatoie personali dalla schermata iniziale.
       </p>
 
       {shortcuts.map((shortcut, index) => (
         <ShortcutEditor
           key={index}
           shortcut={shortcut}
+          users={users}
           index={index}
           count={shortcuts.length}
           expanded={expandedIndex === index}

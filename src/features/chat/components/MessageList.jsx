@@ -15,7 +15,7 @@ import Suggestions from './Suggestions';
 import Welcome from './Welcome';
 import WorkingIndicator from './WorkingIndicator';
 
-export default function MessageList({ messages, status, userName, onAsk, onNavigate }) {
+export default function MessageList({ uid, messages, status, userName, onAsk, onNavigate }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export default function MessageList({ messages, status, userName, onAsk, onNavig
   if (messages.length === 0) {
     return (
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <Welcome userName={userName} onAsk={onAsk} />
+        <Welcome uid={uid} userName={userName} onAsk={onAsk} />
       </div>
     );
   }
