@@ -10,36 +10,48 @@
 import { useEffect, useState } from 'react';
 import {
   BarChart3,
+  BookOpen,
   Brain,
+  Calculator,
   Check,
   Database,
+  Download,
   FileSearch,
   FileSpreadsheet,
+  Highlighter,
   Lightbulb,
+  LineChart,
   MessageCircleMore,
-  Sparkles
+  PieChart,
+  Sigma,
+  Sparkles,
+  Table2
 } from 'lucide-react';
 
 const THINKING = { Icon: Sparkles, label: 'Sto pensando…' };
-// while thinking the icon changes every second: alive, without claiming any particular work
+// the icon changes every second, while thinking and during each phase: alive, never static
 const THINKING_ICONS = [Sparkles, Lightbulb, Brain, MessageCircleMore];
 const ICON_EVERY_MS = 1000;
 
-/** Index of the thinking icon to show, advancing every second; frozen with reduced motion. */
-function useCyclingIndex(active, count) {
-  const [index, setIndex] = useState(0);
+/** Index of the icon to show for the current phase, advancing every second; frozen with reduced motion. */
+function useCyclingIndex(phaseKey, count) {
+  const [state, setState] = useState({ phaseKey, index: 0 });
+  // a new phase starts from its first icon (adjusted while rendering, not in an effect)
+  if (state.phaseKey !== phaseKey) setState({ phaseKey, index: 0 });
   useEffect(() => {
-    if (!active || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
-    const timer = setInterval(() => setIndex(i => (i + 1) % count), ICON_EVERY_MS);
+    if (count < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const timer = setInterval(() => setState(s => ({ ...s, index: (s.index + 1) % count })), ICON_EVERY_MS);
     return () => clearInterval(timer);
-  }, [active, count]);
-  return index;
+  }, [phaseKey, count]);
+  return state.phaseKey === phaseKey ? state.index : 0;
 }
+// `Icon` is the phase's own (the trail of finished steps); `cycle` the icons shown in turn while it
+// runs — all about that same activity, so the motion never suggests different work
 const TOOL_PHASES = {
-  documents: { Icon: FileSearch, label: 'Cerco nei documenti…' },
-  data: { Icon: Database, label: 'Faccio i conti sui dati…' },
-  export: { Icon: FileSpreadsheet, label: 'Preparo il file…' },
-  chart: { Icon: BarChart3, label: 'Preparo il grafico…' }
+  documents: { Icon: FileSearch, cycle: [FileSearch, BookOpen, Highlighter], label: 'Cerco nei documenti…' },
+  data: { Icon: Database, cycle: [Database, Table2, Calculator, Sigma], label: 'Faccio i conti sui dati…' },
+  export: { Icon: FileSpreadsheet, cycle: [FileSpreadsheet, Table2, Download], label: 'Preparo il file…' },
+  chart: { Icon: BarChart3, cycle: [BarChart3, LineChart, PieChart], label: 'Preparo il grafico…' }
 };
 
 /**
@@ -49,8 +61,10 @@ const TOOL_PHASES = {
 export default function WorkingIndicator({ runningKind, doneKinds = [] }) {
   const phase = TOOL_PHASES[runningKind];
   const thinking = !phase;
-  const iconIndex = useCyclingIndex(thinking, THINKING_ICONS.length);
-  const Icon = thinking ? THINKING_ICONS[iconIndex] : phase.Icon;
+  const icons = thinking ? THINKING_ICONS : phase.cycle;
+  // restarts from the first icon whenever the phase changes
+  const iconIndex = useCyclingIndex(runningKind || 'thinking', icons.length);
+  const Icon = icons[iconIndex % icons.length];
   const { label } = phase || THINKING;
   const hasTrail = doneKinds.length > 0;
 
@@ -78,8 +92,8 @@ export default function WorkingIndicator({ runningKind, doneKinds = [] }) {
           }`}
         >
           {/* a new key per icon replays the pop: each change is seen, not just swapped */}
-          <span key={thinking ? `t${iconIndex}` : runningKind} className="step-pop flex">
-            <Icon size={16} className={thinking ? undefined : 'animate-pulse'} />
+          <span key={`${runningKind || 'thinking'}-${iconIndex}`} className="step-pop flex">
+            <Icon size={16} />
           </span>
         </span>
         {!hasTrail && <span className="shimmer-text ml-2.5 text-[13px] font-medium">{label}</span>}
