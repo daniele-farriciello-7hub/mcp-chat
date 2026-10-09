@@ -5,9 +5,36 @@
  * promises work that is not happening and a fast reply never flashes a busy-looking widget.
  * Which document, table or query is never shown, and neither are failed steps.
  */
-import { BarChart3, Check, Database, FileSearch, FileSpreadsheet, Sparkles } from 'lucide-react';
+'use client';
+
+import { useEffect, useState } from 'react';
+import {
+  BarChart3,
+  Brain,
+  Check,
+  Database,
+  FileSearch,
+  FileSpreadsheet,
+  Lightbulb,
+  MessageCircleMore,
+  Sparkles
+} from 'lucide-react';
 
 const THINKING = { Icon: Sparkles, label: 'Sto pensando…' };
+// while thinking the icon changes every second: alive, without claiming any particular work
+const THINKING_ICONS = [Sparkles, Lightbulb, Brain, MessageCircleMore];
+const ICON_EVERY_MS = 1000;
+
+/** Index of the thinking icon to show, advancing every second; frozen with reduced motion. */
+function useCyclingIndex(active, count) {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    if (!active || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const timer = setInterval(() => setIndex(i => (i + 1) % count), ICON_EVERY_MS);
+    return () => clearInterval(timer);
+  }, [active, count]);
+  return index;
+}
 const TOOL_PHASES = {
   documents: { Icon: FileSearch, label: 'Cerco nei documenti…' },
   data: { Icon: Database, label: 'Faccio i conti sui dati…' },
@@ -20,7 +47,11 @@ const TOOL_PHASES = {
  *   now, if any. `doneKinds`: the tools finished successfully in this turn, oldest first.
  */
 export default function WorkingIndicator({ runningKind, doneKinds = [] }) {
-  const { Icon, label } = TOOL_PHASES[runningKind] || THINKING;
+  const phase = TOOL_PHASES[runningKind];
+  const thinking = !phase;
+  const iconIndex = useCyclingIndex(thinking, THINKING_ICONS.length);
+  const Icon = thinking ? THINKING_ICONS[iconIndex] : phase.Icon;
+  const { label } = phase || THINKING;
   const hasTrail = doneKinds.length > 0;
 
   return (
@@ -46,7 +77,10 @@ export default function WorkingIndicator({ runningKind, doneKinds = [] }) {
             hasTrail ? 'step-ring rounded-full' : 'rounded-[9px]'
           }`}
         >
-          <Icon size={16} />
+          {/* a new key per icon replays the pop: each change is seen, not just swapped */}
+          <span key={thinking ? `t${iconIndex}` : runningKind} className="step-pop flex">
+            <Icon size={16} className={thinking ? undefined : 'animate-pulse'} />
+          </span>
         </span>
         {!hasTrail && <span className="shimmer-text ml-2.5 text-[13px] font-medium">{label}</span>}
       </div>
