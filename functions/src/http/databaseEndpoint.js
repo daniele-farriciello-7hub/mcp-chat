@@ -391,8 +391,36 @@ const ADMIN_ACTIONS = {
   scan: actionScan,
   sample: actionSample
 };
+// ── charts: the model writes an aggregating query, the chat draws the result ──
+
+/** Most points a chart may have: beyond this it needs aggregating (by month, by bank…), not drawing. */
+const CHART_MAX_POINTS = 400;
+
+/**
+ * Rows for a chart drawn in the chat (`show_chart`). Same checks as `query` (SELECT only, enabled
+ * tables, per-user filter); the rows are few by construction, so they can go to the browser and,
+ * summarised, to the model. One row more than the cap is fetched to tell "too many" apart.
+ */
+async function actionChartData(user, body) {
+  const { sql, enabledTables, run, validate } = await queryContext(user, body);
+  const requestedTimeout = Number(body.timeoutSeconds) > 0 ? Number(body.timeoutSeconds) : 15;
+  const statement = validate(() =>
+    validateSelect(sql, {
+      enabledTables,
+      maxRows: CHART_MAX_POINTS + 1,
+      timeoutSeconds: Math.min(requestedTimeout, 25)
+    })
+  );
+  const rows = await run(statement);
+  const { columns, rows: serialized } = serializeRows(rows.slice(0, CHART_MAX_POINTS), {
+    maxRows: CHART_MAX_POINTS
+  });
+  return { columns, rows: serialized, tooMany: rows.length > CHART_MAX_POINTS, maxPoints: CHART_MAX_POINTS };
+}
+
 const OPERATOR_ACTIONS = {
   query: actionQuery,
+  chartData: actionChartData,
   exportPreview: actionExportPreview,
   exportFile: actionExportFile
 };
