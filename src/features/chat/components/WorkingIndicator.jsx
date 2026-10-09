@@ -5,13 +5,14 @@
  * promises work that is not happening and a fast reply never flashes a busy-looking widget.
  * Which document, table or query is never shown, and neither are failed steps.
  */
-import { Check, Database, FileSearch, FileSpreadsheet, Sparkles } from 'lucide-react';
+import { BarChart3, Check, Database, FileSearch, FileSpreadsheet, Sparkles } from 'lucide-react';
 
 const THINKING = { Icon: Sparkles, label: 'Sto pensando…' };
 const TOOL_PHASES = {
   documents: { Icon: FileSearch, label: 'Cerco nei documenti…' },
   data: { Icon: Database, label: 'Faccio i conti sui dati…' },
-  export: { Icon: FileSpreadsheet, label: 'Preparo il file…' }
+  export: { Icon: FileSpreadsheet, label: 'Preparo il file…' },
+  chart: { Icon: BarChart3, label: 'Preparo il grafico…' }
 };
 
 /**

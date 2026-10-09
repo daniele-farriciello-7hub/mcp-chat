@@ -14,6 +14,7 @@ import MessageBubble from './MessageBubble';
 import Suggestions from './Suggestions';
 import Welcome from './Welcome';
 import WorkingIndicator from './WorkingIndicator';
+import ChatChart from '@/features/charts/ChatChart';
 
 export default function MessageList({ uid, isAdmin, messages, status, userName, onAsk, onNavigate }) {
   const bottomRef = useRef(null);
@@ -51,6 +52,10 @@ export default function MessageList({ uid, isAdmin, messages, status, userName, 
     >
       <div className="flex flex-col gap-3">
         {messages.map((message, i) => {
+          if (message.role === 'activity' && message.chart && message.outcome === 'done') {
+            if (busy && i > lastUserIndex) return null;
+            return <ChatChart key={message.id} chart={message.chart} />;
+          }
           if (message.role === 'activity') {
             const useful =
               message.outcome === 'done' &&
