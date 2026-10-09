@@ -9,6 +9,7 @@
  * project's other functions use locally, not yet exercised in production.
  */
 import { auth } from './app';
+import { functionName } from '@/shared/environment';
 
 const PROJECT_ID = 'mappa-contatti-217007';
 const REGION = 'europe-west1';
@@ -29,14 +30,14 @@ export class FunctionCallError extends Error {
 }
 
 /** POSTs to `<function>/<path>` with the operator's ID token and JSON body; returns the JSON body. */
-export async function callFunction(functionName, path, body = {}) {
+export async function callFunction(name, path, body = {}) {
   const user = auth.currentUser;
   if (!user) throw new FunctionCallError('Devi essere autenticato.', 401);
   const idToken = await user.getIdToken();
 
   let response;
   try {
-    response = await fetch(`${functionsBaseUrl()}/${functionName}/${path}`, {
+    response = await fetch(`${functionsBaseUrl()}/${functionName(name)}/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
       body: JSON.stringify(body)
@@ -61,14 +62,14 @@ export async function callFunction(functionName, path, body = {}) {
  * POSTs like `callFunction`, for an action that answers with a file (`database/exportFile`), and
  * saves it in the browser. The file name comes from the server's Content-Disposition.
  */
-export async function downloadFunctionFile(functionName, path, body = {}) {
+export async function downloadFunctionFile(name, path, body = {}) {
   const user = auth.currentUser;
   if (!user) throw new FunctionCallError('Devi essere autenticato.', 401);
   const idToken = await user.getIdToken();
 
   let response;
   try {
-    response = await fetch(`${functionsBaseUrl()}/${functionName}/${path}`, {
+    response = await fetch(`${functionsBaseUrl()}/${functionName(name)}/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
       body: JSON.stringify(body)

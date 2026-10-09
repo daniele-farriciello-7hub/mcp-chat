@@ -5,9 +5,9 @@
  * everyone's — the same server-side gate the `database` endpoint uses, kept in this repo instead
  * of in Firestore security rules managed elsewhere.
  *
- *   apps/assistente-7hub/chatConversations/{id}                 one conversation: who, when, counters
- *   apps/assistente-7hub/chatConversations/{id}/chatMessages/{m} its messages and tool activity
- *   apps/assistente-7hub/chatUsers/{uid}                        pointer to the user's open conversation
+ *   apps/<app>/chatConversations/{id}                 one conversation: who, when, counters
+ *   apps/<app>/chatConversations/{id}/chatMessages/{m} its messages and tool activity
+ *   apps/<app>/chatUsers/{uid}                        pointer to the user's open conversation
  *
  * Prefixed names on purpose: TTL policies apply per collection group across the whole shared
  * project. Both levels carry `expiresAt` for that TTL policy.
@@ -15,9 +15,9 @@
  * A conversation lasts until "Nuova conversazione" or until the day changes in Rome.
  */
 import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
+import { appId, appRoot } from '../appContext.js';
 import { canUseApp } from '../auth/firebaseUser.js';
 
-const ROOT = 'apps/assistente-7hub';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RESTORE_LIMIT = 200;
 const LIST_PAGE = 500;
@@ -38,10 +38,10 @@ const ACTIVITY_FIELDS = [
 ];
 
 const db = () => getFirestore();
-const conversations = () => db().collection(`${ROOT}/chatConversations`);
+const conversations = () => db().collection(`${appRoot()}/chatConversations`);
 const conversationRef = id => conversations().doc(id);
 const messagesOf = id => conversationRef(id).collection('chatMessages');
-const pointerRef = uid => db().doc(`${ROOT}/chatUsers/${uid}`);
+const pointerRef = uid => db().doc(`${appRoot()}/chatUsers/${uid}`);
 
 export class HistoryError extends Error {
   constructor(status, message) {
@@ -58,17 +58,18 @@ const ROME_DAY = new Intl.DateTimeFormat('en-CA', {
 });
 export const romeDay = (date = new Date()) => ROME_DAY.format(date);
 
-let settingsCache = null;
+const settingsCache = new Map(); // appId -> { at, value }
 /** `historyEnabled` and retention, read from the shared settings and cached briefly per instance. */
 export async function historySettings() {
-  if (settingsCache && Date.now() - settingsCache.at < SETTINGS_TTL_MS) return settingsCache.value;
-  const snapshot = await db().doc(`${ROOT}/config/settings`).get();
+  const cached = settingsCache.get(appId());
+  if (cached && Date.now() - cached.at < SETTINGS_TTL_MS) return cached.value;
+  const snapshot = await db().doc(`${appRoot()}/config/settings`).get();
   const data = snapshot.exists ? snapshot.data() : {};
   const value = {
     enabled: data.historyEnabled === true,
     retentionDays: Number(data.historyRetentionDays) > 0 ? Number(data.historyRetentionDays) : 30
   };
-  settingsCache = { at: Date.now(), value };
+  settingsCache.set(appId(), { at: Date.now(), value });
   return value;
 }
 

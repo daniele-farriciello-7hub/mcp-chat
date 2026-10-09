@@ -1,10 +1,11 @@
-# Push to `development` → https://assistente-7hub-development.web.app (the site only).
-#
-# Same Firebase project as production: the development site uses the production Cloud Functions,
-# Firestore data and settings. Function changes are tried locally with the emulator, and reach the
-# real functions only through `production`.
-# Secret (repo Settings → Secrets and variables → Actions):
-#   FIREBASE_SERVICE_ACCOUNT  JSON key of a service account allowed to deploy Hosting
+# Push to `development` → https://assistente-7hub-development.web.app and the development function
+# twins (`databaseDev`, `historyDev`). Everything here runs as the app `assistente-7hub-development`:
+# its own data under apps/assistente-7hub-development, Storage folder and permission key — see
+# src/shared/environment.js. Production data and functions are never touched from here.
+# Secrets (repo Settings → Secrets and variables → Actions):
+#   FIREBASE_SERVICE_ACCOUNT  JSON key of the deploy service account
+#   DB_CRED_KEY               same key as production: the development app holds copies of the
+#                             production connections, encrypted with it
 name: Deploy development
 
 on:
@@ -26,27 +27,39 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
 
       - name: Check secrets
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: '[ -n "$FIREBASE_SERVICE_ACCOUNT" ] || { echo "::error::Secret FIREBASE_SERVICE_ACCOUNT mancante"; exit 1; }'
+          DB_CRED_KEY: ${{ secrets.DB_CRED_KEY }}
+        run: |
+          [ -n "$FIREBASE_SERVICE_ACCOUNT" ] || { echo "::error::Secret FIREBASE_SERVICE_ACCOUNT mancante"; exit 1; }
+          [ -n "$DB_CRED_KEY" ] || { echo "::error::Secret DB_CRED_KEY mancante: le function non vengono deployate senza"; exit 1; }
 
       - name: Install
-        run: npm ci
+        run: |
+          npm ci
+          npm ci --prefix functions
 
       - name: Lint
         run: npm run lint
 
       - name: Build
         run: npm run build
+        env:
+          NEXT_PUBLIC_APP_ENV: development
 
       - name: Credentials
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DB_CRED_KEY: ${{ secrets.DB_CRED_KEY }}
         run: |
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+          printf 'DB_CRED_KEY=%s\n' "$DB_CRED_KEY" > functions/.env.mappa-contatti-217007
 
-      - name: Deploy hosting
-        run: npx --yes firebase-tools@13 deploy --only hosting:development --project mappa-contatti-217007 --non-interactive
+      - name: Deploy hosting and development functions
+        run: npx --yes firebase-tools@13 deploy --only hosting:development,functions:assistente:databaseDev,functions:assistente:historyDev --project mappa-contatti-217007 --non-interactive

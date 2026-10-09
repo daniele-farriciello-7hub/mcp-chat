@@ -8,6 +8,7 @@
  * same way `tools` runs on behalf of the signed-in operator rather than only an admin.
  */
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { appId, appRoot } from '../appContext.js';
 import { InvalidTokenError, verifyAppUser } from '../auth/firebaseUser.js';
 import { applyCors } from './cors.js';
 import { encrypt } from '../db/credentials.js';
@@ -25,10 +26,9 @@ import { InvalidQueryError, checkSelect, timeBoxed, validateSelect } from '../db
 import { buildXlsx } from '../db/xlsx.js';
 import { serializeRows } from '../db/serializeRows.js';
 
-const ROOT = 'apps/assistente-7hub';
-const connectionsCollection = () => getFirestore().collection(`${ROOT}/dbConnections`);
-const connectionDocRef = id => getFirestore().doc(`${ROOT}/dbConnections/${id}`);
-const secretDocRef = id => getFirestore().doc(`${ROOT}/dbSecrets/${id}`);
+const connectionsCollection = () => getFirestore().collection(`${appRoot()}/dbConnections`);
+const connectionDocRef = id => getFirestore().doc(`${appRoot()}/dbConnections/${id}`);
+const secretDocRef = id => getFirestore().doc(`${appRoot()}/dbSecrets/${id}`);
 const tablesCollection = id => connectionDocRef(id).collection('tables');
 
 /** Table document id: the real name when it is a safe Firestore id, a hash of it otherwise (see
@@ -267,18 +267,17 @@ const clamp = (value, { min, max, fallback }) =>
     ? Math.min(max, Math.max(min, Number(value)))
     : fallback;
 
-let exportSettingsCache = null; // { at, value }
+const exportSettingsCache = new Map(); // appId -> { at, value }
 async function exportLimits() {
-  if (exportSettingsCache && Date.now() - exportSettingsCache.at < SETTINGS_TTL_MS) {
-    return exportSettingsCache.value;
-  }
-  const snapshot = await getFirestore().doc(`${ROOT}/config/settings`).get();
+  const cached = exportSettingsCache.get(appId());
+  if (cached && Date.now() - cached.at < SETTINGS_TTL_MS) return cached.value;
+  const snapshot = await getFirestore().doc(`${appRoot()}/config/settings`).get();
   const data = snapshot.exists ? snapshot.data() : {};
   const value = {
     maxRows: clamp(data.exportMaxRows, EXPORT_LIMITS.rows),
     timeoutSeconds: clamp(data.exportTimeoutSeconds, EXPORT_LIMITS.seconds)
   };
-  exportSettingsCache = { at: Date.now(), value };
+  exportSettingsCache.set(appId(), { at: Date.now(), value });
   return value;
 }
 

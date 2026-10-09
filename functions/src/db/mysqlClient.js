@@ -5,6 +5,7 @@
  */
 import mysql from 'mysql2/promise';
 import { getFirestore } from 'firebase-admin/firestore';
+import { appId, appRoot } from '../appContext.js';
 import { decrypt } from './credentials.js';
 
 const CONNECTION_LIMIT = 2;
@@ -74,14 +75,16 @@ export async function testConnectionConfig(config) {
   }
 }
 
-// connectionId -> { pool, updatedAtMs }
+// `${appId}:${connectionId}` -> { pool, updatedAtMs }: a connection copied into the development app
+// must not share a pool with its production original
 const pools = new Map();
+const poolKey = connectionId => `${appId()}:${connectionId}`;
 
 async function connectionDoc(connectionId) {
   const db = getFirestore();
   const [connSnap, secretSnap] = await Promise.all([
-    db.doc(`apps/assistente-7hub/dbConnections/${connectionId}`).get(),
-    db.doc(`apps/assistente-7hub/dbSecrets/${connectionId}`).get()
+    db.doc(`${appRoot()}/dbConnections/${connectionId}`).get(),
+    db.doc(`${appRoot()}/dbSecrets/${connectionId}`).get()
   ]);
   if (!connSnap.exists) throw new DatabaseConnectionError('connection not found', { code: 'NOT_FOUND' });
   const conn = connSnap.data();
@@ -94,20 +97,20 @@ async function getPool(connectionId) {
   const { conn, password } = await connectionDoc(connectionId);
   const updatedAtMs = conn.updatedAt?.toMillis?.() ?? 0;
 
-  const cached = pools.get(connectionId);
+  const cached = pools.get(poolKey(connectionId));
   if (cached && cached.updatedAtMs === updatedAtMs) return { pool: cached.pool, database: conn.database };
 
   if (cached) await cached.pool.end().catch(() => {});
   const pool = mysql.createPool(poolConfig({ ...conn, password }));
-  pools.set(connectionId, { pool, updatedAtMs });
+  pools.set(poolKey(connectionId), { pool, updatedAtMs });
   return { pool, database: conn.database };
 }
 
 /** Drops a connection's pool, e.g. after it is deleted. */
 export async function forgetPool(connectionId) {
-  const cached = pools.get(connectionId);
+  const cached = pools.get(poolKey(connectionId));
   if (!cached) return;
-  pools.delete(connectionId);
+  pools.delete(poolKey(connectionId));
   await cached.pool.end().catch(() => {});
 }
 

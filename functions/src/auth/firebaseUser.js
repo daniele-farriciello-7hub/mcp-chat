@@ -11,8 +11,7 @@
  */
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-
-const APP_ID = 'assistente-7hub';
+import { appId } from '../appContext.js';
 
 export class InvalidTokenError extends Error {
   constructor(reason) {
@@ -24,7 +23,7 @@ export class InvalidTokenError extends Error {
 function appPermissions(userDoc) {
   const permissions = userDoc?.permessi_app;
   if (permissions === '*') return { wildcard: true };
-  if (permissions && typeof permissions === 'object') return permissions[APP_ID] || null;
+  if (permissions && typeof permissions === 'object') return permissions[appId()] || null;
   return null;
 }
 

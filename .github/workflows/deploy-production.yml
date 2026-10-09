@@ -1,6 +1,5 @@
-# Push to `production` → https://assistente-7hub.web.app and the Cloud Functions.
-#
-# The functions are shared by both sites (one Firebase project), so only this branch deploys them.
+# Push to `production` → https://assistente-7hub.web.app and the production Cloud Functions
+# (`database`, `history`, `tools`). Their development twins are deployed only from `development`.
 # Secrets (repo Settings → Secrets and variables → Actions):
 #   FIREBASE_SERVICE_ACCOUNT  JSON key of a service account allowed to deploy Hosting and Functions
 #   DB_CRED_KEY               the key that decrypts the stored database passwords (functions/.env.*):
@@ -58,5 +57,5 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
           printf 'DB_CRED_KEY=%s\n' "$DB_CRED_KEY" > functions/.env.mappa-contatti-217007
 
-      - name: Deploy hosting and functions
-        run: npx --yes firebase-tools@13 deploy --only hosting:production,functions --project mappa-contatti-217007 --non-interactive
+      - name: Deploy hosting and production functions
+        run: npx --yes firebase-tools@13 deploy --only hosting:production,functions:assistente:database,functions:assistente:history,functions:assistente:tools --project mappa-contatti-217007 --non-interactive
