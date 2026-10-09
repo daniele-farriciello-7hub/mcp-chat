@@ -37,6 +37,7 @@ function withDefaults(stored) {
     ...DEFAULT_SETTINGS,
     ...stored,
     historyLimit: { ...DEFAULT_SETTINGS.historyLimit, ...(stored.historyLimit || {}) },
+    chartLimits: { ...DEFAULT_SETTINGS.chartLimits, ...(stored.chartLimits || {}) },
     // un array vuoto e' una scelta dell'admin: i default valgono solo se il campo non c'e' proprio
     shortcuts: Array.isArray(stored.shortcuts) ? stored.shortcuts : DEFAULT_SETTINGS.shortcuts,
     ...attachmentFields

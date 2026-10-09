@@ -27,7 +27,8 @@ import { QUERY_DATABASE_TOOL, QUERY_DATABASE_TOOL_NAME } from './tools/queryData
 import { DESCRIBE_TABLE_TOOL, DESCRIBE_TABLE_TOOL_NAME } from './tools/describeTable';
 import { EXPORT_EXCEL_TOOL } from './tools/exportExcel';
 import { EXPORT_DATABASE_TOOL, EXPORT_DATABASE_TOOL_NAME } from './tools/exportDatabase';
-import { SHOW_CHART_TOOL } from './tools/showChart';
+import { showChartTool } from './tools/showChart';
+import { chartLimits } from '@/features/charts/chartData';
 import { runToolCalls } from './tools/runToolCalls';
 
 /**
@@ -98,7 +99,10 @@ export async function streamAgentReply({
           ]
         : []),
       ...(hasDataSource
-        ? [...EXPORT_EXCEL_TOOL.functionDeclarations, ...SHOW_CHART_TOOL.functionDeclarations]
+        ? [
+            ...EXPORT_EXCEL_TOOL.functionDeclarations,
+            ...showChartTool(chartLimits(settings.chartLimits)).functionDeclarations
+          ]
         : [])
     ];
 
@@ -202,7 +206,8 @@ export async function streamAgentReply({
         onActivityStart,
         onActivityEnd,
         maxQueryRows: settings.maxQueryRows || DEFAULT_SETTINGS.maxQueryRows,
-        queryTimeoutSeconds: settings.queryTimeoutSeconds || DEFAULT_SETTINGS.queryTimeoutSeconds
+        queryTimeoutSeconds: settings.queryTimeoutSeconds || DEFAULT_SETTINGS.queryTimeoutSeconds,
+        chartLimits: chartLimits(settings.chartLimits)
       });
 
       // last round: the documents just read would go in the bin, so spend one more call asking for

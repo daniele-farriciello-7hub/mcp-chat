@@ -9,9 +9,30 @@
 
 export const CHART_TYPES = ['bar', 'line', 'donut'];
 
-/** Most points per type: past these a chart stops being readable and the data needs aggregating. */
-export const MAX_POINTS = { bar: 60, line: 400, donut: 8 };
-export const MAX_SERIES = 4;
+/**
+ * Readability limits, set by the admin (settings.chartLimits) within these bounds. They keep a
+ * chart legible; they are not a cost control — the app draws the chart, the model only gets a short
+ * summary back (`summarize`). Donut slices stop at 8: seven colours plus a grey "Altro".
+ */
+export const CHART_LIMIT_BOUNDS = {
+  bar: { min: 10, max: 200, fallback: 60 },
+  line: { min: 50, max: 2000, fallback: 400 },
+  donut: { min: 3, max: 8, fallback: 8 },
+  series: { min: 1, max: 6, fallback: 4 }
+};
+export const DEFAULT_CHART_LIMITS = Object.fromEntries(
+  Object.entries(CHART_LIMIT_BOUNDS).map(([k, b]) => [k, b.fallback])
+);
+
+/** The admin's limits, each kept inside its bounds; anything missing or invalid → default. */
+export function chartLimits(stored = {}) {
+  return Object.fromEntries(
+    Object.entries(CHART_LIMIT_BOUNDS).map(([key, { min, max, fallback }]) => {
+      const n = Math.round(Number(stored?.[key]));
+      return [key, Number.isFinite(n) && n > 0 ? Math.min(max, Math.max(min, n)) : fallback];
+    })
+  );
+}
 
 /**
  * Categorical colours, fixed order (validated for colour-blind separation against white). Slot 1 is
@@ -59,12 +80,13 @@ export function chartFromValues({ labels, series }) {
 }
 
 /** Problems that make the chart wrong or unreadable, as a sentence the model can act on; or null. */
-export function chartProblem({ type, labels, series }) {
+export function chartProblem({ type, labels, series }, limits = DEFAULT_CHART_LIMITS) {
   if (!CHART_TYPES.includes(type)) return `Tipo di grafico non valido: usa ${CHART_TYPES.join(', ')}.`;
-  if (labels.length > MAX_POINTS[type]) {
-    return `Troppi punti (${labels.length}) per un grafico "${type}": il massimo è ${MAX_POINTS[type]}. Raggruppa i dati (per mese, per banca…) o limita la richiesta.`;
+  // a donut over the limit is folded into "Altro" when drawn, not refused
+  if (type !== 'donut' && labels.length > limits[type]) {
+    return `Troppi punti (${labels.length}) per un grafico "${type}": il massimo è ${limits[type]}. Raggruppa i dati (per mese, per banca…) o limita la richiesta.`;
   }
-  if (series.length > MAX_SERIES) return `Troppe serie (${series.length}): al massimo ${MAX_SERIES}.`;
+  if (series.length > limits.series) return `Troppe serie (${series.length}): al massimo ${limits.series}.`;
   // one axis only: a series 50 times smaller than another would be a flat line next to it
   if (series.length > 1) {
     const peaks = series.map(s => Math.max(...s.values.map(Math.abs), 0)).filter(p => p > 0);
@@ -114,10 +136,37 @@ export function formatValue(value, unit = '', { compact = false } = {}) {
 }
 
 /** A donut with more than `max` slices folds the smallest into "Altro". */
-export function foldSlices(labels, values, max = MAX_POINTS.donut) {
+export function foldSlices(labels, values, max = DEFAULT_CHART_LIMITS.donut) {
   const items = labels.map((label, i) => ({ label, value: values[i] })).sort((a, b) => b.value - a.value);
   if (items.length <= max) return items;
   const kept = items.slice(0, max - 1);
   const other = items.slice(max - 1).reduce((sum, item) => sum + item.value, 0);
   return [...kept, { label: 'Altro', value: other, other: true }];
+}
+
+/**
+ * What the model gets back after drawing: every value for a small chart, a fixed-size summary for a
+ * large one — so a bigger chart never means a bigger request to the model.
+ */
+export function summarize({ labels, series }, fullUpTo = 30) {
+  if (labels.length <= fullUpTo) return { labels, series };
+  return {
+    points: labels.length,
+    from: labels[0],
+    to: labels.at(-1),
+    series: series.map(s => {
+      const ranked = s.values
+        .map((v, i) => ({ label: labels[i], value: v }))
+        .sort((a, b) => b.value - a.value);
+      return {
+        name: s.name,
+        total: s.values.reduce((sum, v) => sum + v, 0),
+        min: ranked.at(-1),
+        max: ranked[0],
+        first: s.values[0],
+        last: s.values.at(-1),
+        top5: ranked.slice(0, 5)
+      };
+    })
+  };
 }

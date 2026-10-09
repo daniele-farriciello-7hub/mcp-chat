@@ -97,6 +97,8 @@ export const DEFAULT_SETTINGS = {
   // query may run. Read by the server from these settings, never from the browser; it also clamps
   // them to EXPORT_LIMITS in functions/src/http/databaseEndpoint.js
   exportMaxRows: 50000,
+  // charts drawn in the chat (show_chart): readability limits, not costs — see features/charts
+  chartLimits: { bar: 60, line: 400, donut: 8, series: 4 },
   exportTimeoutSeconds: 45,
   temperature: 0.4,
   maxOutputTokens: 1200,

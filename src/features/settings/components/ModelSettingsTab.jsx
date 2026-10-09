@@ -5,12 +5,15 @@ import Slider from '@/shared/ui/Slider';
 import Switch from '@/shared/ui/Switch';
 import { HELP_TEXT_CLASS, INPUT_CLASS } from '@/shared/ui/formStyles';
 import ModelPicker from './ModelPicker';
+import { CHART_LIMIT_BOUNDS, chartLimits } from '@/features/charts/chartData';
 
 const creativityLabel = t => (t <= 0.3 ? 'Prevedibile' : t <= 0.6 ? 'Equilibrata' : 'Creativa');
 
 /** Instructions come first: they are the only field people iterate on. */
 export default function ModelSettingsTab({ settings, onChange }) {
   const { historyLimit } = settings;
+  const limits = chartLimits(settings.chartLimits);
+  const setLimit = (key, value) => onChange('chartLimits', { ...limits, [key]: value });
   return (
     <div className="flex flex-col gap-6">
       <Section
@@ -156,6 +159,60 @@ export default function ModelSettingsTab({ settings, onChange }) {
         <p className={HELP_TEXT_CLASS}>
           Anche ragionare costa, come scrivere. E se hai messo un tetto basso alla lunghezza, il ragionamento
           si mangia lo spazio della risposta.
+        </p>
+      </Section>
+
+      <Section
+        title="Grafici nella chat"
+        description="Quanto possono essere grandi i grafici che l’assistente mostra quando gli chiedi un andamento o un confronto."
+      >
+        <Slider
+          label="Barre al massimo"
+          reading={`${limits.bar} barre`}
+          min={CHART_LIMIT_BOUNDS.bar.min}
+          max={CHART_LIMIT_BOUNDS.bar.max}
+          step={10}
+          value={limits.bar}
+          rangeLabels={['Più leggibile', 'Più dettaglio']}
+          onChange={value => setLimit('bar', value)}
+        />
+        <Slider
+          label="Punti al massimo in un andamento (grafico a linea)"
+          reading={`${limits.line.toLocaleString('it-IT')} punti`}
+          min={CHART_LIMIT_BOUNDS.line.min}
+          max={CHART_LIMIT_BOUNDS.line.max}
+          step={50}
+          value={limits.line}
+          rangeLabels={['Più leggibile', 'Più dettaglio']}
+          onChange={value => setLimit('line', value)}
+        />
+        <Slider
+          label="Fette al massimo in una torta"
+          reading={`${limits.donut} fette`}
+          min={CHART_LIMIT_BOUNDS.donut.min}
+          max={CHART_LIMIT_BOUNDS.donut.max}
+          step={1}
+          value={limits.donut}
+          rangeLabels={['Più leggibile', 'Più dettaglio']}
+          onChange={value => setLimit('donut', value)}
+        />
+        <Slider
+          label="Serie a confronto in uno stesso grafico"
+          reading={`${limits.series} serie`}
+          min={CHART_LIMIT_BOUNDS.series.min}
+          max={CHART_LIMIT_BOUNDS.series.max}
+          step={1}
+          value={limits.series}
+          rangeLabels={['Una alla volta', 'Più confronti']}
+          onChange={value => setLimit('series', value)}
+        />
+        <p className="rounded-xl bg-surface px-3 py-2.5 text-[11px] leading-snug text-slate-soft">
+          <span className="font-semibold text-ink">Sono limiti di leggibilità, non di costo.</span> I grafici
+          li disegna l’app con i numeri esatti, non l’intelligenza artificiale: un grafico più grande non
+          aumenta il consumo AI, perché al modello torna sempre solo un breve riepilogo. Alzarli permette
+          grafici più dettagliati, ma oltre una certa soglia diventano difficili da leggere: in quel caso
+          l’assistente raggruppa i dati (per mese, per banca…), e nelle torte le voci in più finiscono in
+          «Altro». Un andamento con molti punti chiede solo un po’ più di tempo al database.
         </p>
       </Section>
 

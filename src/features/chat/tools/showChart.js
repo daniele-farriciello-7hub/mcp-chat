@@ -8,16 +8,17 @@
 import { callFunction } from '@/shared/firebase/functions';
 import {
   CHART_TYPES,
-  MAX_POINTS,
-  MAX_SERIES,
+  DEFAULT_CHART_LIMITS,
   chartFromRows,
   chartFromValues,
-  chartProblem
+  chartProblem,
+  summarize
 } from '@/features/charts/chartData';
 
 export const SHOW_CHART_TOOL_NAME = 'show_chart';
 
-export const SHOW_CHART_TOOL = {
+/** The declaration, with the admin's limits written into it so the model knows them up front. */
+export const showChartTool = (limits = DEFAULT_CHART_LIMITS) => ({
   functionDeclarations: [
     {
       name: SHOW_CHART_TOOL_NAME,
@@ -27,9 +28,9 @@ export const SHOW_CHART_TOOL = {
         'Due modi: (1) dati dal database — passa connectionId e una query SELECT che AGGREGA: prima ' +
         'colonna le etichette (mese, banca…), poi una colonna numerica per serie, già ordinate; (2) ' +
         'valori che hai già (es. da documenti) — passa labels e series. Tipi: "bar" per confronti fra ' +
-        `categorie (max ${MAX_POINTS.bar} barre), "line" per andamenti nel tempo (max ${MAX_POINTS.line} ` +
-        `punti), "donut" per le parti di un totale (una sola serie, max ${MAX_POINTS.donut} fette). ` +
-        `Al massimo ${MAX_SERIES} serie, tutte con la stessa unità: numeri e importi vanno in due grafici. ` +
+        `categorie (max ${limits.bar} barre), "line" per andamenti nel tempo (max ${limits.line} ` +
+        `punti), "donut" per le parti di un totale (una sola serie, max ${limits.donut} fette). ` +
+        `Al massimo ${limits.series} serie, tutte con la stessa unità: numeri e importi vanno in due grafici. ` +
         'Il grafico compare da solo sopra la tua risposta: nel testo commenta il dato principale, ' +
         'senza ripetere tutti i numeri.',
       parameters: {
@@ -71,12 +72,20 @@ export const SHOW_CHART_TOOL = {
       }
     }
   ]
-};
+});
 
 /** One call to `show_chart`. Returns the `{response}` half of a functionResponse. */
 export async function runShowChartCall(
   call,
-  { schema, round, index, onActivityStart, onActivityEnd, queryTimeoutSeconds }
+  {
+    schema,
+    round,
+    index,
+    onActivityStart,
+    onActivityEnd,
+    queryTimeoutSeconds,
+    chartLimits = DEFAULT_CHART_LIMITS
+  }
 ) {
   const { type, title, unit, connectionId, sql, labels, series } = call.args || {};
   const activityId = `chart-${round}-${index}`;
@@ -130,8 +139,8 @@ export async function runShowChartCall(
   return {
     response: {
       shown: true,
-      labels: chart.labels,
-      series: chart.series,
+      // a short summary for a large chart: the model's cost does not grow with the chart
+      ...summarize(chart),
       note: 'Il grafico è già visibile sopra la risposta: commenta il dato principale, non ripetere tutti i valori.'
     }
   };

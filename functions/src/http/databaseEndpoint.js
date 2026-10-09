@@ -393,8 +393,11 @@ const ADMIN_ACTIONS = {
 };
 // ── charts: the model writes an aggregating query, the chat draws the result ──
 
-/** Most points a chart may have: beyond this it needs aggregating (by month, by bank…), not drawing. */
-const CHART_MAX_POINTS = 400;
+/**
+ * Safety cap on the rows a chart query may return: the largest limit the admin can set (a line of
+ * 2000 points). The admin's own, smaller limits are applied by the chat before drawing.
+ */
+const CHART_MAX_POINTS = 2000;
 
 /**
  * Rows for a chart drawn in the chat (`show_chart`). Same checks as `query` (SELECT only, enabled

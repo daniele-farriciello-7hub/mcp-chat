@@ -226,7 +226,7 @@ function CartesianChart({ chart, width }) {
 
 function DonutChart({ chart, width }) {
   const [hover, setHover] = useState(null);
-  const slices = foldSlices(chart.labels, chart.series[0].values);
+  const slices = foldSlices(chart.labels, chart.series[0].values, chart.maxSlices);
   const total = slices.reduce((sum, s) => sum + s.value, 0);
   const size = Math.min(HEIGHT - 20, width * 0.5);
   const radius = size / 2;
