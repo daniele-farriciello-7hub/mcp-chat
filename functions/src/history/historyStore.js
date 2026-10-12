@@ -34,7 +34,9 @@ const ACTIVITY_FIELDS = [
   'documentName',
   'documentId',
   'databaseLabel',
-  'exportTitle'
+  'exportTitle',
+  // short text under a card, e.g. "12.430 righe" on an export
+  'detail'
 ];
 
 const db = () => getFirestore();
@@ -87,7 +89,25 @@ function storableActivity(activity = {}) {
   if (typeof activity.sql === 'string') stored.sql = activity.sql.slice(0, MAX_SQL_CHARS);
   const chart = storableChart(activity.chart);
   if (chart) stored.chart = chart;
+  const exportQuery = storableExportQuery(activity.exportQuery);
+  if (exportQuery) stored.exportQuery = exportQuery;
   return stored;
+}
+
+/**
+ * The query behind a large Excel export (`export_database`), kept so its "Scarica Excel" card comes
+ * back after a reload. Only the query is stored, never rows: the file is generated again by the
+ * server on click, with the same checks and per-user filter for whoever clicks.
+ */
+function storableExportQuery(query) {
+  if (!query || typeof query.sql !== 'string' || !query.sql.trim()) return null;
+  const connectionId = safeId(query.connectionId);
+  if (!connectionId) return null;
+  return {
+    connectionId,
+    sql: query.sql.slice(0, MAX_SQL_CHARS),
+    title: typeof query.title === 'string' ? query.title.slice(0, 200) : ''
+  };
 }
 
 // the largest chart the admin can allow (charts/chartData.js CHART_LIMIT_BOUNDS): 2000 points, 6 series
