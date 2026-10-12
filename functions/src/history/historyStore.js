@@ -85,7 +85,51 @@ function storableActivity(activity = {}) {
     if (typeof activity[field] === 'string') stored[field] = activity[field].slice(0, 500);
   }
   if (typeof activity.sql === 'string') stored.sql = activity.sql.slice(0, MAX_SQL_CHARS);
+  const chart = storableChart(activity.chart);
+  if (chart) stored.chart = chart;
   return stored;
+}
+
+// the largest chart the admin can allow (charts/chartData.js CHART_LIMIT_BOUNDS): 2000 points, 6 series
+const CHART_TYPES = new Set(['bar', 'line', 'donut']);
+const MAX_CHART_POINTS = 2000;
+const MAX_CHART_SERIES = 6;
+
+/**
+ * A chart drawn in the chat, kept so it comes back with the conversation after a reload. It arrives
+ * from the browser, so only a well-formed one is stored: known type, text labels, finite numbers,
+ * within the largest limits an admin can set. Anything else is dropped (the reply text still is kept).
+ */
+function storableChart(chart) {
+  if (
+    !chart ||
+    !CHART_TYPES.has(chart.type) ||
+    !Array.isArray(chart.labels) ||
+    !Array.isArray(chart.series)
+  ) {
+    return null;
+  }
+  const labels = chart.labels.slice(0, MAX_CHART_POINTS).map(l => String(l).slice(0, 80));
+  if (!labels.length || chart.labels.length > MAX_CHART_POINTS || chart.series.length > MAX_CHART_SERIES)
+    return null;
+  const series = chart.series.map(s => ({
+    name: String(s?.name ?? '').slice(0, 80),
+    values: Array.isArray(s?.values) ? s.values.slice(0, labels.length).map(Number) : []
+  }));
+  if (
+    !series.length ||
+    series.some(s => s.values.length !== labels.length || s.values.some(v => !Number.isFinite(v)))
+  ) {
+    return null;
+  }
+  return {
+    type: chart.type,
+    title: String(chart.title || '').slice(0, 200),
+    unit: String(chart.unit || '').slice(0, 30),
+    labels,
+    series,
+    ...(Number.isInteger(chart.maxSlices) ? { maxSlices: Math.min(Math.max(chart.maxSlices, 3), 8) } : {})
+  };
 }
 
 /** Firestore Timestamp → epoch ms, for JSON. */

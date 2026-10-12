@@ -206,7 +206,8 @@ function (`chartData` action, same checks as `query_database`) or from values th
 - Limits are set in Configurazione → Modello IA → "Grafici nella chat". They are about readability, not cost:
   past 30 points the model only gets a fixed-size summary back (`summarize` in `charts/chartData.js`).
 - Colours: fixed categorical palette validated for colour-blind separation; slices never reuse a colour.
-- Charts are not kept in the conversation history: after a reload the reply text comes back, the chart not.
+- Charts are kept in the conversation history (validated server side by `storableChart` in
+  `functions/src/history/historyStore.js`), so they come back after a reload with the rest of the conversation.
 
 ## Back-end (functions/)
 
