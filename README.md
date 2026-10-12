@@ -1,8 +1,14 @@
 # mcp-chat — 7hub assistant
 
 Standalone app providing the AI assistant chat, **embedded** in the 7hub-revolution dashboard through an
-iframe and deployed independently at **https://assistente-7hub.web.app** (Firebase project
-`mappa-contatti-217007`, hosting target `app-corrente` → site `assistente-7hub`).
+iframe and deployed independently (Firebase project `mappa-contatti-217007`):
+
+| Environment | Branch        | Site                                        |
+| ----------- | ------------- | ------------------------------------------- |
+| Production  | `production`  | https://assistente-7hub.web.app             |
+| Development | `development` | https://assistente-7hub-development.web.app |
+
+How environments, releases and deploys work: **[DEPLOY.md](DEPLOY.md)**.
 
 Next.js with `output: 'export'` (static site), Firebase Hosting, Firebase Auth, Firestore, Storage and
 Firebase AI Logic (Gemini on Vertex AI). Server-side work lives in `functions/`.
@@ -14,12 +20,16 @@ Requires **Node 22** (Next 16 does not start on Node 18).
 ```bash
 nvm use 22
 npm install
-npm run dev            # http://localhost:3001
+npm run dev            # http://localhost:3001, as the development app
 ```
+
+`npm run dev` runs as the **development** app (`.env.development`), which needs the
+`assistente-7hub-development` permission. `NEXT_PUBLIC_APP_ENV=production npm run dev` runs against production
+data instead — see [DEPLOY.md](DEPLOY.md#running-locally).
 
 | Route    | Purpose                                                                                    |
 | -------- | ------------------------------------------------------------------------------------------ |
-| `/`      | Standalone chat: sign in with suite accounts, requires `permessi_app['assistente-7hub']`   |
+| `/`      | Standalone chat: sign in with suite accounts, requires `permessi_app[<app id>]`            |
 | `/embed` | **The route 7hub loads** in the iframe (sign-in required too; context comes from the host) |
 
 To see it inside 7hub, also run the 7hub-revolution frontend (`localhost:3000`). The iframe address is in
@@ -43,23 +53,30 @@ src/
   features/
     auth/                  useSession, login screen, access denied
     chat/                  agent (Gemini streaming + tools), conversation state, voice input, chat UI
-      tools/               tools the model can call (read_document, query_database) and their dispatcher
+      tools/               tools the model can call and their dispatcher (see "Model tools" below)
+    charts/                charts drawn in the chat: data helpers and the SVG component
+    history/               conversation history client, Storico tab (admin)
+    shortcuts/             personal shortcuts and their admin views
     documents/             archive schema, store, indexing + background queue, chat catalog, Documents tab
     database/              db connections schema/store, schema scan, card drafting, chat schema, Database tab
     drive/                 Drive OAuth, filename search, copy to Storage (disabled until the OAuth client exists)
     settings/              settings store and defaults, model list, settings panel
   shared/
+    environment.js         production or development: app id and function names (DEPLOY.md)
     firebase/              app init, App Check, AI Logic, Firestore root paths, Cloud Functions calls
     embed/                 postMessage bridge with the host page
     ui/                    generic UI (Button, Field, Section, Slider, Switch)
 functions/
-  index.js                 Cloud Functions wiring only
+  index.js                 Cloud Functions wiring only (production functions and their development twins)
   src/
-    http/                  tools + database HTTP endpoints (shared CORS, token check, dispatch)
+    appContext.js          which app a request works for (production / development)
+    http/                  tools, database and history HTTP endpoints (shared CORS, token check, dispatch)
+    history/               conversation history store (server side)
+    shortcuts/             personal shortcuts store (server side)
     auth/                  Keycloak token verification, Firebase ID token + app-permission checks
     clients/               Java services client
     tools/                 person registry tools, emulator-only diagnostics
-    db/                    MariaDB/MySQL pool, schema introspection, SQL validation, credential encryption
+    db/                    MariaDB/MySQL pool, schema introspection, SQL validation, credential encryption, xlsx
     drive/                 Drive client, nightly index sync, job requests
   scripts/                 tests, smoke test, response inspection, schema migration
 ```
@@ -81,9 +98,13 @@ functions/
 | Style            | Prettier (`.prettierrc.json`) + ESLint, both must pass                             |                                 |
 
 Names that are **not** ours and stay as they are: `users/{uid}` fields owned by userconf (`permessi_app`,
-`isActive`, `nome`), the app id `assistente-7hub`, jsoggetto request/response fields, and the hosting URL.
+`isActive`, `nome`), the app ids `assistente-7hub` / `assistente-7hub-development`, jsoggetto
+request/response fields, and the hosting URLs.
 
 ## Data layout
+
+Shown for production; development has the same layout under `apps/assistente-7hub-development` and
+`Storage assistente-7hub-development/` (DEPLOY.md).
 
 ```
 apps/assistente-7hub/documents/{id}       document metadata, indexingStatus (pending|done|failed), indexCard
@@ -93,9 +114,16 @@ apps/assistente-7hub/jobRequests/{id}     work requested from the server (sync, 
 apps/assistente-7hub/config/settings      chatModel, indexingModel, instructions, historyLimit, shortcuts…
 apps/assistente-7hub/dbConnections/{id}   database connection config (host, port, user…), never the password
   /tables/{t}                             per table: columns, keys, enabled, card { summary, columns }
-apps/assistente-7hub/dbSecrets/{id}       encrypted database password — denied to clients by security rules
+apps/assistente-7hub/dbSecrets/{id}       encrypted database password
+apps/assistente-7hub/chatConversations/{id}            conversation: who, when, counters, tokens, expiresAt
+  /chatMessages/{id}                                    questions, replies, tool steps (no data rows)
+apps/assistente-7hub/chatUsers/{uid}                   pointer to the user's open conversation
+  /private/shortcuts                                    the user's personal shortcuts
 Storage assistente-7hub/documents/{id}/…  file bytes read by Gemini
 ```
+
+`chatConversations` and `chatUsers` are closed to browsers by the security rules: only the `history`
+function reads and writes them. TTL on `expiresAt` deletes history after the retention set in Storico.
 
 ## How it talks to 7hub
 
@@ -145,6 +173,41 @@ Outgoing messages also carry the legacy Italian `tipo` key, and legacy incoming 
   `functions/src/db/credentials.js`) and kept in `dbSecrets/{id}`, a collection the security rules must deny
   to every client (see Prerequisites below).
 
+## Model tools
+
+The model never calls an API itself: it returns a `functionCall` (name + JSON arguments), `chat/agent.js`
+runs the matching handler in `chat/tools/`, and the result goes back as a `functionResponse`, up to the
+"giri" limit in settings.
+
+| Tool              | What it does                                                                                  |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `read_document`   | opens an indexed document in full                                                             |
+| `describe_table`  | columns and card of one enabled table                                                         |
+| `query_database`  | one read-only `SELECT`, rows go back to the model (capped by the admin)                       |
+| `export_database` | the model writes the query; the server builds the .xlsx on click, up to the admin's row limit |
+| `export_excel`    | a table the model already has (e.g. from documents) as .xlsx                                  |
+| `show_chart`      | a chart drawn by the app — see below                                                          |
+
+## Charts in the chat
+
+`show_chart` draws a chart **in the browser** (SVG, `features/charts/ChatChart.jsx`) from exact numbers — it is
+never an image generated by a model. The numbers come from an aggregating query run by the `database`
+function (`chartData` action, same checks as `query_database`) or from values the model already has.
+
+| Type    | Use for                      | Default limit (admin-adjustable)               |
+| ------- | ---------------------------- | ---------------------------------------------- |
+| `bar`   | comparing categories         | 60 bars (10–200)                               |
+| `line`  | trends over time             | 400 points (50–2000)                           |
+| `donut` | parts of a total, one series | 8 slices, extra ones folded into "Altro" (3–8) |
+
+- Up to 4 series (1–6), all in the same unit: two series more than 50× apart (count vs euros) are refused
+  with a request to make two charts — one axis only.
+- Hover for the exact value; legend from two series; "Mostra i dati" (table), "Scarica PNG", "Scarica Excel".
+- Limits are set in Configurazione → Modello IA → "Grafici nella chat". They are about readability, not cost:
+  past 30 points the model only gets a fixed-size summary back (`summarize` in `charts/chartData.js`).
+- Colours: fixed categorical palette validated for colour-blind separation; slices never reuse a colour.
+- Charts are not kept in the conversation history: after a reload the reply text comes back, the chart not.
+
 ## Back-end (functions/)
 
 Operations that need 7hub data run as Cloud Functions in the same Firebase project, **deployed separately**.
@@ -152,12 +215,14 @@ The operator's Keycloak token is forwarded to the Java services as is (same mode
 and the sales hierarchy keep applying. **The environment comes from the token issuer**, not configuration.
 Writes to production are blocked unless `ALLOW_PRODUCTION_WRITES=true`.
 
-| Export              | Trigger                             | Purpose                                                                                        |
-| ------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `tools`             | HTTP `POST /tools/<name>`           | `search-person`, `person-details`                                                              |
-| `database`          | HTTP `POST /database/<action>`      | connection test/save/delete/scan/sample (admin-only) and `query` (any operator — used by chat) |
-| `syncDrive`         | schedule, 03:00 Europe/Rome         | nightly Drive → Firestore index sync                                                           |
-| `processJobRequest` | Firestore create `jobRequests/{id}` | "sync now" and Drive file copies                                                               |
+| Export                      | Trigger                             | Purpose                                                                                                                                 |
+| --------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `tools`                     | HTTP `POST /tools/<name>`           | `search-person`, `person-details`                                                                                                       |
+| `database`                  | HTTP `POST /database/<action>`      | connection test/save/delete/scan/sample (admin-only); `query`, `chartData`, `exportPreview`, `exportFile` (any operator — used by chat) |
+| `history`                   | HTTP `POST /history/<action>`       | the caller's own `restore`/`question`/`turn`/`reset`/`shortcuts`/`saveShortcuts`; admin-only `list`/`transcript`/`users`/`allShortcuts` |
+| `databaseDev`, `historyDev` | same as above                       | development twins, working for `assistente-7hub-development` (DEPLOY.md)                                                                |
+| `syncDrive`                 | schedule, 03:00 Europe/Rome         | nightly Drive → Firestore index sync                                                                                                    |
+| `processJobRequest`         | Firestore create `jobRequests/{id}` | "sync now" and Drive file copies                                                                                                        |
 
 `database` verifies the caller's **Firebase ID token** (`functions/src/auth/firebaseUser.js`) against
 `users/{uid}` — unlike `tools`, a database connection has no per-operator ACL of its own, so this is the
@@ -180,13 +245,8 @@ chat obtains the operator's Keycloak token.
 
 ## Deploy
 
-```bash
-nvm use 22 && npm run build && firebase deploy --only hosting
-```
-
-`build` and `deploy` are separate: deploying without building publishes the previous build silently.
-Functions are deployed with `firebase deploy --only functions` (currently blocked on IAM grants that require
-the project owner).
+Pushing to `development` or `production` deploys automatically (GitHub Actions). Release flow, secrets,
+manual deploy, rollback and the development app: **[DEPLOY.md](DEPLOY.md)**.
 
 ### Release order for the English schema
 
@@ -205,7 +265,7 @@ The rename of Firestore/Storage paths, fields and the host protocol needs this o
 | Where                                        | What                                         |
 | -------------------------------------------- | -------------------------------------------- |
 | `.firebaserc`                                | hosting target                               |
-| `functions/src/http/toolsEndpoint.js`        | `ALLOWED_ORIGINS`                            |
+| `functions/src/http/cors.js`                 | `ALLOWED_ORIGINS`                            |
 | 7hub `embed-config.ts`                       | iframe address                               |
 | Console: Authentication → Authorised domains | Google sign-in fails without the domain      |
 | Console: reCAPTCHA key `assistente-7hub`     | App Check does not attest without the domain |
@@ -215,14 +275,15 @@ The rename of Firestore/Storage paths, fields and the host protocol needs this o
 1. **Actions on 7hub** (create applications, search customers): the jsoggetto code in `functions/` is
    written and tested; how the chat obtains the operator token is still undecided.
 2. **App Check enforcement** is in monitoring mode only; it becomes mandatory for AI Logic on 2 November 2026.
+   Both sites' domains are in the reCAPTCHA key.
 3. **Drive search and sync** stay disabled until the OAuth client (`features/drive/driveConfig.js`) and the
    functions IAM grants exist.
-4. **`dbSecrets/{id}` needs a security rule denying it to every client** (rules are managed outside this
-   repo — see "Release order" above for how that gets applied). Until then the AES-GCM encryption in
-   `functions/src/db/credentials.js` is the only thing between an operator and a stored database password.
+4. **`dbSecrets/{id}` is still readable** by anyone with the app's `read` permission: the rules close only
+   `chatConversations` and `chatUsers` to browsers. The AES-GCM encryption in
+   `functions/src/db/credentials.js` is what protects the password; add `dbSecrets` to the rules'
+   `isServerOnly` list (it is read only by the functions).
 5. **`query_database` has no per-operator ACL**: any signed-in operator who may use the chat can read
    whatever is enabled, unlike the Java tools where the forwarded Keycloak token keeps ACLs and the sales
    hierarchy applying. Confirm this is acceptable for whatever ends up enabled before relying on it.
 6. **The database user should be `SELECT`-only.** SQL validation (`functions/src/db/validateSelect.js`) is a
    safety net, not the boundary — ask for a read-only grant scoped to the one database before go-live.
-# mcp-chat
