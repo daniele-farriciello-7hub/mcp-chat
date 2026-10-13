@@ -123,7 +123,7 @@ Storage assistente-7hub/documents/{id}/…  file bytes read by Gemini
 ```
 
 `chatConversations` and `chatUsers` are closed to browsers by the security rules: only the `history`
-function reads and writes them. TTL on `expiresAt` deletes history after the retention set in Storico.
+function reads and writes them. TTL on `expiresAt` deletes history after the retention set in Storico; with "Mai" `expiresAt` is null and nothing is deleted.
 
 ## How it talks to 7hub
 

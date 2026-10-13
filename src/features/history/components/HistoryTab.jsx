@@ -29,7 +29,8 @@ import ConversationDetail from './ConversationDetail';
 import UserMultiSelect from './UserMultiSelect';
 import { loadAppUsers } from '../appUsers';
 
-const RETENTION_OPTIONS = [7, 30, 90, 180, 365];
+// 0 = never deleted: the server leaves expiresAt empty and the TTL policy skips the conversation
+const RETENTION_OPTIONS = [7, 30, 90, 180, 365, 0];
 const RANGES = [
   { days: 1, label: 'Oggi' },
   { days: 7, label: 'Ultimi 7 giorni' },
@@ -92,10 +93,18 @@ function HistorySettings({ settings, onChange }) {
           >
             {RETENTION_OPTIONS.map(days => (
               <option key={days} value={days}>
-                {days} giorni{days === 30 ? ' (consigliato)' : ''}
+                {days === 0
+                  ? 'Mai: non vengono cancellate'
+                  : `${days} giorni${days === 30 ? ' (consigliato)' : ''}`}
               </option>
             ))}
           </select>
+          {settings.historyRetentionDays === 0 && (
+            <p className={HELP_TEXT_CLASS}>
+              Le conversazioni restano finché qualcuno non le cancella. Il GDPR chiede di tenere i dati solo
+              per il tempo che serve: è una scelta da concordare con chi segue la privacy.
+            </p>
+          )}
         </Section>
       )}
 
@@ -124,8 +133,8 @@ function HistorySettings({ settings, onChange }) {
                 {historyNotice(settings.historyNoticeText, settings.historyRetentionDays)}
               </p>
               <p className={HELP_TEXT_CLASS}>
-                {'{giorni}'} diventa il numero di giorni scelto sopra. Lasciato vuoto, vale il testo
-                suggerito.
+                {'{giorni}'} diventa il numero di giorni scelto sopra («senza scadenza» con «Mai»). Lasciato
+                vuoto, vale il testo suggerito.
               </p>
             </>
           )}

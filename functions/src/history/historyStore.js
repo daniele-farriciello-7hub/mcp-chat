@@ -10,7 +10,8 @@
  *   apps/<app>/chatUsers/{uid}                        pointer to the user's open conversation
  *
  * Prefixed names on purpose: TTL policies apply per collection group across the whole shared
- * project. Both levels carry `expiresAt` for that TTL policy.
+ * project. Both levels carry `expiresAt` for that TTL policy; with retention "Mai" (0 days) it is
+ * null, which the TTL policy never deletes.
  *
  * A conversation lasts until "Nuova conversazione" or until the day changes in Rome.
  */
@@ -60,6 +61,9 @@ const ROME_DAY = new Intl.DateTimeFormat('en-CA', {
 });
 export const romeDay = (date = new Date()) => ROME_DAY.format(date);
 
+/** Days to keep a conversation: 0 = never deleted ("Mai"), missing or invalid = the default 30. */
+const retention = value => (Number.isInteger(value) && value >= 0 ? value : 30);
+
 const settingsCache = new Map(); // appId -> { at, value }
 /** `historyEnabled` and retention, read from the shared settings and cached briefly per instance. */
 export async function historySettings() {
@@ -69,7 +73,7 @@ export async function historySettings() {
   const data = snapshot.exists ? snapshot.data() : {};
   const value = {
     enabled: data.historyEnabled === true,
-    retentionDays: Number(data.historyRetentionDays) > 0 ? Number(data.historyRetentionDays) : 30
+    retentionDays: retention(data.historyRetentionDays)
   };
   settingsCache.set(appId(), { at: Date.now(), value });
   return value;
@@ -222,7 +226,7 @@ export async function recordQuestion(user, body, retentionDays) {
       }
       isNew = true;
       const ref = conversations().doc();
-      const expiresAt = Timestamp.fromMillis(Date.now() + retentionDays * DAY_MS);
+      const expiresAt = retentionDays ? Timestamp.fromMillis(Date.now() + retentionDays * DAY_MS) : null;
       conversation = { ref, expiresAt };
       transaction.set(ref, {
         uid: user.uid,
