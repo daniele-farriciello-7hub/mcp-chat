@@ -188,6 +188,60 @@ runs the matching handler in `chat/tools/`, and the result goes back as a `funct
 | `export_excel`    | a table the model already has (e.g. from documents) as .xlsx                                  |
 | `show_chart`      | a chart drawn by the app — see below                                                          |
 
+Every tool shows the operator an activity card in plain language ("Sto leggendo…", "Dati letti", "File
+pronto"), never the tool name or its arguments; admins also see the SQL that ran. A tool that fails still
+answers the model with the reason, so it can correct itself instead of losing the round
+(`chat/tools/runToolCalls.js`). Admin limits for the round count: Configurazione → Modello IA → "Quante volte
+può aprire documenti o interrogare il database" (default 6 giri).
+
+### `read_document` — open a document
+
+- The model always receives the list of indexed documents with their index cards; it opens one in full only
+  when the card is not enough.
+- The file goes back to Gemini as `fileData` inside the `functionResponse`: the model reads the original
+  (PDF, Word…), not an extracted text. Only ids from the list are accepted.
+- The same document opened twice in one answer shows one card. No admin limit: the cost is the document size.
+
+### `describe_table` — read a table's structure
+
+- The system prompt carries only a short card per enabled table; the full column list (types, primary key,
+  ENUM values, admin descriptions) comes from this tool, for the tables the model is about to query.
+- No network call: the schema is already loaded for the conversation, so it is free and the model is told to
+  use it rather than guess a column.
+
+### `query_database` — read data to answer
+
+- One read-only `SELECT`/`WITH` per call, run by the `database` function (`query` action). The server
+  re-checks it (`functions/src/db/validateSelect.js`): one statement, enabled tables only, a `LIMIT` when missing and a
+  timeout (`max_statement_time`) added on top.
+- The rows go back to the model, which answers from them. Limits in Configurazione → Database → "Limiti delle
+  query": righe massime per query (50–2000, default 500) and timeout (3–25 s, default 15). A truncated
+  result carries a warning so the model never reports the cut count as the total.
+- **Per-user connections** (`userScoped`): the server sets `@assistente_utente_email` to the operator's email
+  on the same socket before the query and clears it after (`queryAsUser` in `functions/src/db/mysqlClient.js`);
+  the customer's views filter on it. With "Richiedi email verificata" on, an unverified email is refused.
+
+### `export_database` — Excel file of database rows
+
+- For "give me the file": the model writes only the query and **never sees the rows**. The server (`exportPreview`)
+  checks it with the same rules as `query_database` and answers with the row count, the columns and 3 sample
+  rows; the model then says what the file contains.
+- The card shows "Scarica Excel". On click the browser sends back the query (`exportFile`), the server runs it
+  again **as the person clicking** (same per-user filter) and returns the .xlsx.
+- Limits in Configurazione → Database → "Limiti degli export Excel": righe massime per file (1.000–200.000,
+  default 50.000) and query time (10–50 s, default 45). They are read from settings **on the server**, never
+  from the request; past the row limit the file is cut and the model is told to suggest a narrower request.
+- The card survives a reload: history stores the query, never the rows (`storableExportQuery` in
+  `functions/src/history/historyStore.js`).
+
+### `export_excel` — Excel file of a table the model already has
+
+- For data that does not come from a single query: a comparison built from documents, or a few rows already
+  read with `query_database`. The model passes columns and rows; the browser builds a real .xlsx
+  (`shared/xlsx.js`) — not a CSV, which Excel on an Italian locale opens in one column.
+- Only when the operator asked for a file. Meant for small tables: every row is written by the model, so it
+  costs output tokens. Its rows live only in the open page: after a reload the card is not restored.
+
 ## Charts in the chat
 
 `show_chart` draws a chart **in the browser** (SVG, `features/charts/ChatChart.jsx`) from exact numbers — it is
