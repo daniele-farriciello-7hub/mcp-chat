@@ -291,8 +291,13 @@ loaded on demand) for "Scarica Excel".
 
 - Limits are set in Configurazione → Modello IA → "Grafici nella chat". They are about readability, not cost
   (see step 6).
-- Colours: `SERIES_COLORS`, a fixed categorical palette of 7 validated for colour-blind separation; "Altro" is
-  grey (`OTHER_COLOR`) and slices never reuse a colour.
+- Colours: `SERIES_COLORS`, a fixed categorical palette of 8 (enough for a full donut) validated for
+  colour-blind separation; "Altro" is grey (`OTHER_COLOR`) and slices never reuse a colour.
+- **Custom colours**, on every chart type: when the operator asks ("Pellecchia in rosso", "la linea in
+  verde"), the model passes `colors: [{ name, color }]` with a hex code. `name` is a series (bar, line,
+  donut), a donut slice, a single bar of a one-series bar chart, or "Altro". `chartColors` keeps only known
+  names and valid hex codes, `colorOf` falls back to the palette for the rest; to recolour a chart already
+  shown the model draws it again. The colours are saved with the chart in history (`storableColors`).
 - Hover for the exact value; legend from two series up.
 
 ## Back-end (functions/)

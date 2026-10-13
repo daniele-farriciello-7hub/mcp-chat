@@ -81,7 +81,7 @@ export const showChartTool = (limits = DEFAULT_CHART_LIMITS) => ({
               required: ['name', 'color']
             },
             description:
-              "Solo se l'operatore chiede colori precisi: name = nome della serie, oppure etichetta di una " +
+              "Solo se l'operatore chiede colori precisi: vale per ogni tipo di grafico. name = nome della serie (con i dati dal database è il nome della colonna), oppure etichetta di una " +
               'fetta della torta o di una barra (con una sola serie), o "Altro"; color = codice esadecimale ' +
               '(es. "#d62728" per rosso). Gli elementi non indicati tengono i colori predefiniti.'
           }

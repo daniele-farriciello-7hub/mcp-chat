@@ -162,7 +162,8 @@ function storableColors(colors) {
   if (!colors || typeof colors !== 'object' || Array.isArray(colors)) return {};
   const kept = Object.entries(colors)
     .filter(
-      ([name, color]) => typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) && name.length <= 80
+      ([name, color]) =>
+        typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) && name && name.length <= 80
     )
     .slice(0, 50);
   return kept.length ? { colors: Object.fromEntries(kept) } : {};
