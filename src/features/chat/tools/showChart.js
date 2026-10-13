@@ -130,9 +130,11 @@ export async function runShowChartCall(
     title: title || 'Grafico',
     unit: unit || '',
     labels: data.labels,
-    series: data.series
+    series: data.series,
+    // the admin's slice limit travels with the chart: ChatChart folds the rest into "Altro" with it
+    ...(type === 'donut' ? { maxSlices: chartLimits.donut } : {})
   };
-  const problem = chartProblem(chart);
+  const problem = chartProblem(chart, chartLimits);
   if (problem) return fail(problem);
 
   onActivityEnd(activityId, { outcome: 'done', label: 'Grafico pronto', chart });
