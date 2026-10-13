@@ -152,8 +152,20 @@ function storableChart(chart) {
     unit: String(chart.unit || '').slice(0, 30),
     labels,
     series,
-    ...(Number.isInteger(chart.maxSlices) ? { maxSlices: Math.min(Math.max(chart.maxSlices, 3), 8) } : {})
+    ...(Number.isInteger(chart.maxSlices) ? { maxSlices: Math.min(Math.max(chart.maxSlices, 3), 8) } : {}),
+    ...storableColors(chart.colors)
   };
+}
+
+/** The operator's chart colours: { name: '#rrggbb' }, at most 50, hex only. */
+function storableColors(colors) {
+  if (!colors || typeof colors !== 'object' || Array.isArray(colors)) return {};
+  const kept = Object.entries(colors)
+    .filter(
+      ([name, color]) => typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) && name.length <= 80
+    )
+    .slice(0, 50);
+  return kept.length ? { colors: Object.fromEntries(kept) } : {};
 }
 
 /** Firestore Timestamp → epoch ms, for JSON. */

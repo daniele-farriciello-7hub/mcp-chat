@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Download, Image as ImageIcon, Table2 } from 'lucide-react';
 import { downloadXlsx, slugify } from '@/shared/xlsx';
-import { OTHER_COLOR, SERIES_COLORS, foldSlices, formatValue, niceTicks } from './chartData';
+import { OTHER_COLOR, colorOf, foldSlices, formatValue, niceTicks } from './chartData';
 
 const HEIGHT = 240;
 const INK = '#16233f';
@@ -91,6 +91,9 @@ function CartesianChart({ chart, width }) {
   const longest = Math.min(Math.max(...labels.map(l => l.length)), 12);
   const labelEvery = Math.max(1, Math.ceil((longest * 6.2 + 10) / band));
   const maxLabelChars = Math.max(4, Math.floor((band * labelEvery - 6) / 6.2));
+  // one series: a bar may have its own colour, named after its label; otherwise the series colour
+  const barColor = (i, k) =>
+    (series.length === 1 && chart.colors?.[labels[i]]) || colorOf(chart, series[k].name, k);
 
   const tooltip = hover !== null && {
     x: left + band * (hover + 0.5),
@@ -102,7 +105,7 @@ function CartesianChart({ chart, width }) {
       { text: labels[hover], bold: true },
       ...series.map((s, i) => ({
         text: `${series.length > 1 ? `${s.name}: ` : ''}${formatValue(s.values[hover], unit)}`,
-        color: series.length > 1 ? SERIES_COLORS[i] : undefined
+        color: series.length > 1 ? colorOf(chart, s.name, i) : undefined
       }))
     ]
   };
@@ -161,7 +164,7 @@ function CartesianChart({ chart, width }) {
               <path
                 key={`${i}-${k}`}
                 d={h < 0.5 ? '' : d}
-                fill={SERIES_COLORS[k]}
+                fill={barColor(i, k)}
                 opacity={hover === null || hover === i ? 1 : 0.45}
               />
             );
@@ -176,7 +179,7 @@ function CartesianChart({ chart, width }) {
               <polyline
                 points={points}
                 fill="none"
-                stroke={SERIES_COLORS[k]}
+                stroke={colorOf(chart, s.name, k)}
                 strokeWidth={2}
                 strokeLinejoin="round"
               />
@@ -185,7 +188,7 @@ function CartesianChart({ chart, width }) {
                   cx={left + band * (hover + 0.5)}
                   cy={y(s.values[hover])}
                   r={4.5}
-                  fill={SERIES_COLORS[k]}
+                  fill={colorOf(chart, s.name, k)}
                   stroke="#fff"
                   strokeWidth={2}
                 />
@@ -246,7 +249,11 @@ function DonutChart({ chart, width }) {
     const d =
       `M${point(radius, a0)} A${radius},${radius} 0 ${large} 1 ${point(radius, a1)} ` +
       `L${point(inner, a1)} A${inner},${inner} 0 ${large} 0 ${point(inner, a0)} Z`;
-    return { ...slice, d, color: slice.other ? OTHER_COLOR : SERIES_COLORS[i] };
+    return {
+      ...slice,
+      d,
+      color: slice.other ? chart.colors?.Altro || OTHER_COLOR : colorOf(chart, slice.label, i)
+    };
   });
   const legendX = cx + radius + 20;
   const focus = hover !== null ? arcs[hover] : null;
@@ -367,7 +374,7 @@ export default function ChatChart({ chart }) {
         <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
           {series.map((s, i) => (
             <span key={s.name} className="flex items-center gap-1.5 text-[11px] text-slate-soft">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: SERIES_COLORS[i] }} />
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: colorOf(chart, s.name, i) }} />
               {s.name}
             </span>
           ))}

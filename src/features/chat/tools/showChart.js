@@ -10,6 +10,7 @@ import {
   CHART_TYPES,
   DEFAULT_CHART_LIMITS,
   chartFromRows,
+  chartColors,
   chartFromValues,
   chartProblem,
   summarize
@@ -31,6 +32,8 @@ export const showChartTool = (limits = DEFAULT_CHART_LIMITS) => ({
         `categorie (max ${limits.bar} barre), "line" per andamenti nel tempo (max ${limits.line} ` +
         `punti), "donut" per le parti di un totale (una sola serie, max ${limits.donut} fette). ` +
         `Al massimo ${limits.series} serie, tutte con la stessa unità: numeri e importi vanno in due grafici. ` +
+        "Se l'operatore chiede colori precisi passali in colors; per cambiare i colori di un grafico già " +
+        'mostrato richiamalo con gli stessi dati e i nuovi colors. ' +
         'Il grafico compare da solo sopra la tua risposta: nel testo commenta il dato principale, ' +
         'senza ripetere tutti i numeri.',
       parameters: {
@@ -66,6 +69,21 @@ export const showChartTool = (limits = DEFAULT_CHART_LIMITS) => ({
               required: ['name', 'values']
             },
             description: 'Per i valori che hai già: una serie per gruppo, un valore per etichetta.'
+          },
+          colors: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                color: { type: 'string' }
+              },
+              required: ['name', 'color']
+            },
+            description:
+              "Solo se l'operatore chiede colori precisi: name = nome della serie, oppure etichetta di una " +
+              'fetta della torta o di una barra (con una sola serie), o "Altro"; color = codice esadecimale ' +
+              '(es. "#d62728" per rosso). Gli elementi non indicati tengono i colori predefiniti.'
           }
         },
         required: ['type', 'title']
@@ -87,7 +105,7 @@ export async function runShowChartCall(
     chartLimits = DEFAULT_CHART_LIMITS
   }
 ) {
-  const { type, title, unit, connectionId, sql, labels, series } = call.args || {};
+  const { type, title, unit, connectionId, sql, labels, series, colors } = call.args || {};
   const activityId = `chart-${round}-${index}`;
   const fromDatabase = Boolean(sql);
   onActivityStart(activityId, {
@@ -131,6 +149,7 @@ export async function runShowChartCall(
     unit: unit || '',
     labels: data.labels,
     series: data.series,
+    colors: chartColors(colors, data),
     // the admin's slice limit travels with the chart: ChatChart folds the rest into "Altro" with it
     ...(type === 'donut' ? { maxSlices: chartLimits.donut } : {})
   };

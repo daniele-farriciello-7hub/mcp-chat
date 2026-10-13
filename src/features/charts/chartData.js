@@ -38,9 +38,44 @@ export function chartLimits(stored = {}) {
  * Categorical colours, fixed order (validated for colour-blind separation against white). Slot 1 is
  * the brand blue, so a single series always looks like the rest of the app.
  */
-// seven: a donut has at most seven slices plus a grey "Altro", so no colour is ever reused
-export const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7'];
+// eight: a donut has up to eight slices when none is folded into "Altro" (seven plus a grey "Altro"
+// otherwise), so no colour is ever reused — with seven the eighth slice was drawn black
+export const SERIES_COLORS = [
+  '#2a78d6',
+  '#eb6834',
+  '#1baf7a',
+  '#eda100',
+  '#e87ba4',
+  '#008300',
+  '#4a3aa7',
+  '#8a5a2e'
+];
 export const OTHER_COLOR = '#b4b2a9';
+
+const HEX_COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+const MAX_CUSTOM_COLORS = 50;
+
+/**
+ * Colours the operator asked for, from show_chart's `colors` ([{ name, color }]) → { name: '#rrggbb' }.
+ * `name` is a series name, or a label (a donut slice, one bar of a single-series bar chart, or
+ * "Altro"); anything else, and anything that is not a hex colour, is dropped.
+ */
+export function chartColors(entries, { labels, series }) {
+  if (!Array.isArray(entries)) return {};
+  const known = new Set([...labels, ...series.map(s => s.name), 'Altro']);
+  const colors = {};
+  for (const entry of entries.slice(0, MAX_CUSTOM_COLORS)) {
+    const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
+    const color = typeof entry?.color === 'string' ? entry.color.trim() : '';
+    if (!known.has(name) || !HEX_COLOR.test(color)) continue;
+    colors[name] = color.length === 4 ? `#${[...color.slice(1)].map(c => c + c).join('')}` : color;
+  }
+  return colors;
+}
+
+/** The colour of a series or slice: the operator's choice if any, else the palette's slot. */
+export const colorOf = (chart, name, index) =>
+  chart.colors?.[name] || SERIES_COLORS[index % SERIES_COLORS.length];
 
 const toNumber = value => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
