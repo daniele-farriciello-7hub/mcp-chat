@@ -13,11 +13,11 @@ setGlobalOptions({ region: 'europe-west1', maxInstances: 10 });
 initializeApp({ storageBucket: 'mappa-contatti-217007.firebasestorage.app' });
 
 export const tools = onRequest(handleToolRequest);
-// timeoutSeconds below the 60s gen2 default: a long-running query must not leave the browser
-// hanging past the function's own budget (plan edge case 18)
-// 60s and 1GiB: an export (exportFile) runs a query of up to 45s and builds a file of up to 50k rows
+// 180s: a query may run up to 120s (QUERY_MAX_SECONDS / EXPORT_LIMITS in databaseEndpoint.js), plus
+// connection setup, building the file and sending it; the server always stops the query first, so the
+// operator gets a clean error, not a raw 504. 1GiB: an export builds a file of up to 200k rows
 export const database = onRequest(
-  { timeoutSeconds: 60, memory: '1GiB' },
+  { timeoutSeconds: 180, memory: '1GiB' },
   forApp(PRODUCTION_APP, handleDatabaseRequest)
 );
 
@@ -29,7 +29,7 @@ export const history = onRequest({ timeoutSeconds: 30 }, forApp(PRODUCTION_APP, 
 // branch and called only by the development site; production deploys only the three above. `tools`
 // touches no app data and has no twin.
 export const databaseDev = onRequest(
-  { timeoutSeconds: 60, memory: '1GiB' },
+  { timeoutSeconds: 180, memory: '1GiB' },
   forApp(DEVELOPMENT_APP, handleDatabaseRequest)
 );
 export const historyDev = onRequest({ timeoutSeconds: 30 }, forApp(DEVELOPMENT_APP, handleHistoryRequest));

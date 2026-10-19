@@ -215,7 +215,7 @@ può aprire documenti o interrogare il database" (default 6 giri).
   re-checks it (`functions/src/db/validateSelect.js`): one statement, enabled tables only, a `LIMIT` when missing and a
   timeout (`max_statement_time`) added on top.
 - The rows go back to the model, which answers from them. Limits in Configurazione → Database → "Limiti delle
-  query": righe massime per query (50–2000, default 500) and timeout (3–25 s, default 15). A truncated
+  query": righe massime per query (50–2000, default 500) and timeout (3–120 s, default 15). A truncated
   result carries a warning so the model never reports the cut count as the total.
 - **Per-user connections** (`userScoped`): the server sets `@assistente_utente_email` to the operator's email
   on the same socket before the query and clears it after (`queryAsUser` in `functions/src/db/mysqlClient.js`);
@@ -229,7 +229,7 @@ può aprire documenti o interrogare il database" (default 6 giri).
 - The card shows "Scarica Excel". On click the browser sends back the query (`exportFile`), the server runs it
   again **as the person clicking** (same per-user filter) and returns the .xlsx.
 - Limits in Configurazione → Database → "Limiti degli export Excel": righe massime per file (1.000–200.000,
-  default 50.000) and query time (10–50 s, default 45). They are read from settings **on the server**, never
+  default 50.000) and query time (10–120 s, default 45). They are read from settings **on the server**, never
   from the request; past the row limit the file is cut and the model is told to suggest a narrower request.
 - The card survives a reload: history stores the query, never the rows (`storableExportQuery` in
   `functions/src/history/historyStore.js`).

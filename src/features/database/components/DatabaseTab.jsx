@@ -147,15 +147,16 @@ export default function DatabaseTab({ settings, onChange }) {
             label="Timeout per query"
             reading={`${settings.queryTimeoutSeconds} s`}
             min={3}
-            max={25}
+            max={120}
             step={1}
             value={settings.queryTimeoutSeconds}
             rangeLabels={['Fallisce prima', 'Aspetta di più']}
             onChange={value => onChange('queryTimeoutSeconds', value)}
           />
           <p className={HELP_TEXT_CLASS}>
-            Il timeout non può comunque superare i 25 secondi: oltre, la funzione che esegue la query si
-            interrompe comunque dopo 30 secondi e l’operatore vedrebbe un errore meno chiaro. Più righe
+            Massimo 120 secondi: oltre questo tempo è il database stesso a fermare la query e il modello
+            riceve un errore. Mentre la query gira l’operatore aspetta la risposta, e una query lunga pesa
+            anche sul database del gestionale: alzalo solo se le domande normali non ci stanno. Più righe
             significa risposte più pesanti da rimandare al modello, non necessariamente più utili.
           </p>
         </Section>
@@ -182,7 +183,7 @@ export default function DatabaseTab({ settings, onChange }) {
             label="Tempo massimo della query sul database"
             reading={`${settings.exportTimeoutSeconds} s`}
             min={10}
-            max={50}
+            max={120}
             step={5}
             value={settings.exportTimeoutSeconds}
             rangeLabels={['Si ferma prima', 'Aspetta di più']}
@@ -191,9 +192,9 @@ export default function DatabaseTab({ settings, onChange }) {
           <p className={HELP_TEXT_CLASS}>
             Quanto può lavorare il database per estrarre le righe di un export, per tutte le connessioni qui
             sopra: oltre questo tempo è il database stesso a fermare la query, e l’operatore vede «Non
-            riuscito, riprova». Non riguarda il modello AI. Massimo 50 secondi, perché l’intero export (query,
-            creazione del file e invio) deve chiudersi entro il minuto concesso al server. Con molte colonne,
-            un file vicino alle 200.000 righe può comunque non riuscire.
+            riuscito, riprova». Non riguarda il modello AI. Massimo 120 secondi, perché l’intero export
+            (query, creazione del file e invio) deve chiudersi entro i 3 minuti concessi al server. Con molte
+            colonne, un file vicino alle 200.000 righe può comunque non riuscire.
           </p>
         </Section>
       </div>

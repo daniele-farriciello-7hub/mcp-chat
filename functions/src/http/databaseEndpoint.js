@@ -230,6 +230,13 @@ async function queryContext(user, body) {
   return { connectionId, sql, enabledTables, run, validate };
 }
 
+/**
+ * Ceiling on a query's time on the database (`max_statement_time`), whatever the client asks: 120s,
+ * well inside the function's own 180s timeout (functions/index.js), so the database stops a slow query
+ * and the operator gets a clean error instead of a raw 504.
+ */
+const QUERY_MAX_SECONDS = 120;
+
 async function actionQuery(user, body) {
   const { sql, enabledTables, run, validate } = await queryContext(user, body);
 
@@ -239,7 +246,7 @@ async function actionQuery(user, body) {
   // connection setup and row serialization, or the operator gets a raw 504 instead of a clean error
   const maxRows = Number(body.maxRows) > 0 ? Number(body.maxRows) : 500;
   const requestedTimeout = Number(body.timeoutSeconds) > 0 ? Number(body.timeoutSeconds) : 15;
-  const timeoutSeconds = Math.min(requestedTimeout, 25);
+  const timeoutSeconds = Math.min(requestedTimeout, QUERY_MAX_SECONDS);
 
   const statement = validate(() => validateSelect(sql, { enabledTables, maxRows, timeoutSeconds }));
   const started = Date.now();
@@ -252,12 +259,13 @@ async function actionQuery(user, body) {
 /**
  * Bounds of the admin's export settings (`exportMaxRows`, `exportTimeoutSeconds`). The values come
  * from the settings document, read here on the server — never from the request, so nobody can raise
- * them by calling this endpoint by hand — and are clamped: 50s keeps the query inside the function's
- * 60s timeout, 200k rows inside its memory and the 32 MB response limit.
+ * them by calling this endpoint by hand — and are clamped: 120s keeps the query inside the function's
+ * 180s timeout with time left to build and send the file, 200k rows inside its memory and the 32 MB
+ * response limit.
  */
 const EXPORT_LIMITS = {
   rows: { min: 1_000, max: 200_000, fallback: 50_000 },
-  seconds: { min: 10, max: 50, fallback: 45 }
+  seconds: { min: 10, max: 120, fallback: 45 }
 };
 const PREVIEW_ROWS = 3;
 const SETTINGS_TTL_MS = 30_000;
@@ -411,7 +419,7 @@ async function actionChartData(user, body) {
     validateSelect(sql, {
       enabledTables,
       maxRows: CHART_MAX_POINTS + 1,
-      timeoutSeconds: Math.min(requestedTimeout, 25)
+      timeoutSeconds: Math.min(requestedTimeout, QUERY_MAX_SECONDS)
     })
   );
   const rows = await run(statement);
