@@ -10,6 +10,7 @@
 
 import { useEffect, useRef } from 'react';
 import ActivityRow from './ActivityRow';
+import OptionsCard from './OptionsCard';
 import MessageBubble from './MessageBubble';
 import Suggestions from './Suggestions';
 import Welcome from './Welcome';
@@ -56,10 +57,15 @@ export default function MessageList({ uid, isAdmin, messages, status, userName, 
             if (busy && i > lastUserIndex) return null;
             return <ChatChart key={message.id} chart={message.chart} />;
           }
+          // choices found in 7Hub: clickable rows, kept in the conversation
+          if (message.role === 'activity' && message.options?.length && message.outcome === 'done') {
+            if (busy && i > lastUserIndex) return null;
+            return <OptionsCard key={message.id} activity={message} />;
+          }
           if (message.role === 'activity') {
             const useful =
               message.outcome === 'done' &&
-              (message.documentId || message.rows?.length || message.exportQuery);
+              (message.documentId || message.rows?.length || message.exportQuery || message.opened);
             if (!useful || (busy && i > lastUserIndex)) return null;
             const source = message.dedupeKey || message.id;
             if (shownSources.has(source)) return null;

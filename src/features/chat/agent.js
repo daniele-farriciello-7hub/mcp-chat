@@ -30,6 +30,7 @@ import { EXPORT_DATABASE_TOOL, EXPORT_DATABASE_TOOL_NAME } from './tools/exportD
 import { showChartTool } from './tools/showChart';
 import { chartLimits } from '@/features/charts/chartData';
 import { runToolCalls } from './tools/runToolCalls';
+import { hostToolDeclarations } from './tools/hostTools';
 
 /**
  * Gemini 3 spends part of `maxOutputTokens` on internal reasoning before writing, and the setting
@@ -103,7 +104,9 @@ export async function streamAgentReply({
             ...EXPORT_EXCEL_TOOL.functionDeclarations,
             ...showChartTool(chartLimits(settings.chartLimits)).functionDeclarations
           ]
-        : [])
+        : []),
+      // embedded in 7Hub: search customers / leads / practices and open pages, in the operator's session
+      ...hostToolDeclarations(context, settings.hostToolsConfig)
     ];
 
     const buildModel = modelId =>
@@ -120,7 +123,10 @@ export async function streamAgentReply({
           databaseInstructions: settings.databaseInstructions,
           databaseSelection: settings.databaseSelectionInstructions,
           databaseAttachments: settings.databaseAttachments,
-          databaseSelectionAttachments: settings.databaseSelectionAttachments
+          databaseSelectionAttachments: settings.databaseSelectionAttachments,
+          hostToolsInstructions: settings.hostToolsInstructions,
+          hostToolsAttachments: settings.hostToolsAttachments,
+          hostToolsConfig: settings.hostToolsConfig
         }),
         generationConfig: {
           temperature: settings.temperature,

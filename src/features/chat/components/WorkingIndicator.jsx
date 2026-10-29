@@ -25,7 +25,10 @@ import {
   PieChart,
   Sigma,
   Sparkles,
-  Table2
+  Table2,
+  Compass,
+  Search,
+  ExternalLink
 } from 'lucide-react';
 
 const THINKING = { Icon: Sparkles, label: 'Sto pensando…' };
@@ -51,7 +54,9 @@ const TOOL_PHASES = {
   documents: { Icon: FileSearch, cycle: [FileSearch, BookOpen, Highlighter], label: 'Cerco nei documenti…' },
   data: { Icon: Database, cycle: [Database, Table2, Calculator, Sigma], label: 'Faccio i conti sui dati…' },
   export: { Icon: FileSpreadsheet, cycle: [FileSpreadsheet, Table2, Download], label: 'Preparo il file…' },
-  chart: { Icon: BarChart3, cycle: [BarChart3, LineChart, PieChart], label: 'Preparo il grafico…' }
+  chart: { Icon: BarChart3, cycle: [BarChart3, LineChart, PieChart], label: 'Preparo il grafico…' },
+  // 7Hub tools (search, open a page or a record) run by the host page
+  app: { Icon: Compass, cycle: [Search, Compass, ExternalLink], label: 'Lavoro in 7Hub…' }
 };
 
 /**

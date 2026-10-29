@@ -1,7 +1,7 @@
 /** The whole chat panel: header, conversation and composer. The only visible part inside 7hub. */
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import SettingsPanel from '@/features/settings/components/SettingsPanel';
 import UserSettingsPanel from '@/features/settings/components/UserSettingsPanel';
 import { useConversation } from '@/features/chat/useConversation';
@@ -9,9 +9,49 @@ import ChatHeader from './ChatHeader';
 import ChatInput from './ChatInput';
 import MessageList from './MessageList';
 
-export default function ChatPanel({ context, uid, email, isAdmin = false, onNavigate, onClose, onSignOut }) {
+export default function ChatPanel({
+  context,
+  uid,
+  email,
+  isAdmin = false,
+  onNavigate,
+  onClose,
+  onSignOut,
+  hideHeader = false,
+  onStatus,
+  ref
+}) {
   const { messages, status, send, reset } = useConversation({ uid, context, isAdmin });
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Embedded in 7Hub, the host's header and entry points (home box, search bar) drive the chat through
+  // this handle. A question asked while a reply is still being written waits for it instead of being lost.
+  const queued = useRef([]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      ask: text => {
+        if (!text?.trim()) return;
+        setSettingsOpen(false);
+        if (status === 'idle') send(text.trim());
+        else queued.current.push(text.trim());
+      },
+      reset: () => {
+        setSettingsOpen(false);
+        reset();
+      },
+      openSettings: () => setSettingsOpen(true)
+    }),
+    [status, send, reset]
+  );
+  useEffect(() => {
+    if (status === 'idle' && queued.current.length) send(queued.current.shift());
+  }, [status, send]);
+
+  const busy = status !== 'idle';
+  useEffect(() => {
+    onStatus?.(busy);
+  }, [busy, onStatus]);
 
   if (settingsOpen) {
     return (
@@ -28,17 +68,19 @@ export default function ChatPanel({ context, uid, email, isAdmin = false, onNavi
 
   return (
     <div className="panel-root">
-      <ChatHeader
-        status={status}
-        email={email}
-        onOpenSettings={uid ? () => setSettingsOpen(true) : undefined}
-        settingsLabel={isAdmin ? 'Configurazione' : 'Le mie scorciatoie'}
-        // hidden mid-reply: closing the conversation while its last turn is still being written
-        // would leave that turn's history write pointing at a conversation already ended
-        onReset={messages.length > 0 && status === 'idle' ? reset : undefined}
-        onSignOut={onSignOut}
-        onClose={onClose}
-      />
+      {!hideHeader && (
+        <ChatHeader
+          status={status}
+          email={email}
+          onOpenSettings={uid ? () => setSettingsOpen(true) : undefined}
+          settingsLabel={isAdmin ? 'Configurazione' : 'Le mie scorciatoie'}
+          // hidden mid-reply: closing the conversation while its last turn is still being written
+          // would leave that turn's history write pointing at a conversation already ended
+          onReset={messages.length > 0 && status === 'idle' ? reset : undefined}
+          onSignOut={onSignOut}
+          onClose={onClose}
+        />
+      )}
       <MessageList
         uid={uid}
         isAdmin={isAdmin}

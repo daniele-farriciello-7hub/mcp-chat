@@ -9,6 +9,7 @@ import { DESCRIBE_TABLE_TOOL_NAME, runDescribeTableCall } from './describeTable'
 import { EXPORT_EXCEL_TOOL_NAME, runExportExcelCall } from './exportExcel';
 import { EXPORT_DATABASE_TOOL_NAME, runExportDatabaseCall } from './exportDatabase';
 import { SHOW_CHART_TOOL_NAME, runShowChartCall } from './showChart';
+import { HOST_TOOL_NAMES, runHostToolCall } from './hostTools';
 
 const HANDLERS = {
   [READ_DOCUMENT_TOOL_NAME]: runReadDocumentCall,
@@ -16,7 +17,9 @@ const HANDLERS = {
   [DESCRIBE_TABLE_TOOL_NAME]: runDescribeTableCall,
   [EXPORT_EXCEL_TOOL_NAME]: runExportExcelCall,
   [EXPORT_DATABASE_TOOL_NAME]: runExportDatabaseCall,
-  [SHOW_CHART_TOOL_NAME]: runShowChartCall
+  [SHOW_CHART_TOOL_NAME]: runShowChartCall,
+  // 7Hub tools: executed by the host page through the postMessage bridge
+  ...Object.fromEntries(Object.values(HOST_TOOL_NAMES).map(name => [name, runHostToolCall]))
 };
 
 export async function runToolCalls(calls, context) {

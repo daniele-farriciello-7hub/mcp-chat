@@ -75,6 +75,21 @@ Riconosci gli istituti di cui parla e i prodotti che tratta (mutuo, cessione del
 Usa solo quello che c'è nel documento, non inventare. Scrivi in italiano.
 Rispondi esclusivamente con JSON conforme allo schema.`;
 
+// Only when embedded in 7Hub (context.tools): how to use the 7Hub tools. Goes LAST in the system prompt, so it
+// wins over the general instructions. The tool names are the ones in features/chat/tools/hostTools.js.
+const DEFAULT_HOST_TOOLS_INSTRUCTIONS = `Sei dentro il gestionale 7Hub e PUOI agire al suo interno con gli strumenti 7Hub: questo vale piu' di qualsiasi frase precedente che dica che non sei collegato alle anagrafiche o alle pratiche.
+- Quando l'operatore vuole VEDERE, CERCARE, APRIRE o FILTRARE clienti, lead o pratiche ("mostrami i lead di X", "apri la pratica…", "cerca Rossi") usa SEMPRE gli strumenti 7Hub, mai il database: il database serve solo per numeri, conteggi e statistiche. Se uno strumento 7Hub non trova nulla, dillo: non ripiegare sul database.
+- Per trovare clienti, lead o pratiche usa search_7hub_records; vedi solo cio' che l'operatore puo' vedere.
+- Per aprire una scheda usa open_7hub_record con il \`ref\` di un risultato; per una sezione usa open_7hub_page.
+- Se piu' risultati o pagine corrispondono non scegliere a caso: l'operatore li vede gia' come schede cliccabili sotto il tuo messaggio, quindi scrivi una riga sola ("Ho trovato 5 risultati per Rossi: quale apro?") senza ripetere l'elenco.
+- Per i log di una pratica o di un lead usa read_7hub_logs, per le note read_7hub_notes, per altre sezioni (documenti, provvigioni, passaggi stato, task collegati, mail, sms) read_7hub_section. Riassumi le righe utili (date, azioni, autori) senza inventare: se la tabella e' vuota dillo.
+- Il \`ref\` dei risultati serve solo a te per aprirli: non mostrarlo all'operatore. Indica i record con nome, tipo e, se c'e', il numero.
+- Per "questa pratica", "questo cliente", "qui" usa prima get_7hub_context; per sapere cosa contiene usa read_7hub_page.
+- Per una parte di una scheda (documenti, logs, provvigioni, note, dati aggiuntivi…) usa open_7hub_section; se poi ti chiedono cosa c'e' (documenti mancanti, stato, importi) leggi con read_7hub_page e riporta solo quello che vedi.
+- Per "mostrami i lead / le pratiche di X" apri l'elenco con open_7hub_page e poi usa filter_7hub_list.
+- Dopo aver aperto qualcosa dillo in una riga ("Ho aperto la pratica 900162497 di Luca D'Agnelli").
+- Non puoi modificare dati: niente creazioni, modifiche o cambi di stato. Se te lo chiedono, apri la pagina giusta e spiega all'operatore dove cliccare.`;
+
 export const DEFAULT_SETTINGS = {
   chatModel: DEFAULT_CHAT_MODEL,
   indexingModel: DEFAULT_INDEXING_MODEL,
@@ -110,6 +125,11 @@ export const DEFAULT_SETTINGS = {
   instructions: DEFAULT_INSTRUCTIONS,
   // full text of each goes straight into the system prompt, next to `instructions` — see systemPrompt.js
   instructionsAttachments: [], // [{ name, content }]
+  // the 7Hub tools' rules (Impostazioni → 7Hub), used only inside 7Hub; empty = the default
+  hostToolsInstructions: DEFAULT_HOST_TOOLS_INSTRUCTIONS,
+  hostToolsAttachments: [], // [{ name, content }]
+  // per 7Hub tool, by model name: { enabled: false } switches it off, { description } replaces the model's text
+  hostToolsConfig: {},
   // how much past conversation reaches the model; the privacy assessment asks to keep it minimal
   historyLimit: { unit: 'messages', value: 20 },
   // the AI Act requires making clear the user is talking to an automated system

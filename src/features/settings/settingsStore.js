@@ -18,7 +18,8 @@ const ATTACHMENT_FIELDS = [
   'indexingAttachments',
   'documentSelectionAttachments',
   'databaseAttachments',
-  'databaseSelectionAttachments'
+  'databaseSelectionAttachments',
+  'hostToolsAttachments'
 ];
 
 function withDefaults(stored) {
@@ -70,7 +71,9 @@ export async function saveSettingsFields(fields) {
 }
 
 export async function saveSettings(settings) {
-  await setDoc(settingsDoc(), settings, { merge: true });
+  // each field is written whole (mergeFields), not deep-merged: with plain `merge` a key removed from a nested
+  // object (a tool's custom text in hostToolsConfig, after "Riporta tutto com'era") would stay in Firestore
+  await setDoc(settingsDoc(), settings, { mergeFields: Object.keys(settings) });
   cached = withDefaults(settings);
   return cached;
 }

@@ -4,11 +4,19 @@
  * through postMessage, always with a verified origin.
  *
  * host → iframe
- *   { type: 'context', user: { firstName, lastName, email }, page: '/dashboard/…', theme: 'light'|'dark' }
+ *   { type: 'context', user: { firstName, lastName, email }, page: '/dashboard/…', pageTitle,
+ *     theme: 'light'|'dark', tools: ['get_context', 'search_records', 'open_page', 'open_record'] }
+ *   { type: 'tool_result', id, ok: true, result } | { type: 'tool_result', id, ok: false, error }
+ *   { type: 'ask', text }                 the operator asked from the host (home box, search bar): send it
+ *   { type: 'reset' } | { type: 'open_settings' } | { type: 'sign_out' }   the host's header buttons
+ *   (context.hostChrome = true: the host draws the header, so this page hides its own)
  * iframe → host
  *   { type: 'ready' }                    sent twice: by the inline script in app/embed/layout.jsx and on mount
  *   { type: 'navigate', url: '/dashboard/…' }
  *   { type: 'close' }
+ *   { type: 'status', busy }             so the host can show that the assistant is working
+ *   { type: 'tool_call', id, name, args } the host runs it in the operator's own 7Hub session (their
+ *                                         login and visibility rules) and answers with tool_result
  */
 
 // The trusted suffix is compared on the parsed HOSTNAME, never on the raw origin string:
@@ -83,10 +91,16 @@ export function postToHost(message, origin) {
   window.parent.postMessage(withLegacyKeys(message), target);
 }
 
-export const announceReady = () => postToHost({ type: 'ready' });
+// `listening`: sent once the page listens to the host (the inline pre-hydration `ready` cannot receive commands yet)
+export const announceReady = () => postToHost({ type: 'ready', listening: true });
 
-/** Listens for host context. `onContext(context, origin)` fires only for trusted origins. Returns cleanup. */
-export function listenToHost(onContext) {
+const HOST_COMMANDS = new Set(['ask', 'reset', 'open_settings', 'sign_out']);
+
+/**
+ * Listens to the host. `onContext(context, origin)` for context, `onCommand(command, origin)` for the host's
+ * commands (ask, reset, open_settings, sign_out). Trusted origins only. Returns cleanup.
+ */
+export function listenToHost(onContext, onCommand) {
   if (typeof window === 'undefined') return () => {};
 
   const handler = event => {
@@ -94,8 +108,51 @@ export function listenToHost(onContext) {
     if (!event.data || typeof event.data !== 'object') return;
     const data = fromLegacyContext(event.data);
     if (data.type === 'context') onContext(data, event.origin);
+    else if (onCommand && event.source === window.parent && HOST_COMMANDS.has(data.type))
+      onCommand(data, event.origin);
   };
 
   window.addEventListener('message', handler);
   return () => window.removeEventListener('message', handler);
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Tool bridge: the model's 7Hub tools (features/chat/tools/hostTools.js) are executed by the host page,
+// which already has the operator's session. Each call gets an id; the matching tool_result resolves it.
+
+const HOST_TOOL_TIMEOUT_MS = 20000;
+const pending = new Map();
+let resultListener = null;
+
+function ensureResultListener() {
+  if (resultListener || typeof window === 'undefined') return;
+  resultListener = event => {
+    if (!isTrustedHostOrigin(event.origin)) return;
+    if (event.source !== window.parent) return;
+    const data = event.data;
+    if (!data || typeof data !== 'object' || data.type !== 'tool_result') return;
+    const entry = pending.get(data.id);
+    if (!entry) return;
+    pending.delete(data.id);
+    clearTimeout(entry.timer);
+    if (data.ok) entry.resolve(data.result);
+    else entry.reject(new Error(data.error || 'host tool failed'));
+  };
+  window.addEventListener('message', resultListener);
+}
+
+/** Asks the host page to run one of its tools. Rejects if not embedded, not trusted, or no answer in time. */
+export function callHostTool(name, args = {}) {
+  const origin = getHostOrigin();
+  if (!origin) return Promise.reject(new Error('not embedded in 7Hub'));
+  ensureResultListener();
+  const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error('7Hub did not answer in time'));
+    }, HOST_TOOL_TIMEOUT_MS);
+    pending.set(id, { resolve, reject, timer });
+    window.parent.postMessage({ type: 'tool_call', id, name, args }, origin);
+  });
 }

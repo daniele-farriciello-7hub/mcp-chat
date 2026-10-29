@@ -19,6 +19,7 @@ import SaveBar from './SaveBar';
 import SettingsHeader from './SettingsHeader';
 import SettingsSkeleton from './SettingsSkeleton';
 import SettingsTabs from './SettingsTabs';
+import HubTab from './HubTab';
 import ShortcutsTab from './ShortcutsTab';
 
 export default function SettingsPanel({ onClose }) {
@@ -95,6 +96,7 @@ export default function SettingsPanel({ onClose }) {
         {activeTab === 'documents' && <DocumentsTab />}
         {activeTab === 'database' && <DatabaseTab settings={settings} onChange={update} />}
         {activeTab === 'history' && <HistoryTab settings={settings} onChange={update} />}
+        {activeTab === 'hub' && <HubTab settings={settings} onChange={update} />}
 
         {!savesItself && (
           <div className="mt-8 border-t border-line pt-4">

@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
 import { attachmentsBlock } from '@/shared/promptAttachments';
+import { disabledHostTools } from './tools/hostTools';
 
 /**
  * One table, name and card only — never its columns. Column types, keys and descriptions are real
@@ -78,8 +79,28 @@ function contextLine(context) {
   const email = context.user?.email;
   if (name) parts.push(`Stai parlando con ${name}${email ? ` (${email})` : ''}.`);
   else if (email) parts.push(`Stai parlando con ${email}.`);
-  if (context.page) parts.push(`In questo momento e' sulla pagina ${context.page} del gestionale.`);
+  if (context.page) {
+    parts.push(
+      `In questo momento e' sulla pagina ${context.pageTitle ? `«${context.pageTitle}» (${context.page})` : context.page} del gestionale.`
+    );
+  }
   return parts.length ? parts.join(' ') : null;
+}
+
+/**
+ * Embedded in 7Hub with its tools: this replaces the "you cannot read customers" limit of the defaults.
+ * The text is the admin's (Impostazioni → 7Hub); left empty, the default applies — without it the 7Hub tools
+ * would compete with the database and the general instructions.
+ */
+function hostToolsBlock(context, text, config) {
+  const tools = Array.isArray(context?.tools) ? context.tools : [];
+  if (!tools.length) return null;
+  const rules = text?.trim() ? text : DEFAULT_SETTINGS.hostToolsInstructions;
+  // switched off in Impostazioni → 7Hub: the rules may still name them
+  const off = disabledHostTools(config);
+  return off.length
+    ? `${rules}\n- Questi strumenti sono disattivati dall'amministratore: non usarli e non dire che puoi farlo: ${off.join(', ')}.`
+    : rules;
 }
 
 export function buildSystemInstruction({
@@ -93,7 +114,10 @@ export function buildSystemInstruction({
   databaseInstructions,
   databaseSelection,
   databaseAttachments,
-  databaseSelectionAttachments
+  databaseSelectionAttachments,
+  hostToolsInstructions,
+  hostToolsAttachments,
+  hostToolsConfig
 }) {
   return [
     instructions,
@@ -106,7 +130,10 @@ export function buildSystemInstruction({
       databaseSelection,
       databaseAttachments,
       databaseSelectionAttachments
-    )
+    ),
+    // last, so it wins over earlier text: embedded in 7Hub, records are handled with the 7Hub tools
+    hostToolsBlock(context, hostToolsInstructions, hostToolsConfig),
+    context?.tools?.length ? attachmentsBlock(hostToolsAttachments) : null
   ]
     .filter(Boolean)
     .join('\n\n');
