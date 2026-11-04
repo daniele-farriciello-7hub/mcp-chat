@@ -126,7 +126,7 @@ export default function IndexedDocumentRow({ document }) {
         <div className="mx-3 mb-3 ml-9 flex flex-col gap-3 rounded-xl border border-line bg-white p-3">
           {image && (
             <CardSection title="Descrizione" hint="obbligatoria">
-              <ImageThumb document={document} className="mb-2 h-40 w-full" openable />
+              <ImageThumb document={document} className="mb-2 h-40 w-full" openable caption />
               <ImageDescriptionField
                 key={document.id}
                 document={document}

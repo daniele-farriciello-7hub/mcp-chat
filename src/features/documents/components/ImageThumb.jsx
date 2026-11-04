@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image as ImageIcon } from 'lucide-react';
 import { useDocumentUrl } from '@/features/documents/useDocumentUrl';
+import PreviewImage from './PreviewImage';
 
 /**
  * Preview of an archived image on a checkerboard, so a transparent or white logo can be seen. Sized by
  * the caller (`className`); the picture is `object-contain`, never cropped. It asks for the file only
- * once it scrolls into view, and `openable` makes it a link to the full-size image.
+ * once it scrolls into view, and `openable` makes it a link to the full-size image. Until the picture
+ * has really loaded (URL still being resolved included) a skeleton with an image icon fills the frame;
+ * if it cannot be had, the frame says so quietly (`caption`: in words, for a frame big enough to hold them).
  */
-export default function ImageThumb({ document, className = 'h-10 w-10', openable = false }) {
+export default function ImageThumb({ document, className = 'h-10 w-10', openable = false, caption = false }) {
   const frameRef = useRef(null);
   const [visible, setVisible] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const url = useDocumentUrl(document, visible);
+  const [brokenUrl, setBrokenUrl] = useState(null);
+  const { url, failed: urlFailed } = useDocumentUrl(document, visible);
 
   useEffect(() => {
     const observer = new IntersectionObserver(entries => {
@@ -26,7 +28,7 @@ export default function ImageThumb({ document, className = 'h-10 w-10', openable
 
   const Frame = openable ? 'a' : 'div';
   const linkProps =
-    openable && url
+    openable && url && brokenUrl !== url
       ? {
           href: url,
           target: '_blank',
@@ -41,19 +43,15 @@ export default function ImageThumb({ document, className = 'h-10 w-10', openable
       {...linkProps}
       className={`thumb-checker relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line ${className}`}
     >
-      {url && !failed ? (
-        // eslint-disable-next-line @next/next/no-img-element -- a Storage download URL: nothing for next/image to optimise
-        <img
-          src={url}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          onError={() => setFailed(true)}
-          className="h-full w-full object-contain"
-        />
-      ) : (
-        <ImageIcon size={16} className={`text-slate-soft ${visible && !failed ? 'animate-pulse' : ''}`} />
-      )}
+      <PreviewImage
+        src={url}
+        unavailable={urlFailed}
+        loading="lazy"
+        decoding="async"
+        imgClassName="h-full w-full object-contain"
+        caption={caption}
+        onError={() => setBrokenUrl(url)}
+      />
     </Frame>
   );
 }
