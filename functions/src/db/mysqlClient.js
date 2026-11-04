@@ -10,6 +10,9 @@ import { decrypt } from './credentials.js';
 
 const CONNECTION_LIMIT = 2;
 const CONNECT_TIMEOUT_MS = 8000;
+// a query may keep its socket silent for up to 10 minutes (QUERY_MAX_SECONDS in databaseEndpoint.js):
+// first TCP keep-alive probe after 30s, so a firewall or NAT in the middle does not drop it as idle
+const KEEP_ALIVE_INITIAL_DELAY_MS = 30_000;
 
 export class DatabaseConnectionError extends Error {
   constructor(message, { code, cause } = {}) {
@@ -56,6 +59,8 @@ function poolConfig({ host, port, database, user, password, ssl }) {
     waitForConnections: true,
     connectionLimit: CONNECTION_LIMIT,
     connectTimeout: CONNECT_TIMEOUT_MS,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: KEEP_ALIVE_INITIAL_DELAY_MS,
     // never allow a second statement to ride in on one query string — the validator assumes this
     multipleStatements: false,
     dateStrings: true,

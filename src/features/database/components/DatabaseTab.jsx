@@ -21,6 +21,20 @@ import ConnectionForm from './ConnectionForm';
 import ConnectionRow from './ConnectionRow';
 import HowDatabaseWorks from './HowDatabaseWorks';
 
+// Stops of the two timeout sliders: fine steps while a query is short, wide ones past the minute.
+// The ceiling (600 s) is the server's own: QUERY_MAX_SECONDS and EXPORT_LIMITS in databaseEndpoint.js.
+const TIMEOUT_STOPS = [
+  3, 5, 10, 15, 20, 25, 30, 40, 45, 60, 90, 120, 150, 180, 210, 240, 270, 300, 360, 420, 480, 540, 600
+];
+const EXPORT_TIMEOUT_STOPS = TIMEOUT_STOPS.filter(seconds => seconds >= 10);
+
+/** 45 → "45 s", 150 → "2 min 30 s", 600 → "10 min". */
+function formatSeconds(seconds) {
+  if (seconds < 60) return `${seconds} s`;
+  const rest = seconds % 60;
+  return `${Math.floor(seconds / 60)} min${rest ? ` ${rest} s` : ''}`;
+}
+
 function LoadingSkeleton() {
   return (
     <div className="flex flex-col gap-2.5" aria-hidden>
@@ -145,19 +159,18 @@ export default function DatabaseTab({ settings, onChange }) {
           />
           <Slider
             label="Timeout per query"
-            reading={`${settings.queryTimeoutSeconds} s`}
-            min={3}
-            max={120}
-            step={1}
+            reading={formatSeconds(settings.queryTimeoutSeconds)}
+            stops={TIMEOUT_STOPS}
             value={settings.queryTimeoutSeconds}
             rangeLabels={['Fallisce prima', 'Aspetta di più']}
             onChange={value => onChange('queryTimeoutSeconds', value)}
           />
           <p className={HELP_TEXT_CLASS}>
-            Massimo 120 secondi: oltre questo tempo è il database stesso a fermare la query e il modello
-            riceve un errore. Mentre la query gira l’operatore aspetta la risposta, e una query lunga pesa
-            anche sul database del gestionale: alzalo solo se le domande normali non ci stanno. Più righe
-            significa risposte più pesanti da rimandare al modello, non necessariamente più utili.
+            Massimo 10 minuti: oltre questo tempo è il database stesso a fermare la query e il modello riceve
+            un errore. Per tutto il tempo l’operatore resta in attesa della risposta, e una query lunga pesa
+            anche sul database del gestionale: oltre il minuto alzalo solo se le domande normali non ci
+            stanno. Più righe significa risposte più pesanti da rimandare al modello, non necessariamente più
+            utili.
           </p>
         </Section>
 
@@ -181,10 +194,8 @@ export default function DatabaseTab({ settings, onChange }) {
           </p>
           <Slider
             label="Tempo massimo della query sul database"
-            reading={`${settings.exportTimeoutSeconds} s`}
-            min={10}
-            max={120}
-            step={5}
+            reading={formatSeconds(settings.exportTimeoutSeconds)}
+            stops={EXPORT_TIMEOUT_STOPS}
             value={settings.exportTimeoutSeconds}
             rangeLabels={['Si ferma prima', 'Aspetta di più']}
             onChange={value => onChange('exportTimeoutSeconds', value)}
@@ -192,9 +203,11 @@ export default function DatabaseTab({ settings, onChange }) {
           <p className={HELP_TEXT_CLASS}>
             Quanto può lavorare il database per estrarre le righe di un export, per tutte le connessioni qui
             sopra: oltre questo tempo è il database stesso a fermare la query, e l’operatore vede «Non
-            riuscito, riprova». Non riguarda il modello AI. Massimo 120 secondi, perché l’intero export
-            (query, creazione del file e invio) deve chiudersi entro i 3 minuti concessi al server. Con molte
-            colonne, un file vicino alle 200.000 righe può comunque non riuscire.
+            riuscito, riprova». Non riguarda il modello AI. Massimo 10 minuti, perché l’intero export (query,
+            creazione del file e invio) deve chiudersi entro i 12 minuti concessi al server. Mentre il
+            database lavora l’operatore aspetta e il database del gestionale è sotto carico: oltre il minuto
+            alzalo solo se serve. Con molte colonne, un file vicino alle 200.000 righe può comunque non
+            riuscire.
           </p>
         </Section>
       </div>

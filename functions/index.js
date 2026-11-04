@@ -13,11 +13,14 @@ setGlobalOptions({ region: 'europe-west1', maxInstances: 10 });
 initializeApp({ storageBucket: 'mappa-contatti-217007.firebasestorage.app' });
 
 export const tools = onRequest(handleToolRequest);
-// 180s: a query may run up to 120s (QUERY_MAX_SECONDS / EXPORT_LIMITS in databaseEndpoint.js), plus
-// connection setup, building the file and sending it; the server always stops the query first, so the
-// operator gets a clean error, not a raw 504. 1GiB: an export builds a file of up to 200k rows
+// 720s (12 min): a query may run up to 600s (QUERY_MAX_SECONDS / EXPORT_LIMITS in databaseEndpoint.js),
+// plus connection setup, building the file and sending it; the server always stops the query first, so
+// the operator gets a clean error, not a raw 504. This is also the Cloud Run request timeout (gen2 HTTP
+// functions allow up to 3600s). The browser calls the function URL directly (shared/firebase/functions.js),
+// NOT through a Firebase Hosting rewrite, which would cut every request at 60s: do not add one for
+// `database`. 1GiB: an export builds a file of up to 200k rows
 export const database = onRequest(
-  { timeoutSeconds: 180, memory: '1GiB' },
+  { timeoutSeconds: 720, memory: '1GiB' },
   forApp(PRODUCTION_APP, handleDatabaseRequest)
 );
 
@@ -29,7 +32,7 @@ export const history = onRequest({ timeoutSeconds: 30 }, forApp(PRODUCTION_APP, 
 // branch and called only by the development site; production deploys only the three above. `tools`
 // touches no app data and has no twin.
 export const databaseDev = onRequest(
-  { timeoutSeconds: 180, memory: '1GiB' },
+  { timeoutSeconds: 720, memory: '1GiB' },
   forApp(DEVELOPMENT_APP, handleDatabaseRequest)
 );
 export const historyDev = onRequest({ timeoutSeconds: 30 }, forApp(DEVELOPMENT_APP, handleHistoryRequest));

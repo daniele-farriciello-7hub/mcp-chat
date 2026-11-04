@@ -231,11 +231,12 @@ async function queryContext(user, body) {
 }
 
 /**
- * Ceiling on a query's time on the database (`max_statement_time`), whatever the client asks: 120s,
- * well inside the function's own 180s timeout (functions/index.js), so the database stops a slow query
- * and the operator gets a clean error instead of a raw 504.
+ * Ceiling on a query's time on the database (`max_statement_time`), whatever the client asks: 600s
+ * (10 min), well inside the function's own 720s timeout (functions/index.js), so the database stops a
+ * slow query and the operator gets a clean error instead of a raw 504. The operator waits the whole
+ * time and a long query weighs on the customer's database: the admin raises the limit knowingly.
  */
-const QUERY_MAX_SECONDS = 120;
+const QUERY_MAX_SECONDS = 600;
 
 async function actionQuery(user, body) {
   const { sql, enabledTables, run, validate } = await queryContext(user, body);
@@ -259,16 +260,25 @@ async function actionQuery(user, body) {
 /**
  * Bounds of the admin's export settings (`exportMaxRows`, `exportTimeoutSeconds`). The values come
  * from the settings document, read here on the server — never from the request, so nobody can raise
- * them by calling this endpoint by hand — and are clamped: 120s keeps the query inside the function's
- * 180s timeout with time left to build and send the file, 200k rows inside its memory and the 32 MB
+ * them by calling this endpoint by hand — and are clamped: 600s keeps the query inside the function's
+ * 720s timeout with time left to build and send the file, 200k rows inside its memory and the 32 MB
  * response limit.
  */
 const EXPORT_LIMITS = {
   rows: { min: 1_000, max: 200_000, fallback: 50_000 },
-  seconds: { min: 10, max: 120, fallback: 45 }
+  seconds: { min: 10, max: 600, fallback: 45 }
 };
 const PREVIEW_ROWS = 3;
 const SETTINGS_TTL_MS = 30_000;
+
+/**
+ * What is left of an export's time limit `startedAt` ago (never under 1s, the least `timeBoxed`
+ * accepts). An export can run several statements in a row (the count and then the sample, or the plain
+ * query after the wrapped one failed); each gets what remains of the admin's limit instead of the whole
+ * of it, so together they stay inside the function's timeout and the database stops first.
+ */
+const secondsLeft = (startedAt, totalSeconds) =>
+  Math.max(1, Math.floor(totalSeconds - (Date.now() - startedAt) / 1000));
 
 const clamp = (value, { min, max, fallback }) =>
   Number.isFinite(Number(value)) && Number(value) > 0
@@ -301,13 +311,18 @@ async function actionExportPreview(user, body) {
   const { sql, enabledTables, run, validate } = await queryContext(user, body);
   const checked = validate(() => checkSelect(sql, { enabledTables }));
   const { maxRows, timeoutSeconds } = await exportLimits();
+  const started = Date.now();
 
   let rowCount;
   let sample;
   try {
-    const [{ n }] = await run(timeBoxed(wrapped(checked, 'COUNT(*) AS n'), timeoutSeconds));
+    const [{ n }] = await run(
+      timeBoxed(wrapped(checked, 'COUNT(*) AS n'), secondsLeft(started, timeoutSeconds))
+    );
     rowCount = Number(n);
-    sample = await run(timeBoxed(`${wrapped(checked, '*')} LIMIT ${PREVIEW_ROWS}`, timeoutSeconds));
+    sample = await run(
+      timeBoxed(`${wrapped(checked, '*')} LIMIT ${PREVIEW_ROWS}`, secondsLeft(started, timeoutSeconds))
+    );
   } catch (error) {
     if (!(error instanceof HttpError)) throw error;
     // the query cannot be wrapped: count by fetching, one row past the cap
@@ -316,7 +331,7 @@ async function actionExportPreview(user, body) {
         validateSelect(sql, {
           enabledTables,
           maxRows: maxRows + 1,
-          timeoutSeconds: timeoutSeconds
+          timeoutSeconds: secondsLeft(started, timeoutSeconds)
         })
       )
     );
@@ -340,10 +355,13 @@ async function actionExportFile(user, body) {
   const { sql, enabledTables, run, validate } = await queryContext(user, body);
   const checked = validate(() => checkSelect(sql, { enabledTables }));
   const { maxRows, timeoutSeconds } = await exportLimits();
+  const started = Date.now();
 
   let rows;
   try {
-    rows = await run(timeBoxed(`${wrapped(checked, '*')} LIMIT ${maxRows}`, timeoutSeconds));
+    rows = await run(
+      timeBoxed(`${wrapped(checked, '*')} LIMIT ${maxRows}`, secondsLeft(started, timeoutSeconds))
+    );
   } catch (error) {
     if (!(error instanceof HttpError)) throw error;
     rows = (
@@ -352,7 +370,7 @@ async function actionExportFile(user, body) {
           validateSelect(sql, {
             enabledTables,
             maxRows: maxRows,
-            timeoutSeconds: timeoutSeconds
+            timeoutSeconds: secondsLeft(started, timeoutSeconds)
           })
         )
       )
