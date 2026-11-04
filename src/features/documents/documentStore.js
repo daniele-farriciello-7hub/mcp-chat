@@ -3,12 +3,26 @@
  */
 'use client';
 
-import { deleteDoc, getDoc, getDocs, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import {
+  deleteDoc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  updateDoc
+} from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { auth, storage } from '@/shared/firebase/app';
 import { INDEXING_STATUS, documentRef, documentsCollection, storageFolder } from './schema';
-import { INDEXABLE_MIME_TYPES, MAX_FILE_SIZE_BYTES, safeFileName } from './fileTypes';
-import { canIndexNow, nameKey } from './indexability';
+import {
+  INDEXABLE_MIME_TYPES,
+  MAX_FILE_SIZE_BYTES,
+  indexMimeTypeFor,
+  mimeTypeOf,
+  safeFileName
+} from './fileTypes';
+import { getFileBlocker, nameKey } from './indexability';
 import { invalidateChatCatalog } from './chatCatalog';
 
 const currentUserEmail = () => auth.currentUser?.email || null;
@@ -42,17 +56,21 @@ export class DuplicateNameError extends Error {
  */
 export async function uploadDocument(file, { replace = false } = {}) {
   if (file.size > MAX_FILE_SIZE_BYTES) throw new Error('Supera i 20 MB.');
-  const mimeType = file.type || (file.name.toLowerCase().endsWith('.md') ? 'text/markdown' : '');
+  const mimeType = mimeTypeOf(file);
   if (!INDEXABLE_MIME_TYPES.has(mimeType) || mimeType.startsWith('application/vnd.google-apps')) {
-    throw new Error('Formato non supportato: carica PDF, TXT, CSV o Markdown.');
+    throw new Error(
+      'Formato non supportato: carica PDF, TXT, CSV, Markdown o un’immagine (PNG, JPG, WebP, GIF, SVG).'
+    );
   }
 
-  // Names are unique. A same-name copy that cannot be indexed anyway does not count: uploading the
-  // file is exactly how it gets indexed.
+  // Names are unique. A same-name copy whose file cannot be indexed anyway does not count: uploading
+  // the file is exactly how it gets indexed. (A missing description does not make it a different copy.)
   const catalog = await getDocs(documentsCollection());
   const existing = catalog.docs
     .map(d => ({ id: d.id, ...d.data() }))
-    .find(d => nameKey(d) === nameKey(file) && (d.indexingStatus === INDEXING_STATUS.done || canIndexNow(d)));
+    .find(
+      d => nameKey(d) === nameKey(file) && (d.indexingStatus === INDEXING_STATUS.done || !getFileBlocker(d))
+    );
   if (existing && !replace) throw new DuplicateNameError(existing.id);
 
   const id = existing?.id ?? `upload-${crypto.randomUUID()}`;
@@ -68,7 +86,7 @@ export async function uploadDocument(file, { replace = false } = {}) {
     source: 'upload',
     name: file.name,
     mimeType,
-    indexMimeType: mimeType === 'application/pdf' ? mimeType : 'text/plain',
+    indexMimeType: indexMimeTypeFor(mimeType),
     sizeBytes: file.size,
     storagePath,
     indexingStatus: INDEXING_STATUS.pending,
@@ -76,11 +94,22 @@ export async function uploadDocument(file, { replace = false } = {}) {
     indexedAt: null,
     indexedWithModel: null,
     error: null,
+    // a replaced image is still the same logo: its description stays
+    description: existing?.description ?? '',
     createdAt: serverTimestamp(),
     uploadedBy: currentUserEmail()
   });
   if (existing) invalidateChatCatalog();
   return id;
+}
+
+/**
+ * Saves what the admin wrote about a document (see `description` in schema.js). The chat reads it
+ * straight from the document, so it only has to forget its cached catalog: no re-indexing needed.
+ */
+export async function updateDocumentDescription(id, description) {
+  await updateDoc(documentRef(id), { description: description.trim() });
+  invalidateChatCatalog();
 }
 
 /** Removes a document from the catalog: its Firestore entry and its Storage copy. */
@@ -103,4 +132,19 @@ export async function getDocumentUrlById(id) {
 /** Where to download a document to check its content. */
 export async function getDocumentUrl(document) {
   return document.storagePath ? getDownloadURL(ref(storage, document.storagePath)) : null;
+}
+
+/**
+ * A document with its download URL, for showing it in the chat: the card is rebuilt from the id alone
+ * when a conversation is restored. null if the document or its file no longer exists.
+ */
+export async function getDocumentFile(id) {
+  const snapshot = await getDoc(documentRef(id));
+  if (!snapshot.exists()) return null;
+  const document = { id, ...snapshot.data() };
+  const url = await getDocumentUrl(document).catch(error => {
+    if (error?.code === 'storage/object-not-found') return null;
+    throw error;
+  });
+  return url ? { ...document, url } : null;
 }

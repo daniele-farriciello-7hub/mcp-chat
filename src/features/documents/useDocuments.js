@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { listenToDocuments } from './documentStore';
 import { INDEXING_STATUS } from './schema';
 import { fileTypeOf } from './fileTypes';
-import { canIndexNow, nameKey } from './indexability';
+import { getFileBlocker, nameKey } from './indexability';
 
 const byName = list => list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'it'));
 
-/** Among documents sharing a name, the one worth showing: the one that can be indexed now. */
-const preferredCopy = (a, b) => (canIndexNow(b) && !canIndexNow(a) ? b : a);
+/** Among documents sharing a name, the one worth showing: the one with a file that can be indexed. */
+const preferredCopy = (a, b) => (!getFileBlocker(b) && getFileBlocker(a) ? b : a);
 
 /**
  * Live catalog split into the panel's lists. Names are unique: a name that is already indexed never

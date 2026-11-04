@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { serverTimestamp, updateDoc } from 'firebase/firestore';
+import { getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { getModel } from '@/shared/firebase/ai';
 import { withRetry } from '@/shared/retry';
 import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
@@ -13,6 +13,7 @@ import { getSettings } from '@/features/settings/settingsStore';
 import { attachmentsBlock } from '@/shared/promptAttachments';
 import { INDEXING_STATUS, documentRef } from './schema';
 import { getIndexingBlocker } from './indexability';
+import { geminiMimeTypeOf, isImage } from './fileTypes';
 import { gcsUri } from './chatCatalog';
 
 const INDEX_CARD_SCHEMA = {
@@ -47,12 +48,30 @@ const INDEX_CARD_SCHEMA = {
   required: ['summary', 'banks', 'products', 'topics', 'keywords']
 };
 
-// the admin edits the instructions in the panel; the file name is appended here so it cannot be lost
-const indexingPrompt = (instructions, attachments, name) =>
+// What the card should say about an image: people ask for "il logo di X", so the card has to say whose
+// logo it is and which version, not just describe the picture.
+const IMAGE_CARD_HINT =
+  'Il file è un\'immagine (logo, foto, banner, schema...). Nella scheda: "summary" dice cosa raffigura e ' +
+  'a cosa serve, in modo che chi cerca "il logo di X" la trovi; "keywords" include il nome del soggetto o ' +
+  'del marchio, la versione (a colori, bianco, nero, sfondo trasparente, orizzontale, verticale), i colori ' +
+  'principali e ogni scritta leggibile. "banks" e "products" restano vuoti se l\'immagine non riguarda un ' +
+  'istituto o un prodotto.';
+
+// the admin edits the instructions in the panel; what is appended here cannot be lost: the file name,
+// what the admin wrote about it, and what to do with a file Gemini cannot look at
+const indexingPrompt = (instructions, attachments, document, canSeeFile) =>
   [
     instructions || DEFAULT_SETTINGS.indexingInstructions,
     attachmentsBlock(attachments),
-    `Il documento si chiama "${name}".`
+    `Il documento si chiama "${document.name}".`,
+    isImage(document.mimeType) && IMAGE_CARD_HINT,
+    document.mimeType === 'image/svg+xml' &&
+      "L'immagine ti arriva come codice SVG: ricava cosa raffigura da testi, colori e forme.",
+    document.description?.trim() &&
+      `Chi l'ha caricato lo descrive così: «${document.description.trim()}». È la fonte più affidabile su cosa sia ` +
+        'e a cosa serva: la scheda deve essere coerente con questa descrizione e riprenderne i termini.',
+    !canSeeFile &&
+      'Non puoi vedere questo file: scrivi la scheda solo dal nome e dalla descrizione, senza inventare quello che non sai.'
   ]
     .filter(Boolean)
     .join('\n');
@@ -75,18 +94,14 @@ async function generateIndexCard(document) {
       responseSchema: INDEX_CARD_SCHEMA
     }
   });
+  // null for a GIF: there is no file to give Gemini, the card comes from name and description only
+  const fileMimeType = geminiMimeTypeOf(document);
+  const parts = [
+    { text: indexingPrompt(indexingInstructions, indexingAttachments, document, Boolean(fileMimeType)) },
+    ...(fileMimeType ? [{ fileData: { mimeType: fileMimeType, fileUri: gcsUri(document.storagePath) } }] : [])
+  ];
   // Gemini answers 503 when overloaded: retried with backoff instead of failing the document
-  const result = await withRetry(() =>
-    model.generateContent([
-      { text: indexingPrompt(indexingInstructions, indexingAttachments, document.name) },
-      {
-        fileData: {
-          mimeType: document.indexMimeType || 'application/pdf',
-          fileUri: gcsUri(document.storagePath)
-        }
-      }
-    ])
-  );
+  const result = await withRetry(() => model.generateContent(parts));
   if (result.response.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
     throw new Error('Risposta troncata dal limite di token.');
   }
@@ -113,7 +128,16 @@ export async function indexDocument(document, onPhase = () => {}) {
     const blocker = getIndexingBlocker(document);
     if (blocker) throw new Error(`${blocker.label}: ${blocker.reason}`);
     onPhase('reading');
-    const { modelId, ...indexCard } = await generateIndexCard(document);
+    // the admin may have edited the description while the document waited in the queue, and an image
+    // never gets a card without one: what is saved now is what counts, not what the caller held
+    const current = await getDoc(docRef);
+    const fresh = {
+      ...document,
+      description: current.exists() ? current.data().description : document.description
+    };
+    const freshBlocker = getIndexingBlocker(fresh);
+    if (freshBlocker) throw new Error(`${freshBlocker.label}: ${freshBlocker.reason}`);
+    const { modelId, ...indexCard } = await generateIndexCard(fresh);
     await updateDoc(docRef, {
       indexCard,
       indexedWithModel: modelId,

@@ -107,7 +107,7 @@ Shown for production; development has the same layout under `apps/assistente-7hu
 `Storage assistente-7hub-development/` (DEPLOY.md).
 
 ```
-apps/assistente-7hub/documents/{id}       document metadata, indexingStatus (pending|done|failed), indexCard
+apps/assistente-7hub/documents/{id}       document metadata, indexingStatus (pending|done|failed), indexCard, description (images)
 apps/assistente-7hub/driveFolders/{id}    Drive folders, written by the nightly sync
 apps/assistente-7hub/drive/status         last Drive sync outcome
 apps/assistente-7hub/jobRequests/{id}     work requested from the server (sync, copy)
@@ -155,6 +155,31 @@ Outgoing messages also carry the legacy Italian `tipo` key, and legacy incoming 
   and Storage copy).
 - Gemini overload and rate-limit errors (503/429) are retried with backoff, in indexing and in chat. Failed
   documents keep the raw error on the document and show a one-line explanation in the panel.
+- **Images** (PNG, JPEG, WebP, GIF, SVG, up to 20 MB) go in the same archive. Gemini reads PNG, JPEG and WebP
+  as they are; an SVG is sent as the XML text it is (`indexMimeType: text/plain`, `mimeType` stays
+  `image/svg+xml` so it previews and downloads as an image); a GIF cannot be given to Gemini at all, so its
+  card is written from the name and the description alone (`indexMimeType: null`).
+- Each image has a free-text **description** ("Logo WeUnit, versione bianca su sfondo trasparente"), written
+  by the admin on the image's row in the pending list right after the upload (and edited later in the
+  indexed list). It is **mandatory**: an image without one cannot be indexed (`getIndexingBlocker` returns
+  "Descrizione mancante", and every path respects it: the row, the bulk selection, the queue and
+  `indexDocument`, which re-reads the description from Firestore right before calling Gemini and refuses if
+  it is empty). The field is shown right on each pending image row, marked "obbligatoria" and in a gentle
+  amber while empty. The upload summary is only a list of file names with their status: there, "Indicizza"
+  stays greyed out while some just-uploaded image has no description and says so ("Scrivi qui sotto la
+  descrizione di 2 immagini per indicizzarle"); clicking either the message or the button switches to
+  "Da indicizzare" (clearing the name and type filters if they hide the row), scrolls to the first of those
+  images without a description and focuses its field. In a bulk selection those images stay selectable (to
+  delete them) but are skipped by indexing, and the selection bar says how many and why. The buttons react
+  to the text typed in the fields, not to the save that follows it, and pressing one first writes any unsaved
+  text (`useTypedDescriptions`).
+- The description is saved by itself (a moment after typing stops, on blur, and when the field goes away). On
+  an **indexed** image it cannot be emptied: an empty field is not saved, says "La descrizione è obbligatoria"
+  and goes back to the saved text. An image indexed before the rule existed and still without a description
+  shows the field with the amber warning (and its re-index button is disabled until one is written). The
+  description goes into the indexing prompt as the authoritative word on what the image is, and into the chat
+  catalog directly: editing it on an indexed image needs no re-index (`updateDocumentDescription` only drops
+  the cached catalog), the "Aggiorna anche la scheda" button is there for when the card should follow.
 
 ## Chat and databases
 
@@ -182,6 +207,7 @@ runs the matching handler in `chat/tools/`, and the result goes back as a `funct
 | Tool              | What it does                                                                                  |
 | ----------------- | --------------------------------------------------------------------------------------------- |
 | `read_document`   | opens an indexed document in full                                                             |
+| `share_file`      | shows an archive file (logo, image, PDF…) with a preview and a "Scarica" button               |
 | `describe_table`  | columns and card of one enabled table                                                         |
 | `query_database`  | one read-only `SELECT`, rows go back to the model (capped by the admin)                       |
 | `export_database` | the model writes the query; the server builds the .xlsx on click, up to the admin's row limit |
@@ -202,6 +228,21 @@ può aprire documenti o interrogare il database" (default 6 giri).
   (PDF, Word…), not an extracted text. Only ids from the list are accepted.
 - The same document opened twice in one answer shows one card. No admin limit: the cost is the document size.
 
+### `share_file` — hand over a file
+
+- For "mi dai il logo di WeUnit": the model finds the file in the catalog by name, description and index card
+  and calls `share_file` with its id; the operator gets a card with the image (or the file name) and a
+  **Scarica** button. Any archive document works, not only images. Only ids from the catalog are accepted;
+  several matches are shown one card each (the model is told at most 4), or it asks which one.
+- The catalog marks images with `[immagine]` and states the admin's description before the index card. The
+  rules for handing over a file are in `systemPrompt.js` (`FILE_SHARING_RULES`), not in the editable
+  selection text, so they apply whatever the admin saved.
+- The card (`SharedFileCard.jsx`) is rebuilt from the document id, so it survives a reload of the
+  conversation. Download goes through `shared/downloadFile.js`: the bytes are fetched and saved as a blob
+  under the original file name (a cross-origin `<a download>` would be ignored); if that fails, the file
+  opens in a new tab.
+- `read_document` still opens an image for the model to look at (not a GIF, which Gemini cannot see).
+
 ### `describe_table` — read a table's structure
 
 - The system prompt carries only a short card per enabled table; the full column list (types, primary key,
@@ -215,8 +256,10 @@ può aprire documenti o interrogare il database" (default 6 giri).
   re-checks it (`functions/src/db/validateSelect.js`): one statement, enabled tables only, a `LIMIT` when missing and a
   timeout (`max_statement_time`) added on top.
 - The rows go back to the model, which answers from them. Limits in Configurazione → Database → "Limiti delle
-  query": righe massime per query (50–2000, default 500) and timeout (3–120 s, default 15). A truncated
-  result carries a warning so the model never reports the cut count as the total.
+  query": righe massime per query (50–2000, default 500) and timeout (3 s–10 min, default 15 s). A truncated
+  result carries a warning so the model never reports the cut count as the total. The timeout is enforced by the
+  database (`max_statement_time`) and clamped to 600 s on the server; the `database` function lives 720 s so the
+  database always stops the query first. A long query keeps the operator waiting and weighs on the customer's database.
 - **Per-user connections** (`userScoped`): the server sets `@assistente_utente_email` to the operator's email
   on the same socket before the query and clears it after (`queryAsUser` in `functions/src/db/mysqlClient.js`);
   the customer's views filter on it. With "Richiedi email verificata" on, an unverified email is refused.
@@ -229,7 +272,8 @@ può aprire documenti o interrogare il database" (default 6 giri).
 - The card shows "Scarica Excel". On click the browser sends back the query (`exportFile`), the server runs it
   again **as the person clicking** (same per-user filter) and returns the .xlsx.
 - Limits in Configurazione → Database → "Limiti degli export Excel": righe massime per file (1.000–200.000,
-  default 50.000) and query time (10–120 s, default 45). They are read from settings **on the server**, never
+  default 50.000) and query time (10 s–10 min, default 45 s: one budget per request, split between the count and
+  the sample at preview time, spent on the file at click time). They are read from settings **on the server**, never
   from the request; past the row limit the file is cut and the model is told to suggest a narrower request.
 - The card survives a reload: history stores the query, never the rows (`storableExportQuery` in
   `functions/src/history/historyStore.js`).

@@ -1,10 +1,12 @@
 /**
- * Documents to index ("pending") or to retry ("failed"). Documents that cannot be indexed right now
- * are grouped at the bottom with the reason; they can still be selected, to delete them.
+ * Documents to index ("pending") or to retry ("failed"). Documents whose file cannot be indexed are
+ * grouped at the bottom with the reason; they can still be selected, to delete them. An image without
+ * a description stays in place (so it does not jump away while its description is typed): it is
+ * selectable too, and indexing skips it — the selection bar says how many and why.
  */
 import { useState } from 'react';
 import { deleteDocument } from '@/features/documents/documentStore';
-import { canIndexNow } from '@/features/documents/indexability';
+import { canIndexNow, getFileBlocker, getIndexingBlocker } from '@/features/documents/indexability';
 import { enqueueForIndexing, isQueued } from '@/features/documents/indexingQueue';
 import { useIndexingQueue } from '@/features/documents/useIndexingQueue';
 import DocumentRow from './DocumentRow';
@@ -15,19 +17,39 @@ const COPY = {
   failed: { action: 'Riprova', empty: 'Nessun documento con errori.' }
 };
 
-export default function SelectableDocumentList({ mode, documents, filtersActive }) {
+/** "Verranno saltati 3 file: 2 senza descrizione, 1 formato non supportato." — or nothing to say. */
+function skippedNote(skipped, indexableCount) {
+  if (skipped.length === 0) return null;
+  const counts = new Map();
+  for (const document of skipped) {
+    const { short } = getIndexingBlocker(document);
+    counts.set(short, (counts.get(short) || 0) + 1);
+  }
+  const reasons = [...counts].map(([short, n]) => (counts.size > 1 ? `${n} ${short}` : short)).join(', ');
+  const lead =
+    indexableCount === 0
+      ? 'Non si può indicizzare nessuno'
+      : skipped.length === 1
+        ? 'Verrà saltato 1 file'
+        : `Verranno saltati ${skipped.length} file`;
+  return `${lead}: ${reasons}.`;
+}
+
+export default function SelectableDocumentList({ mode, documents, typed, filtersActive }) {
   const queue = useIndexingQueue();
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [deleteError, setDeleteError] = useState(null);
+  const [actionError, setActionError] = useState(null);
   const copy = COPY[mode];
 
   const phaseOf = id => queue?.inProgress?.get(id)?.phase;
-  const indexable = documents.filter(canIndexNow);
-  const blocked = documents.filter(d => !canIndexNow(d));
+  const indexable = documents.filter(d => !getFileBlocker(d));
+  const blocked = documents.filter(getFileBlocker);
   // a document already in the indexing queue is not selectable: it would be indexed or deleted mid-work
   const selectable = documents.filter(d => !isQueued(d.id));
   const selected = selectable.filter(d => selectedIds.has(d.id));
-  const selectedIndexable = selected.filter(canIndexNow);
+  // judged on the text in the description fields, not on what is saved yet
+  const selectedIndexable = selected.filter(d => canIndexNow(typed.withTyped(d)));
+  const selectedSkipped = selected.filter(d => !canIndexNow(typed.withTyped(d))).map(typed.withTyped);
   const allSelected = selectable.length > 0 && selected.length === selectable.length;
 
   const toggle = id =>
@@ -41,13 +63,22 @@ export default function SelectableDocumentList({ mode, documents, filtersActive 
   const clearSelection = () => setSelectedIds(new Set());
 
   // returns immediately: the queue keeps running even if the panel is closed
-  const indexSelected = () => {
-    enqueueForIndexing(selectedIndexable);
+  const indexSelected = async () => {
+    setActionError(null);
+    try {
+      // the fields save a moment after typing stops: write what is still waiting, so indexing finds it
+      await typed.saveTyped(selectedIndexable);
+    } catch (error) {
+      console.error('[documents] saving the descriptions before indexing failed:', error);
+      setActionError('Non riesco a salvare le descrizioni. Controlla la connessione e riprova.');
+      return;
+    }
+    enqueueForIndexing(selectedIndexable.map(typed.withTyped));
     clearSelection();
   };
 
   const deleteSelected = async () => {
-    setDeleteError(null);
+    setActionError(null);
     const results = await Promise.allSettled(selected.map(deleteDocument));
     const failures = results.filter(result => result.status === 'rejected');
     if (failures.length) {
@@ -55,7 +86,7 @@ export default function SelectableDocumentList({ mode, documents, filtersActive 
         '[documents] bulk delete failed:',
         failures.map(f => f.reason)
       );
-      setDeleteError(`${failures.length} documenti non sono stati eliminati. Riprova.`);
+      setActionError(`${failures.length} documenti non sono stati eliminati. Riprova.`);
     }
     clearSelection();
   };
@@ -67,6 +98,7 @@ export default function SelectableDocumentList({ mode, documents, filtersActive 
       selected={selectedIds.has(document.id)}
       onToggle={() => toggle(document.id)}
       phase={phaseOf(document.id)}
+      onDescriptionText={typed.report}
     />
   );
 
@@ -93,9 +125,9 @@ export default function SelectableDocumentList({ mode, documents, filtersActive 
             </span>
           </label>
 
-          {deleteError && (
+          {actionError && (
             <p className="border-b border-line bg-danger-soft px-3 py-2 text-[11px] text-danger">
-              {deleteError}
+              {actionError}
             </p>
           )}
 
@@ -114,6 +146,7 @@ export default function SelectableDocumentList({ mode, documents, filtersActive 
             <SelectionBar
               count={selected.length}
               indexableCount={selectedIndexable.length}
+              skippedNote={skippedNote(selectedSkipped, selectedIndexable.length)}
               actionLabel={copy.action}
               onIndex={indexSelected}
               onDelete={deleteSelected}

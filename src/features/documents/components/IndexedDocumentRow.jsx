@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { ChevronDown, Loader2, RefreshCw, Upload } from 'lucide-react';
+import { ChevronDown, Loader2, RefreshCw, Sparkles, Upload } from 'lucide-react';
 import Tooltip from '@/shared/ui/Tooltip';
 import { MODELS } from '@/features/settings/models';
 import { formatFileSize, formatTimestamp } from '@/features/documents/format';
-import { canIndexNow } from '@/features/documents/indexability';
+import { isImage } from '@/features/documents/fileTypes';
+import { canIndexNow, getIndexingBlocker } from '@/features/documents/indexability';
 import { enqueueForIndexing } from '@/features/documents/indexingQueue';
 import { useIndexingQueue } from '@/features/documents/useIndexingQueue';
 import DeleteDocumentButton from './DeleteDocumentButton';
 import FileActionButton from './FileActionButton';
 import FileTypeIcon from './FileTypeIcon';
+import ImageDescriptionField from './ImageDescriptionField';
+import ImageThumb from './ImageThumb';
 
 // the panel is narrow: "Gemini 3.1 Pro (anteprima)" would push the date out of sight
 const modelName = id => (MODELS.find(model => model.id === id)?.name || id).replace(/\s*\(.*\)$/, '');
@@ -26,10 +29,17 @@ function CardSection({ title, hint, children }) {
 }
 
 function ReindexButton({ document, busy }) {
-  const disabled = busy || !canIndexNow(document);
+  const blocker = getIndexingBlocker(document);
+  const disabled = busy || Boolean(blocker);
   return (
     <Tooltip
-      label={busy ? 'Scheda in rigenerazione…' : 'Rigenera la scheda, ad esempio dopo aver cambiato modello'}
+      label={
+        busy
+          ? 'Scheda in rigenerazione…'
+          : blocker
+            ? `${blocker.label}. ${blocker.reason}`
+            : 'Rigenera la scheda, ad esempio dopo aver cambiato modello'
+      }
       align="right"
     >
       <button
@@ -45,12 +55,19 @@ function ReindexButton({ document, busy }) {
   );
 }
 
-/** An indexed document. Expanding it shows the index card exactly as the assistant sees it. */
+/**
+ * An indexed document. Expanding it shows the index card exactly as the assistant sees it; for an
+ * image, first the picture and its description, which the chat uses as soon as it is saved.
+ */
 export default function IndexedDocumentRow({ document }) {
   const [expanded, setExpanded] = useState(false);
+  // the description changed after the card was written: offer to rewrite the card too
+  const [cardOutdated, setCardOutdated] = useState(false);
   const queue = useIndexingQueue();
   const reindexing = Boolean(queue?.inProgress?.has(document.id));
   const card = document.indexCard || {};
+  const image = isImage(document.mimeType);
+  const description = document.description?.trim();
 
   const meta = [
     formatTimestamp(document.indexedAt),
@@ -63,7 +80,11 @@ export default function IndexedDocumentRow({ document }) {
   return (
     <div className={expanded ? 'bg-surface/40' : ''}>
       <div className="flex items-start gap-2.5 px-3 py-2.5">
-        <FileTypeIcon mimeType={document.mimeType} size={15} className="mt-0.5 shrink-0 text-brand-500" />
+        {image ? (
+          <ImageThumb document={document} className="h-10 w-10" />
+        ) : (
+          <FileTypeIcon mimeType={document.mimeType} size={15} className="mt-0.5 shrink-0 text-brand-500" />
+        )}
         <button
           type="button"
           onClick={() => setExpanded(v => !v)}
@@ -82,6 +103,13 @@ export default function IndexedDocumentRow({ document }) {
               <span className="truncate">{meta}</span>
             </span>
           </span>
+          {image && (
+            <span
+              className={`mt-1 block text-[11px] leading-snug ${description ? 'line-clamp-2 text-slate-soft' : 'text-warn'}`}
+            >
+              {description || 'Senza descrizione: apri la scheda e scrivila.'}
+            </span>
+          )}
           <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600">
             {expanded ? 'Nascondi la scheda' : 'Vedi la scheda'}
             <ChevronDown size={12} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -96,6 +124,34 @@ export default function IndexedDocumentRow({ document }) {
 
       {expanded && (
         <div className="mx-3 mb-3 ml-9 flex flex-col gap-3 rounded-xl border border-line bg-white p-3">
+          {image && (
+            <CardSection title="Descrizione" hint="obbligatoria">
+              <ImageThumb document={document} className="mb-2 h-40 w-full" openable />
+              <ImageDescriptionField
+                key={document.id}
+                document={document}
+                showLabel={false}
+                onSaved={() => setCardOutdated(true)}
+              />
+              <p className="mt-1.5 text-[11px] leading-snug text-slate-soft">
+                L’assistente usa subito la descrizione, anche senza rigenerare la scheda.
+              </p>
+              {cardOutdated && !reindexing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    enqueueForIndexing([document]);
+                    setCardOutdated(false);
+                  }}
+                  disabled={!canIndexNow(document)}
+                  className="mt-1.5 inline-flex items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50 disabled:opacity-40"
+                >
+                  <Sparkles size={12} /> Aggiorna anche la scheda
+                </button>
+              )}
+            </CardSection>
+          )}
+
           <p className="rounded-lg bg-brand-50/60 px-2.5 py-2 text-[11px] leading-snug text-slate-soft">
             Questa è la <span className="font-semibold text-ink">scheda</span> che Gemini ha scritto leggendo
             il documento. L’assistente la legge a ogni domanda per capire se il documento è pertinente, e solo

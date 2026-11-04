@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
+import { isImage } from '@/features/documents/fileTypes';
 import { attachmentsBlock } from '@/shared/promptAttachments';
 import { disabledHostTools } from './tools/hostTools';
 
@@ -48,6 +49,14 @@ function schemaBlock(
     .join('\n\n');
 }
 
+/**
+ * How to hand over a file. Here and not in the admin's editable selection text: it has to be there
+ * whatever the admin saved, because it describes a tool the app adds on its own (`share_file`).
+ */
+const FILE_SHARING_RULES = `Se l'operatore chiede di avere, vedere o scaricare un file — un logo, un'immagine, un PDF ("mi dai il logo di…", "mandami la presentazione di…") — cercalo nell'elenco per nome, descrizione e parole chiave e chiama share_file con il suo id: l'operatore vede l'anteprima e il pulsante per scaricarlo. Non descriverlo a parole al posto di mostrarlo e non scrivere mai link.
+Se più file corrispondono davvero (ad esempio la versione chiara e quella scura dello stesso logo, o formati diversi) mostrali tutti, uno share_file ciascuno e al massimo 4, e di' in una riga quale è quale. Se i candidati sono molti o la richiesta è ambigua, chiedi quale vuole invece di tirare a indovinare. Se nessun file corrisponde, dillo: non inventare un id.
+Le voci marcate [immagine] sono immagini: la loro descrizione è scritta dall'operatore e fa fede su cosa raffigurano. read_document serve a guardare il contenuto di un file per rispondere, non a consegnarlo.`;
+
 /** Indexed documents, one line each, so the model can decide what to open. */
 function catalogBlock(catalog, documentSelection, documentSelectionAttachments) {
   if (!catalog.length) return "Archivio documentale: per ora non c'e' ancora nessun documento indicizzato.";
@@ -58,13 +67,17 @@ function catalogBlock(catalog, documentSelection, documentSelectionAttachments) 
       const products = entry.products?.length ? ` Prodotti: ${entry.products.join(', ')}.` : '';
       const topics = entry.topics?.length ? ` Argomenti: ${entry.topics.join(', ')}.` : '';
       const keywords = entry.keywords?.length ? ` Parole chiave: ${entry.keywords.join(', ')}.` : '';
-      return `- [id: ${entry.id}] ${entry.name} — ${entry.summary}${banks}${products}${topics}${keywords}`;
+      const kind = isImage(entry.mimeType) ? ' [immagine]' : '';
+      // written by the operator: stated before the card, which Gemini wrote from the file itself
+      const description = entry.description ? `Descrizione dell'operatore: «${entry.description}». ` : '';
+      return `- [id: ${entry.id}] ${entry.name}${kind} — ${description}${entry.summary}${banks}${products}${topics}${keywords}`;
     })
     .join('\n');
   return [
     `Archivio documentale: ${catalog.length} documenti indicizzati.`,
     lines,
     documentSelection || DEFAULT_SETTINGS.documentSelectionInstructions,
+    FILE_SHARING_RULES,
     attachmentsBlock(documentSelectionAttachments)
   ]
     .filter(Boolean)

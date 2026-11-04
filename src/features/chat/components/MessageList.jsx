@@ -10,6 +10,7 @@
 
 import { useEffect, useRef } from 'react';
 import ActivityRow from './ActivityRow';
+import SharedFileCard from './SharedFileCard';
 import OptionsCard from './OptionsCard';
 import MessageBubble from './MessageBubble';
 import Suggestions from './Suggestions';
@@ -70,7 +71,12 @@ export default function MessageList({ uid, isAdmin, messages, status, userName, 
             const source = message.dedupeKey || message.id;
             if (shownSources.has(source)) return null;
             shownSources.add(source);
-            return <ActivityRow key={message.id} activity={message} />;
+            // a file the assistant hands over (share_file) is a card of its own, with preview and download
+            return message.kind === 'file' ? (
+              <SharedFileCard key={message.id} activity={message} />
+            ) : (
+              <ActivityRow key={message.id} activity={message} />
+            );
           }
 
           if (message.role === 'notice') {

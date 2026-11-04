@@ -1,6 +1,10 @@
 /**
  * The current upload batch as one collapsible card: a single line with progress while uploading,
  * and when finished, what happened plus the obvious next step — indexing what was just uploaded.
+ * The images' descriptions are not written here but on their rows in the "Da indicizzare" list, so
+ * there is one field per image. The description is mandatory: while `missingDescriptions` images
+ * lack one, "Indicizza" says so instead of starting, and `onShowMissingDescriptions` takes the admin
+ * to the first empty field.
  */
 import { useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, Circle, FileWarning, Loader2, Sparkles, X } from 'lucide-react';
@@ -31,9 +35,11 @@ function headline({ total, done, failed, duplicates, running, current }) {
 export default function UploadProgressPanel({
   uploads,
   summary,
+  missingDescriptions,
   onReplace,
   onReplaceAll,
   onIndexUploaded,
+  onShowMissingDescriptions,
   onDismiss
 }) {
   // a long batch starts collapsed; failures open it so the reasons are visible
@@ -51,9 +57,26 @@ export default function UploadProgressPanel({
     if (needsAttention) setExpanded(true);
   }
 
+  const [indexing, setIndexing] = useState(false);
+  const [indexError, setIndexError] = useState(null);
+
   if (uploads.length === 0) return null;
 
   const canIndex = !summary.running && summary.done > 0;
+
+  const indexNow = async () => {
+    if (missingDescriptions > 0) return onShowMissingDescriptions();
+    setIndexing(true);
+    setIndexError(null);
+    try {
+      await onIndexUploaded();
+    } catch (error) {
+      console.error('[documents] saving the descriptions before indexing failed:', error);
+      setIndexError('Non riesco a salvare le descrizioni. Controlla la connessione e riprova.');
+    } finally {
+      setIndexing(false);
+    }
+  };
 
   return (
     <div className="rounded-xl border border-line">
@@ -147,10 +170,25 @@ export default function UploadProgressPanel({
       {canIndex && (
         <div className="flex items-center gap-2 border-t border-line bg-brand-50/50 px-3 py-2.5">
           <p className="min-w-0 flex-1 text-[11px] leading-snug text-slate-soft">
-            I file sono nell’archivio, ma l’assistente li potrà usare solo dopo l’indicizzazione.
+            {missingDescriptions > 0 ? (
+              <button
+                type="button"
+                onClick={onShowMissingDescriptions}
+                className="text-left font-medium text-warn underline decoration-dotted underline-offset-2 transition hover:text-ink"
+              >
+                Scrivi qui sotto la descrizione di{' '}
+                {missingDescriptions === 1
+                  ? '1 immagine per indicizzarla'
+                  : `${missingDescriptions} immagini per indicizzarle`}
+              </button>
+            ) : (
+              'I file sono nell’archivio, ma l’assistente li potrà usare solo dopo l’indicizzazione.'
+            )}
+            {indexError && <span className="mt-0.5 block text-danger">{indexError}</span>}
           </p>
-          <Button primary onClick={onIndexUploaded}>
-            <Sparkles size={14} /> Indicizza {summary.done === 1 ? 'il file' : `i ${summary.done} file`}
+          <Button primary onClick={indexNow} disabled={indexing} softDisabled={missingDescriptions > 0}>
+            {indexing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Indicizza{' '}
+            {summary.done === 1 ? 'il file' : `i ${summary.done} file`}
           </Button>
         </div>
       )}

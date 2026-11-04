@@ -2,6 +2,7 @@
  * `read_document` tool: lets the model open a whole indexed document when its index card is not
  * enough. The file goes back INSIDE the functionResponse (`parts`): the SDK rejects a message that
  * mixes a functionResponse with other parts. Dispatch across every tool lives in `runToolCalls.js`.
+ * Images open like any other file (the model looks at them); a GIF is the exception, Gemini cannot see it.
  */
 import { getDocumentForReading } from '@/features/documents/chatCatalog';
 
@@ -48,6 +49,12 @@ export async function runReadDocumentCall(call, { catalog, round, index, onActiv
       message: 'Non trovo questo documento nell’archivio.'
     });
     return { response: { error: 'document not found' } };
+  }
+
+  // a file Gemini cannot look at (a GIF): all the model has is the card it already got
+  if (!document.fileUri) {
+    onActivityEnd(activityId, { outcome: 'failed', label: 'Non leggibile' });
+    return { response: { error: 'this file cannot be opened: rely on its description and index card' } };
   }
 
   onActivityEnd(activityId, { outcome: 'done', label: 'Info prese da', documentId: id });

@@ -13,6 +13,7 @@ export function describeIndexingError(rawError) {
   if (/MAX_TOKENS|troncata/i.test(text)) {
     return 'Documento troppo lungo per la scheda: riprova, eventualmente con il modello Pro.';
   }
+  if (/Descrizione mancante/i.test(text)) return 'Manca la descrizione dell’immagine: scrivila e riprova.';
   if (/non indicizzabile|Formato/i.test(text)) return 'Formato non supportato: convertilo in PDF.';
   if (/\b403\b|PERMISSION_DENIED/i.test(text)) return 'Gemini non ha il permesso di leggere il file.';
   if (/JSON/i.test(text)) return 'Gemini ha risposto in modo non valido. Riprova.';

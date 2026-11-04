@@ -8,9 +8,10 @@
  *   onDone({ usage, model, durationMs,       end of the reply, with what history records
  *           firstTokenMs, error })
  *
- * Besides talking, the assistant can open indexed documents (tools/readDocument.js), query an
- * enabled database connection (tools/queryDatabase.js), and offer a CSV download of a table it put
- * together from any of the above (tools/exportExcel.js). It cannot yet read or write customers and
+ * Besides talking, the assistant can open indexed documents (tools/readDocument.js), hand the operator
+ * a file from the archive with a download button (tools/shareFile.js), query an enabled database
+ * connection (tools/queryDatabase.js), and offer a CSV download of a table it put together from any
+ * of the above (tools/exportExcel.js). It cannot yet read or write customers and
  * applications: the instructions make it say so instead of promising.
  */
 import { ThinkingLevel } from 'firebase/ai';
@@ -23,6 +24,7 @@ import { getSettings, trimHistory } from '@/features/settings/settingsStore';
 import { describeModelError } from './errors';
 import { buildSystemInstruction, toModelHistory } from './systemPrompt';
 import { READ_DOCUMENT_TOOL } from './tools/readDocument';
+import { SHARE_FILE_TOOL } from './tools/shareFile';
 import { QUERY_DATABASE_TOOL, QUERY_DATABASE_TOOL_NAME } from './tools/queryDatabase';
 import { DESCRIBE_TABLE_TOOL, DESCRIBE_TABLE_TOOL_NAME } from './tools/describeTable';
 import { EXPORT_EXCEL_TOOL } from './tools/exportExcel';
@@ -91,7 +93,9 @@ export async function streamAgentReply({
     // pointless (and not offered) on its own, since it never fetches anything itself.
     const hasDataSource = catalog.length > 0 || schema.length > 0;
     const toolDeclarations = [
-      ...(catalog.length ? READ_DOCUMENT_TOOL.functionDeclarations : []),
+      ...(catalog.length
+        ? [...READ_DOCUMENT_TOOL.functionDeclarations, ...SHARE_FILE_TOOL.functionDeclarations]
+        : []),
       ...(schema.length
         ? [
             ...QUERY_DATABASE_TOOL.functionDeclarations,

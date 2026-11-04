@@ -3,7 +3,9 @@ import { Upload } from 'lucide-react';
 import Button from '@/shared/ui/Button';
 import HowIndexingWorks from './HowIndexingWorks';
 
-const ACCEPTED_FILES = '.pdf,.txt,.csv,.md,application/pdf,text/plain,text/csv,text/markdown';
+const ACCEPTED_FILES =
+  '.pdf,.txt,.csv,.md,.png,.jpg,.jpeg,.webp,.gif,.svg,' +
+  'application/pdf,text/plain,text/csv,text/markdown,image/png,image/jpeg,image/webp,image/gif,image/svg+xml';
 
 const STAT_TONES = { neutral: 'text-ink', ok: 'text-ok', danger: 'text-danger' };
 
@@ -34,7 +36,7 @@ export default function ArchiveHeader({ totals, activeView, onSelectView, onUplo
         <div className="min-w-0">
           <h3 className="text-[13px] font-bold text-ink">Archivio documenti</h3>
           <p className="mt-0.5 text-[11px] leading-snug text-slate-soft">
-            Quello che l’assistente può consultare quando risponde.
+            Quello che l’assistente può consultare e mostrarti quando risponde.
           </p>
         </div>
         <Button
@@ -42,7 +44,9 @@ export default function ArchiveHeader({ totals, activeView, onSelectView, onUplo
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
           tooltip={
-            uploading ? 'Attendi la fine del caricamento in corso' : 'PDF, TXT, CSV o Markdown, fino a 20 MB'
+            uploading
+              ? 'Attendi la fine del caricamento in corso'
+              : 'PDF, TXT, CSV, Markdown o immagini (PNG, JPG, WebP, GIF, SVG), fino a 20 MB'
           }
           tooltipAlign="right"
         >

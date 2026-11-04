@@ -5,17 +5,17 @@ const STEPS = [
   {
     icon: Upload,
     title: 'Carica',
-    text: 'PDF, TXT, CSV o Markdown fino a 20 MB. Il file entra nell’archivio, ma l’assistente non lo vede ancora.'
+    text: 'PDF, TXT, CSV, Markdown o immagini (PNG, JPG, WebP, GIF, SVG) fino a 20 MB. Il file entra nell’archivio, ma l’assistente non lo vede ancora. Ogni immagine vuole una breve descrizione, obbligatoria: dice cosa mostra e serve a ritrovarla.'
   },
   {
     icon: Sparkles,
     title: 'Indicizza',
-    text: 'Gemini legge tutto il documento e scrive una scheda: sintesi, argomenti e parole chiave.'
+    text: 'Gemini legge tutto il documento e scrive una scheda: sintesi, argomenti e parole chiave. Un’immagine senza descrizione non si indicizza: la scheda parte da quello che hai scritto.'
   },
   {
     icon: MessageSquareText,
     title: 'Usa in chat',
-    text: 'L’assistente vede le schede di tutti i documenti e apre quello giusto quando serve per rispondere.'
+    text: 'L’assistente vede le schede di tutti i documenti e apre quello giusto quando serve per rispondere. Se chiedi un file o un logo, te lo mostra con il pulsante per scaricarlo.'
   }
 ];
 
