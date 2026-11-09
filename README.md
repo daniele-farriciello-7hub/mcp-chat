@@ -208,7 +208,7 @@ runs the matching handler in `chat/tools/`, and the result goes back as a `funct
 | ----------------- | --------------------------------------------------------------------------------------------- |
 | `read_document`   | opens an indexed document in full                                                             |
 | `share_file`      | shows an archive file (logo, image, PDF…) with a preview and a "Scarica" button               |
-| `offer_files`     | thumbnails of 2–6 archive files to pick from, when several match or none matches exactly      |
+| `offer_files`     | thumbnails of 1–6 archive files to pick from, when several match or none matches exactly      |
 | `ask_options`     | 2–5 clickable answers to an ambiguous question — see "Clarifying questions" below             |
 | `describe_table`  | columns and card of one enabled table                                                         |
 | `query_database`  | one read-only `SELECT`, rows go back to the model (capped by the admin)                       |
@@ -236,7 +236,8 @@ può aprire documenti o interrogare il database" (default 6 giri).
   and calls `share_file` with its id; the operator gets a card with the image (or the file name) and a
   **Scarica** button. Any archive document works, not only images. Only ids from the catalog are accepted;
   when several match the model uses `offer_files` instead of stacking cards (several `share_file` only if the
-  operator asks for all of them, at most 4).
+  operator asks for all of them, at most 4). `share_file` is called directly only when the request clearly names
+  the file; an approximate match goes through `offer_files` with `no_exact_match`.
 - The catalog marks images with `[immagine]` and states the admin's description before the index card. The
   rules for handing over a file are in `systemPrompt.js` (`FILE_SHARING_RULES`), not in the editable
   selection text, so they apply whatever the admin saved.
@@ -251,8 +252,11 @@ può aprire documenti o interrogare il database" (default 6 giri).
 When a request is ambiguous the assistant shows clickable choices instead of guessing or writing a wall of
 text. Both tools end the model's turn: it writes at most one short sentence and waits.
 
-- **`offer_files`** `{ question, ids[2–6], reason? }` — `reason` is `ambiguous` (default) or `no_exact_match`
-  (the header then reads "Non ho trovato esattamente quello che cerchi. Forse intendevi:"). Ids not in the
+- **`offer_files`** `{ question, ids[1–6], reason? }` — `reason` is `ambiguous` (default) or `no_exact_match`
+  (the header then reads "Non ho trovato esattamente quello che cerchi. Forse intendevi:"). A single id is a
+  "did you mean this?": it is allowed only as `no_exact_match`, and with `ambiguous` the handler turns it into
+  `no_exact_match`. The model uses it whenever the request only approximately matches a file (a typo, a partial
+  name, a guessed abbreviation) instead of silently correcting it and calling `share_file`. Ids not in the
   catalog are dropped; with none left the model gets an error. `FileChoiceCard.jsx` shows the thumbnails
   (`PreviewImage`, a file icon for non-images); picking one turns it into the usual `SharedFileCard` right
   below **without a model round trip**, and the other thumbnails stay in view, dimmed. "Nessuno di questi" sends

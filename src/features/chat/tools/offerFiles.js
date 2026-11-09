@@ -1,10 +1,15 @@
 /**
  * `offer_files` tool: when the operator asks for a file and several could be the right one (the light
- * and the dark logo, two formats), or none matches exactly but some come close, the model does not guess
- * and does not stack several `share_file` cards: it shows the candidates as thumbnails to pick from
+ * and the dark logo, two formats), or none matches exactly but some come close (a typo, a partial or
+ * guessed name), the model does not guess, does not silently correct the request and does not stack
+ * several `share_file` cards: it shows the candidates as thumbnails to pick from
  * (`components/FileChoiceCard.jsx`). The pick is handled by the app, with no round trip through the
  * model, and turns into the normal shared-file card (`SharedFileCard.jsx`). Like `share_file`, the card
  * is drawn from document ids alone, so it also comes back after a reload.
+ *
+ * 1 to 6 files. A single one is a "did you mean this?" and is only meaningful as `no_exact_match`: with
+ * `ambiguous` (several files match) fewer than two is a contradiction, so the handler turns it into
+ * `no_exact_match` instead of failing.
  *
  * The model's turn ends here: it is told to stop and wait, and the operator's answer either needs
  * nothing more (a file picked) or arrives as a normal message ("Nessuno di questi").
@@ -20,10 +25,12 @@ export const OFFER_FILES_TOOL = {
     {
       name: OFFER_FILES_TOOL_NAME,
       description:
-        "Mostra all'operatore le anteprime di 2-6 file dell'archivio fra cui scegliere, con un clic. Usalo quando " +
+        "Mostra all'operatore le anteprime di 1-6 file dell'archivio fra cui scegliere, con un clic. Usalo quando " +
         'più file potrebbero essere quello giusto e la richiesta non dice quale (la versione chiara e quella ' +
         'scura di un logo, formati diversi), oppure quando nessun file corrisponde esattamente ma alcuni ci ' +
-        "vanno vicino. Non chiamare share_file più volte al posto suo. Quando l'operatore sceglie, l'app gli " +
+        'vanno vicino (un refuso, un nome parziale o diverso, una sigla indovinata): in quel caso anche un solo ' +
+        'file va bene, come "forse intendevi questo?", invece di correggere la richiesta in silenzio. ' +
+        "Non chiamare share_file più volte al posto suo. Quando l'operatore sceglie, l'app gli " +
         'mostra il file con il pulsante per scaricarlo: tu non devi fare altro. Usa solo id che compaiono ' +
         "nell'elenco dei documenti indicizzati. Dopo averlo chiamato chiudi il turno con al massimo una frase " +
         "breve e aspetta: non rispondere alla domanda al posto dell'operatore.",
@@ -37,7 +44,9 @@ export const OFFER_FILES_TOOL = {
           ids: {
             type: 'array',
             items: { type: 'string' },
-            description: "Da 2 a 6 id di file presi dall'elenco, i più probabili per primi."
+            description:
+              "Da 1 a 6 id di file presi dall'elenco, i più probabili per primi. Un solo id è ammesso solo con " +
+              'reason "no_exact_match"; con "ambiguous" ne servono almeno 2.'
           },
           reason: {
             type: 'string',
@@ -72,12 +81,16 @@ export async function runOfferFilesCall(call, { catalog, round, index, onActivit
     return { response: { error: 'no valid file id: use ids from the list of indexed documents' } };
   }
 
+  // a single option is by definition a "did you mean this?", whatever the model labelled it
+  const requestedReason = REASONS.includes(reason) ? reason : 'ambiguous';
+  const finalReason = files.length === 1 ? 'no_exact_match' : requestedReason;
+
   onActivityEnd(activityId, {
     outcome: 'done',
     label:
       (typeof question === 'string' && question.trim().slice(0, MAX_QUESTION_CHARS)) || 'Quale file intendi?',
     files,
-    reason: REASONS.includes(reason) ? reason : 'ambiguous'
+    reason: finalReason
   });
   return {
     response: {
