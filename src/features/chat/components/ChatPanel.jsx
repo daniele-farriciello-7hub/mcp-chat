@@ -21,7 +21,8 @@ export default function ChatPanel({
   onStatus,
   ref
 }) {
-  const { messages, status, send, reset } = useConversation({ uid, context, isAdmin });
+  const { messages, status, send, reset, selectOption } = useConversation({ uid, context, isAdmin });
+  const inputRef = useRef(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Embedded in 7Hub, the host's header and entry points (home box, search bar) drive the chat through
@@ -88,9 +89,11 @@ export default function ChatPanel({
         status={status}
         userName={context?.user?.name?.trim()}
         onAsk={send}
+        onSelect={selectOption}
+        onFocusInput={() => inputRef.current?.focus()}
         onNavigate={onNavigate}
       />
-      <ChatInput busy={status !== 'idle'} onSend={send} />
+      <ChatInput ref={inputRef} busy={status !== 'idle'} onSend={send} />
     </div>
   );
 }

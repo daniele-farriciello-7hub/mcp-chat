@@ -7,16 +7,18 @@
  */
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ArrowUp, Mic, Square } from 'lucide-react';
 import { useVoiceInput } from '@/features/chat/useVoiceInput';
 import Tooltip from '@/shared/ui/Tooltip';
 
 const MAX_TEXTAREA_HEIGHT_PX = 120;
 
-export default function ChatInput({ busy, onSend }) {
+export default function ChatInput({ busy, onSend, ref }) {
   const [text, setText] = useState('');
   const textareaRef = useRef(null);
+  // the panel can bring the cursor here, e.g. "Altro…" on a clarification card
+  useImperativeHandle(ref, () => ({ focus: () => textareaRef.current?.focus() }), []);
   const voice = useVoiceInput({ onTranscript: setText });
 
   useEffect(() => {

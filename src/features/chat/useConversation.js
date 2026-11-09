@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSettings } from '@/features/settings/settingsStore';
 import {
   endConversation,
+  recordChoice,
   recordQuestion,
   recordTurn,
   restoreConversation
@@ -59,6 +60,8 @@ export function useConversation({ uid, context, isAdmin = false }) {
   const conversationRef = useRef(null); // { id, day } of the stored conversation, if any
   const settingsRef = useRef(null);
   const sentRef = useRef(false); // a question went out before the restore came back
+  // the latest turn's history write: a pick on its card can only be stored after the card is
+  const turnWriteRef = useRef(Promise.resolve());
 
   useEffect(() => {
     if (!uid) return undefined;
@@ -199,7 +202,7 @@ export function useConversation({ uid, context, isAdmin = false }) {
         onDone: ({ card, suggestions, usage, model, durationMs, firstTokenMs, error } = {}) => {
           if (card || suggestions) updateLastReply(m => ({ ...m, card, suggestions }));
           setStatus('idle');
-          stored
+          turnWriteRef.current = stored
             .then(
               conversation =>
                 conversation &&
@@ -221,6 +224,24 @@ export function useConversation({ uid, context, isAdmin = false }) {
     [status, uid, context, isAdmin, messages, append, updateLastReply]
   );
 
+  /**
+   * The operator picked something on a clarification card (`ask_options` / `offer_files`): remembered on
+   * that activity, in state and in the stored conversation, so the card stays answered after a reload.
+   * Picking a file sends nothing to the model; picking an answer is followed by `send` from the card.
+   */
+  const selectOption = useCallback(
+    (activityId, selected) => {
+      setMessages(current => current.map(m => (m.id === activityId ? { ...m, selected } : m)));
+      const conversation = conversationRef.current;
+      if (uid && conversation && settingsRef.current?.historyEnabled) {
+        turnWriteRef.current
+          .then(() => recordChoice({ conversationId: conversation.id, activityId, selected }))
+          .catch(warn('saving the choice'));
+      }
+    },
+    [uid]
+  );
+
   const reset = useCallback(() => {
     conversationRef.current = null;
     // the server closes whichever conversation of this user is open, known here or not
@@ -231,5 +252,5 @@ export function useConversation({ uid, context, isAdmin = false }) {
     setStatus('idle');
   }, [uid]);
 
-  return { messages, status, send, reset };
+  return { messages, status, send, reset, selectOption };
 }

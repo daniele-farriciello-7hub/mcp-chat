@@ -1,10 +1,12 @@
 import MarkdownTextarea from '@/shared/ui/MarkdownTextarea';
 import PromptAttachments from '@/shared/ui/PromptAttachments';
 import Section from '@/shared/ui/Section';
+import SegmentedControl from '@/shared/ui/SegmentedControl';
 import Slider from '@/shared/ui/Slider';
 import Switch from '@/shared/ui/Switch';
 import { HELP_TEXT_CLASS, INPUT_CLASS } from '@/shared/ui/formStyles';
 import ModelPicker from './ModelPicker';
+import { CLARIFICATION_FREQUENCIES } from '@/features/settings/defaultSettings';
 import { CHART_LIMIT_BOUNDS, chartLimits } from '@/features/charts/chartData';
 
 const creativityLabel = t => (t <= 0.3 ? 'Prevedibile' : t <= 0.6 ? 'Equilibrata' : 'Creativa');
@@ -138,6 +140,35 @@ export default function ModelSettingsTab({ settings, onChange }) {
           uno per controllarne le colonne (describe_table), uno per interrogarla, uno per scrivere la risposta
           — di più se tocca più tabelle o una query va corretta. Alzarlo rende le risposte più lente e più
           costose.
+        </p>
+      </Section>
+
+      <Section
+        title="Domande di chiarimento"
+        description="Quando una richiesta è ambigua l’assistente mostra delle scelte cliccabili invece di tirare a indovinare. Come si presentano le scelte è fisso; qui decidi quanto spesso chiedere e su cosa."
+      >
+        <SegmentedControl
+          options={CLARIFICATION_FREQUENCIES}
+          value={settings.clarificationFrequency}
+          onChange={value => onChange('clarificationFrequency', value)}
+          ariaLabel="Quanto spesso chiede chiarimenti"
+        />
+        <p className={HELP_TEXT_CLASS}>
+          {CLARIFICATION_FREQUENCIES.find(f => f.id === settings.clarificationFrequency)?.description}
+        </p>
+        <label className="block">
+          <span className="text-[12px] font-semibold text-ink">Ambiguità tipiche della vostra azienda</span>
+          <textarea
+            rows={4}
+            value={settings.clarificationInstructions}
+            onChange={e => onChange('clarificationInstructions', e.target.value)}
+            placeholder="«Lead» può voler dire creati, lavorati o chiusi: chiedi quale."
+            className={`${INPUT_CLASS} mt-1 resize-y text-[12px] leading-snug`}
+          />
+        </label>
+        <p className={HELP_TEXT_CLASS}>
+          Facoltativo, una per riga. Va al modello subito dopo le regole fisse: indica le parole o le
+          richieste che, da voi, hanno più significati e su cui conviene chiedere.
         </p>
       </Section>
 

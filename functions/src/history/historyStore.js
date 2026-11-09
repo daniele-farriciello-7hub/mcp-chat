@@ -37,8 +37,15 @@ const ACTIVITY_FIELDS = [
   'databaseLabel',
   'exportTitle',
   // short text under a card, e.g. "12.430 righe" on an export
-  'detail'
+  'detail',
+  // why a file picker is shown: 'ambiguous' | 'no_exact_match'
+  'reason'
 ];
+
+// clarification cards (`choice`: ask_options, `file_choice`: offer_files) — most they can offer
+const MAX_CHOICES = 5;
+const MAX_CHOICE_CHARS = 200;
+const MAX_CHOICE_FILES = 6;
 
 const db = () => getFirestore();
 const conversations = () => db().collection(`${appRoot()}/chatConversations`);
@@ -95,7 +102,34 @@ function storableActivity(activity = {}) {
   if (chart) stored.chart = chart;
   const exportQuery = storableExportQuery(activity.exportQuery);
   if (exportQuery) stored.exportQuery = exportQuery;
+  // `selected` is not taken from here: it only ever arrives through `recordChoice`, checked against these
+  const choices = storableChoices(activity.choices);
+  if (choices.length) stored.choices = choices;
+  if (typeof activity.allowOther === 'boolean') stored.allowOther = activity.allowOther;
+  const files = storableChoiceFiles(activity.files);
+  if (files.length) stored.files = files;
   return stored;
+}
+
+/** The answers offered by an `ask_options` card: short texts, as many as the tool allows. */
+function storableChoices(choices) {
+  if (!Array.isArray(choices)) return [];
+  return choices
+    .filter(choice => typeof choice === 'string' && choice.trim())
+    .slice(0, MAX_CHOICES)
+    .map(choice => choice.slice(0, MAX_CHOICE_CHARS));
+}
+
+/** The files offered by an `offer_files` card: ids and names only, the card is rebuilt from the ids. */
+function storableChoiceFiles(files) {
+  if (!Array.isArray(files)) return [];
+  return files
+    .filter(file => file && typeof file.documentId === 'string' && file.documentId)
+    .slice(0, MAX_CHOICE_FILES)
+    .map(file => ({
+      documentId: file.documentId.slice(0, 200),
+      documentName: typeof file.documentName === 'string' ? file.documentName.slice(0, 200) : ''
+    }));
 }
 
 /**
@@ -357,6 +391,39 @@ export async function recordTurn(user, body) {
     ...(databases.length ? { databases: FieldValue.arrayUnion(...databases.slice(0, 50)) } : {})
   });
   await batch.commit();
+  return { ok: true };
+}
+
+/**
+ * What the operator picked on a clarification card, kept on that card's activity so it comes back answered
+ * after a reload. The card is written with the turn that showed it (`recordTurn`), a moment before it can be
+ * clicked. Only something the card actually offered is accepted: the browser's word is not enough.
+ */
+export async function recordChoice(user, body) {
+  const conversationId = safeId(body.conversationId);
+  const activityId = safeId(body.activityId);
+  if (!conversationId || !activityId || typeof body.selected !== 'string') {
+    throw new HistoryError(400, 'conversationId, activityId and selected are required');
+  }
+  const conversation = await conversationRef(conversationId).get();
+  // someone else's conversation looks exactly like a missing one
+  if (!conversation.exists || conversation.data().uid !== user.uid)
+    throw new HistoryError(404, 'conversation not found');
+
+  const messageRef = messagesOf(conversationId).doc(activityId);
+  const message = await messageRef.get();
+  const activity = message.exists && message.data().role === 'activity' ? message.data().activity : null;
+  if (!activity) throw new HistoryError(404, 'activity not found');
+
+  const offered =
+    activity.kind === 'choice'
+      ? activity.choices
+      : activity.kind === 'file_choice'
+        ? activity.files?.map(file => file.documentId)
+        : null;
+  if (!offered?.includes(body.selected)) throw new HistoryError(400, 'not one of the offered choices');
+
+  await messageRef.update({ 'activity.selected': body.selected });
   return { ok: true };
 }
 

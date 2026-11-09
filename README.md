@@ -208,6 +208,8 @@ runs the matching handler in `chat/tools/`, and the result goes back as a `funct
 | ----------------- | --------------------------------------------------------------------------------------------- |
 | `read_document`   | opens an indexed document in full                                                             |
 | `share_file`      | shows an archive file (logo, image, PDF…) with a preview and a "Scarica" button               |
+| `offer_files`     | thumbnails of 2–6 archive files to pick from, when several match or none matches exactly      |
+| `ask_options`     | 2–5 clickable answers to an ambiguous question — see "Clarifying questions" below             |
 | `describe_table`  | columns and card of one enabled table                                                         |
 | `query_database`  | one read-only `SELECT`, rows go back to the model (capped by the admin)                       |
 | `export_database` | the model writes the query; the server builds the .xlsx on click, up to the admin's row limit |
@@ -233,7 +235,8 @@ può aprire documenti o interrogare il database" (default 6 giri).
 - For "mi dai il logo di WeUnit": the model finds the file in the catalog by name, description and index card
   and calls `share_file` with its id; the operator gets a card with the image (or the file name) and a
   **Scarica** button. Any archive document works, not only images. Only ids from the catalog are accepted;
-  several matches are shown one card each (the model is told at most 4), or it asks which one.
+  when several match the model uses `offer_files` instead of stacking cards (several `share_file` only if the
+  operator asks for all of them, at most 4).
 - The catalog marks images with `[immagine]` and states the admin's description before the index card. The
   rules for handing over a file are in `systemPrompt.js` (`FILE_SHARING_RULES`), not in the editable
   selection text, so they apply whatever the admin saved.
@@ -242,6 +245,32 @@ può aprire documenti o interrogare il database" (default 6 giri).
   under the original file name (a cross-origin `<a download>` would be ignored); if that fails, the file
   opens in a new tab.
 - `read_document` still opens an image for the model to look at (not a GIF, which Gemini cannot see).
+
+### Clarifying questions — `offer_files` and `ask_options`
+
+When a request is ambiguous the assistant shows clickable choices instead of guessing or writing a wall of
+text. Both tools end the model's turn: it writes at most one short sentence and waits.
+
+- **`offer_files`** `{ question, ids[2–6], reason? }` — `reason` is `ambiguous` (default) or `no_exact_match`
+  (the header then reads "Non ho trovato esattamente quello che cerchi. Forse intendevi:"). Ids not in the
+  catalog are dropped; with none left the model gets an error. `FileChoiceCard.jsx` shows the thumbnails
+  (`PreviewImage`, a file icon for non-images); picking one turns it into the usual `SharedFileCard` right
+  below **without a model round trip**, and the other thumbnails stay in view, dimmed. "Nessuno di questi" sends
+  that text as a normal message.
+- **`ask_options`** `{ question, options[2–5], allow_other? }` — each option is a full answer the operator would
+  type. `ChoiceCard.jsx` (same look as `OptionsCard`) sends the clicked option's text as the next user message
+  through the normal send path. "Altro…" (unless `allow_other` is false) only focuses the message box.
+- A card is _answered_ once any message follows it (clicked or typed): the pick is marked, the rest is off. The
+  pick is stored as `selected` on the activity message: `useConversation.selectOption` updates the state and
+  calls the `choice` action of the `history` function (`recordChoice` in `historyStore.js`), which accepts only
+  something the card offered. Activity rows carry `kind` (`choice` | `file_choice`), `label` (the question),
+  `choices` / `files`, `allowOther`, `reason`; all are allow-listed in `storableActivity`, so a restored
+  conversation shows the cards again. The model is not told which file was picked.
+- The contract (when to ask, one question at most, never when the answer is the same) is fixed in
+  `systemPrompt.js` (`CLARIFICATION_RULES`, `FILE_CLARIFICATION_RULES`). The admin sets, in Configurazione →
+  Modello IA → "Domande di chiarimento", how often to ask (`clarificationFrequency`: rare / when_needed /
+  often) and the ambiguities typical of the company (`clarificationInstructions`); both are appended after
+  the fixed rules.
 
 ### `describe_table` — read a table's structure
 

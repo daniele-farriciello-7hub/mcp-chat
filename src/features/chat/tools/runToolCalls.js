@@ -8,6 +8,8 @@ import { QUERY_DATABASE_TOOL_NAME, runQueryDatabaseCall } from './queryDatabase'
 import { DESCRIBE_TABLE_TOOL_NAME, runDescribeTableCall } from './describeTable';
 import { EXPORT_EXCEL_TOOL_NAME, runExportExcelCall } from './exportExcel';
 import { SHARE_FILE_TOOL_NAME, runShareFileCall } from './shareFile';
+import { OFFER_FILES_TOOL_NAME, runOfferFilesCall } from './offerFiles';
+import { ASK_OPTIONS_TOOL_NAME, runAskOptionsCall } from './askOptions';
 import { EXPORT_DATABASE_TOOL_NAME, runExportDatabaseCall } from './exportDatabase';
 import { SHOW_CHART_TOOL_NAME, runShowChartCall } from './showChart';
 import { HOST_TOOL_NAMES, runHostToolCall } from './hostTools';
@@ -18,6 +20,8 @@ const HANDLERS = {
   [DESCRIBE_TABLE_TOOL_NAME]: runDescribeTableCall,
   [EXPORT_EXCEL_TOOL_NAME]: runExportExcelCall,
   [SHARE_FILE_TOOL_NAME]: runShareFileCall,
+  [OFFER_FILES_TOOL_NAME]: runOfferFilesCall,
+  [ASK_OPTIONS_TOOL_NAME]: runAskOptionsCall,
   [EXPORT_DATABASE_TOOL_NAME]: runExportDatabaseCall,
   [SHOW_CHART_TOOL_NAME]: runShowChartCall,
   // 7Hub tools: executed by the host page through the postMessage bridge

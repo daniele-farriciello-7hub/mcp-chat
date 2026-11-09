@@ -3,7 +3,7 @@
  * shape as `databaseEndpoint.js`: the caller's Firebase ID token is verified and `users/{uid}` is
  * read on every call.
  *
- * `restore`, `question`, `turn`, `reset` act on the caller's own conversations only — the user comes
+ * `restore`, `question`, `turn`, `choice`, `reset` act on the caller's own conversations only — the user comes
  * from the token, never from the body. `list`, `transcript`, `users` and `allShortcuts` read everyone's and are
  * admin-only.
  * Writes are refused (204, nothing stored) while `historyEnabled` is off in the settings: the
@@ -17,6 +17,7 @@ import {
   endConversation,
   historySettings,
   listConversations,
+  recordChoice,
   recordQuestion,
   recordTurn,
   restore,
@@ -33,6 +34,7 @@ const OPERATOR_ACTIONS = {
   restore: user => restore(user).then(conversation => ({ conversation })),
   question: (user, body, settings) => recordQuestion(user, body, settings.retentionDays),
   turn: (user, body) => recordTurn(user, body),
+  choice: (user, body) => recordChoice(user, body),
   reset: user => endConversation(user),
   // the caller's own welcome-screen shortcuts: not history, so they work with history off too
   shortcuts: user => loadShortcutsWithLimit(user),
@@ -46,7 +48,7 @@ const ADMIN_ACTIONS = {
   allShortcuts: () => listAllShortcuts()
 };
 // these change data; with history off they are accepted and ignored, so an old tab does not error
-const WRITE_ACTIONS = new Set(['question', 'turn', 'reset']);
+const WRITE_ACTIONS = new Set(['question', 'turn', 'choice', 'reset']);
 
 export async function handleHistoryRequest(req, res) {
   if (!applyCors(req, res)) return;

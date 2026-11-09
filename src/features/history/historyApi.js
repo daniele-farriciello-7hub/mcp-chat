@@ -43,6 +43,9 @@ export async function recordQuestion(question) {
 /** Records the end of a turn: tool activity (allow-listed again on the server), reply, usage, timing. */
 export const recordTurn = turn => callFunction('history', 'turn', turn);
 
+/** What the operator picked on a clarification card; the server checks it against what the card offered. */
+export const recordChoice = choice => callFunction('history', 'choice', choice);
+
 /** "Nuova conversazione": the server closes whatever conversation of the caller is open. */
 export const endConversation = () => callFunction('history', 'reset');
 

@@ -20,9 +20,12 @@ import {
   FileSpreadsheet,
   Highlighter,
   Image as ImageIcon,
+  Images,
   Lightbulb,
   LineChart,
+  ListChecks,
   MessageCircleMore,
+  MousePointerClick,
   PieChart,
   Sigma,
   Sparkles,
@@ -56,6 +59,13 @@ const TOOL_PHASES = {
   data: { Icon: Database, cycle: [Database, Table2, Calculator, Sigma], label: 'Faccio i conti sui dati…' },
   export: { Icon: FileSpreadsheet, cycle: [FileSpreadsheet, Table2, Download], label: 'Preparo il file…' },
   file: { Icon: ImageIcon, cycle: [Search, ImageIcon, Download], label: 'Cerco il file…' },
+  // clarification: the assistant is putting choices on screen (ask_options, offer_files)
+  choice: {
+    Icon: ListChecks,
+    cycle: [ListChecks, MousePointerClick, Lightbulb],
+    label: 'Preparo le opzioni…'
+  },
+  file_choice: { Icon: Images, cycle: [Images, Search, MousePointerClick], label: 'Preparo le opzioni…' },
   chart: { Icon: BarChart3, cycle: [BarChart3, LineChart, PieChart], label: 'Preparo il grafico…' },
   // 7Hub tools (search, open a page or a record) run by the host page
   app: { Icon: Compass, cycle: [Search, Compass, ExternalLink], label: 'Lavoro in 7Hub…' }

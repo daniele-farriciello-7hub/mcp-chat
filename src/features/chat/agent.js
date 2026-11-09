@@ -11,8 +11,10 @@
  * Besides talking, the assistant can open indexed documents (tools/readDocument.js), hand the operator
  * a file from the archive with a download button (tools/shareFile.js), query an enabled database
  * connection (tools/queryDatabase.js), and offer a CSV download of a table it put together from any
- * of the above (tools/exportExcel.js). It cannot yet read or write customers and
- * applications: the instructions make it say so instead of promising.
+ * of the above (tools/exportExcel.js). When a request is ambiguous it shows clickable choices instead
+ * of guessing: files to pick from (tools/offerFiles.js) or answers to pick from (tools/askOptions.js).
+ * It cannot yet read or write customers and applications: the instructions make it say so instead of
+ * promising.
  */
 import { ThinkingLevel } from 'firebase/ai';
 import { getModel } from '@/shared/firebase/ai';
@@ -25,6 +27,8 @@ import { describeModelError } from './errors';
 import { buildSystemInstruction, toModelHistory } from './systemPrompt';
 import { READ_DOCUMENT_TOOL } from './tools/readDocument';
 import { SHARE_FILE_TOOL } from './tools/shareFile';
+import { OFFER_FILES_TOOL, OFFER_FILES_TOOL_NAME } from './tools/offerFiles';
+import { ASK_OPTIONS_TOOL, ASK_OPTIONS_TOOL_NAME } from './tools/askOptions';
 import { QUERY_DATABASE_TOOL, QUERY_DATABASE_TOOL_NAME } from './tools/queryDatabase';
 import { DESCRIBE_TABLE_TOOL, DESCRIBE_TABLE_TOOL_NAME } from './tools/describeTable';
 import { EXPORT_EXCEL_TOOL } from './tools/exportExcel';
@@ -41,6 +45,9 @@ import { hostToolDeclarations } from './tools/hostTools';
  * model: 1152 tokens of thinking left 44 for the text. Only added when a ceiling is set at all.
  */
 const THINKING_HEADROOM_TOKENS = 2000;
+
+// tools whose card ends the model's turn: the operator answers by clicking
+const CLARIFICATION_TOOL_NAMES = new Set([OFFER_FILES_TOOL_NAME, ASK_OPTIONS_TOOL_NAME]);
 
 const DATABASE_TOOL_NAMES = new Set([
   QUERY_DATABASE_TOOL_NAME,
@@ -94,7 +101,11 @@ export async function streamAgentReply({
     const hasDataSource = catalog.length > 0 || schema.length > 0;
     const toolDeclarations = [
       ...(catalog.length
-        ? [...READ_DOCUMENT_TOOL.functionDeclarations, ...SHARE_FILE_TOOL.functionDeclarations]
+        ? [
+            ...READ_DOCUMENT_TOOL.functionDeclarations,
+            ...SHARE_FILE_TOOL.functionDeclarations,
+            ...OFFER_FILES_TOOL.functionDeclarations
+          ]
         : []),
       ...(schema.length
         ? [
@@ -109,6 +120,8 @@ export async function streamAgentReply({
             ...showChartTool(chartLimits(settings.chartLimits)).functionDeclarations
           ]
         : []),
+      // clarification needs no data source: a question can be ambiguous with nothing indexed at all
+      ...ASK_OPTIONS_TOOL.functionDeclarations,
       // embedded in 7Hub: search customers / leads / practices and open pages, in the operator's session
       ...hostToolDeclarations(context, settings.hostToolsConfig)
     ];
@@ -130,7 +143,9 @@ export async function streamAgentReply({
           databaseSelectionAttachments: settings.databaseSelectionAttachments,
           hostToolsInstructions: settings.hostToolsInstructions,
           hostToolsAttachments: settings.hostToolsAttachments,
-          hostToolsConfig: settings.hostToolsConfig
+          hostToolsConfig: settings.hostToolsConfig,
+          clarificationFrequency: settings.clarificationFrequency,
+          clarificationInstructions: settings.clarificationInstructions
         }),
         generationConfig: {
           temperature: settings.temperature,
@@ -186,6 +201,7 @@ export async function streamAgentReply({
 
     const maxRounds = Math.max(1, settings.maxToolRounds || DEFAULT_SETTINGS.maxToolRounds);
     let outOfRounds = false;
+    let choiceShown = false;
     let message = text;
     for (let round = 0; round < maxRounds; round++) {
       let response = await streamRound(message);
@@ -219,6 +235,9 @@ export async function streamAgentReply({
         queryTimeoutSeconds: settings.queryTimeoutSeconds || DEFAULT_SETTINGS.queryTimeoutSeconds,
         chartLimits: chartLimits(settings.chartLimits)
       });
+      choiceShown ||= message.some(
+        part => CLARIFICATION_TOOL_NAMES.has(part.functionResponse.name) && part.functionResponse.response?.ok
+      );
 
       // last round: the documents just read would go in the bin, so spend one more call asking for
       // the answer with what is on the table instead of throwing the work away
@@ -229,10 +248,14 @@ export async function streamAgentReply({
     }
 
     if (!replyStarted) {
+      // the card is already on screen and says it all: a silent model after it is not a failure. A
+      // line is still written, since a question with no reply would break the history sent next time
       emit(
-        outOfRounds
-          ? 'Ho provato ad aprire documenti o interrogare il database ma non sono arrivato a una risposta. Prova a chiedermi una cosa per volta.'
-          : 'Non riesco a rispondere a questo. Prova a riformularlo.'
+        choiceShown
+          ? 'Scegli una delle opzioni qui sopra.'
+          : outOfRounds
+            ? 'Ho provato ad aprire documenti o interrogare il database ma non sono arrivato a una risposta. Prova a chiedermi una cosa per volta.'
+            : 'Non riesco a rispondere a questo. Prova a riformularlo.'
       );
     }
   } catch (error) {

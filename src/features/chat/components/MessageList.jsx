@@ -12,13 +12,25 @@ import { useEffect, useRef } from 'react';
 import ActivityRow from './ActivityRow';
 import SharedFileCard from './SharedFileCard';
 import OptionsCard from './OptionsCard';
+import ChoiceCard from './ChoiceCard';
+import FileChoiceCard from './FileChoiceCard';
 import MessageBubble from './MessageBubble';
 import Suggestions from './Suggestions';
 import Welcome from './Welcome';
 import WorkingIndicator from './WorkingIndicator';
 import ChatChart from '@/features/charts/ChatChart';
 
-export default function MessageList({ uid, isAdmin, messages, status, userName, onAsk, onNavigate }) {
+export default function MessageList({
+  uid,
+  isAdmin,
+  messages,
+  status,
+  userName,
+  onAsk,
+  onSelect,
+  onFocusInput,
+  onNavigate
+}) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -57,6 +69,35 @@ export default function MessageList({ uid, isAdmin, messages, status, userName, 
           if (message.role === 'activity' && message.chart && message.outcome === 'done') {
             if (busy && i > lastUserIndex) return null;
             return <ChatChart key={message.id} chart={message.chart} />;
+          }
+          // the assistant asks what the operator means (ask_options / offer_files). Answered once a message
+          // follows it, whether the operator clicked or typed: the card stays, with the pick marked
+          if (
+            message.role === 'activity' &&
+            message.outcome === 'done' &&
+            ((message.kind === 'choice' && message.choices?.length) ||
+              (message.kind === 'file_choice' && message.files?.length))
+          ) {
+            if (busy && i > lastUserIndex) return null;
+            const answered = i < lastUserIndex || busy;
+            return message.kind === 'choice' ? (
+              <ChoiceCard
+                key={message.id}
+                activity={message}
+                answered={answered}
+                onSelect={onSelect}
+                onAsk={onAsk}
+                onOther={onFocusInput}
+              />
+            ) : (
+              <FileChoiceCard
+                key={message.id}
+                activity={message}
+                answered={answered}
+                onSelect={onSelect}
+                onAsk={onAsk}
+              />
+            );
           }
           // choices found in 7Hub: clickable rows, kept in the conversation
           if (message.role === 'activity' && message.options?.length && message.outcome === 'done') {

@@ -51,10 +51,11 @@ function schemaBlock(
 
 /**
  * How to hand over a file. Here and not in the admin's editable selection text: it has to be there
- * whatever the admin saved, because it describes a tool the app adds on its own (`share_file`).
+ * whatever the admin saved, because it describes a tool the app adds on its own (`share_file`). When
+ * several files match, the choice goes through `offer_files` — see FILE_CLARIFICATION_RULES.
  */
 const FILE_SHARING_RULES = `Se l'operatore chiede di avere, vedere o scaricare un file — un logo, un'immagine, un PDF ("mi dai il logo di…", "mandami la presentazione di…") — cercalo nell'elenco per nome, descrizione e parole chiave e chiama share_file con il suo id: l'operatore vede l'anteprima e il pulsante per scaricarlo. Non descriverlo a parole al posto di mostrarlo e non scrivere mai link.
-Se più file corrispondono davvero (ad esempio la versione chiara e quella scura dello stesso logo, o formati diversi) mostrali tutti, uno share_file ciascuno e al massimo 4, e di' in una riga quale è quale. Se i candidati sono molti o la richiesta è ambigua, chiedi quale vuole invece di tirare a indovinare. Se nessun file corrisponde, dillo: non inventare un id.
+Se più file corrispondono davvero e la richiesta non dice quale, non tirare a indovinare e non chiamare share_file più volte: usa offer_files, come spiegato nelle regole sui chiarimenti. Chiama share_file più volte solo se l'operatore chiede esplicitamente tutti i file ("mandameli tutti", "tutte e due le versioni"), al massimo 4, e di' in una riga quale è quale. Se nessun file corrisponde, dillo: non inventare un id.
 Le voci marcate [immagine] sono immagini: la loro descrizione è scritta dall'operatore e fa fede su cosa raffigurano. read_document serve a guardare il contenuto di un file per rispondere, non a consegnarlo.`;
 
 /** Indexed documents, one line each, so the model can decide what to open. */
@@ -79,6 +80,50 @@ function catalogBlock(catalog, documentSelection, documentSelectionAttachments) 
     documentSelection || DEFAULT_SETTINGS.documentSelectionInstructions,
     FILE_SHARING_RULES,
     attachmentsBlock(documentSelectionAttachments)
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+/**
+ * When and how to ask the operator what they mean. Like FILE_SHARING_RULES it is not editable: it
+ * describes tools the app adds on its own (`ask_options`, `offer_files`), so the contract has to be there
+ * whatever the admin saved. How *often* to ask, and which ambiguities are typical of the company, are the
+ * admin's (Modello IA → Domande di chiarimento) and go right after it.
+ */
+const CLARIFICATION_RULES = `Quando una richiesta può voler dire cose diverse che portano a risposte davvero diverse, non tirare a indovinare e non scrivere un muro di testo: mostra delle scelte cliccabili.
+- Per una domanda ambigua (non sui file) chiama ask_options con una domanda breve e da 2 a 5 opzioni concrete, ognuna scritta come la risposta completa che l'operatore scriverebbe ("Lead creati questo mese", "Lead lavorati questo mese", "Lead chiusi questo mese"). Mai una domanda aperta del tipo "cosa intendi?" scritta in prosa. Cliccando, l'operatore invia l'opzione come suo messaggio e tu prosegui da lì.
+- Dopo ask_options chiudi subito il turno con al massimo una frase breve e aspetta: non rispondere alla domanda al posto dell'operatore e non richiamare lo strumento.
+- Fai al massimo un chiarimento per domanda: quando l'operatore ha scelto, procedi senza chiedere altro.
+- Non chiedere se la risposta sarebbe la stessa con qualunque interpretazione, e non chiedere ciò che l'operatore ha già detto nella conversazione: usalo.
+- Se la richiesta è abbastanza precisa, rispondi o agisci subito: i chiarimenti sono l'eccezione.`;
+
+/** Only when there is an archive: `offer_files` is not offered without one. */
+const FILE_CLARIFICATION_RULES = `Chiarimenti sui file dell'archivio:
+- Se la richiesta è abbastanza precisa da indicare un solo file, chiama share_file direttamente, senza domande.
+- Se più file corrispondono davvero e la richiesta non dice quale (la versione chiara e quella scura di un logo, formati diversi, loghi di società diverse), chiama offer_files con una domanda breve ("Quale logo intendi?") e gli id dei candidati, da 2 a 6: l'operatore li vede come anteprime e ne sceglie uno con un clic. Non chiamare share_file più volte al suo posto.
+- Se nessun file corrisponde esattamente ma alcuni ci vanno vicino, chiama offer_files con reason "no_exact_match" e i più vicini: l'app scrive da sola "Non ho trovato esattamente quello che cerchi".
+- Se non c'è nulla che ci vada vicino, dillo in una riga e non chiamare nessuno strumento: non inventare un id.
+- Dopo offer_files vale lo stesso: chiudi il turno con al massimo una frase breve e aspetta. Quando l'operatore sceglie un file, l'app glielo mostra da sola: non devi chiamare share_file. Se invece risponde "Nessuno di questi", non riproporre gli stessi file: chiedi in una riga cosa cerca, o proponine altri solo se ne hai di diversi.`;
+
+/** How often to ask: the admin's choice (`clarificationFrequency`), one sentence each. */
+const CLARIFICATION_FREQUENCY_RULES = {
+  rare: "Frequenza dei chiarimenti: bassa. Chiedi solo quando sbagliare costerebbe caro all'operatore (un dato sbagliato, un file sbagliato consegnato); altrimenti scegli l'interpretazione più probabile e di' in poche parole quale hai scelto.",
+  when_needed:
+    'Frequenza dei chiarimenti: quando serve. Chiedi quando le interpretazioni darebbero risposte davvero diverse; se una è chiaramente la più probabile, procedi con quella.',
+  often:
+    "Frequenza dei chiarimenti: alta. Chiedi ogni volta che c'è un dubbio ragionevole su cosa intende l'operatore, anche se una lettura sembra più probabile."
+};
+
+function clarificationBlock({ hasCatalog, frequency, instructions }) {
+  return [
+    CLARIFICATION_RULES,
+    hasCatalog ? FILE_CLARIFICATION_RULES : null,
+    CLARIFICATION_FREQUENCY_RULES[frequency] ||
+      CLARIFICATION_FREQUENCY_RULES[DEFAULT_SETTINGS.clarificationFrequency],
+    instructions?.trim()
+      ? `Ambiguità tipiche di questa azienda, su cui chiedere:\n${instructions.trim()}`
+      : null
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -130,7 +175,9 @@ export function buildSystemInstruction({
   databaseSelectionAttachments,
   hostToolsInstructions,
   hostToolsAttachments,
-  hostToolsConfig
+  hostToolsConfig,
+  clarificationFrequency,
+  clarificationInstructions
 }) {
   return [
     instructions,
@@ -144,6 +191,12 @@ export function buildSystemInstruction({
       databaseAttachments,
       databaseSelectionAttachments
     ),
+    // after the data sources, which it refers to, and before the 7Hub block, which has the last word
+    clarificationBlock({
+      hasCatalog: catalog.length > 0,
+      frequency: clarificationFrequency,
+      instructions: clarificationInstructions
+    }),
     // last, so it wins over earlier text: embedded in 7Hub, records are handled with the 7Hub tools
     hostToolsBlock(context, hostToolsInstructions, hostToolsConfig),
     context?.tools?.length ? attachmentsBlock(hostToolsAttachments) : null

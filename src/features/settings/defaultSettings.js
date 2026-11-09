@@ -10,6 +10,30 @@ export const SHORTCUT_ICONS = {
   question: 'Punto interrogativo'
 };
 
+/**
+ * How often the assistant asks the operator what they mean before answering (`clarificationFrequency`),
+ * as shown in Modello IA → Domande di chiarimento. The sentence each one adds to the prompt is in
+ * chat/systemPrompt.js.
+ */
+export const CLARIFICATION_FREQUENCIES = [
+  {
+    id: 'rare',
+    name: 'Raramente',
+    description:
+      'Chiede solo se sbagliare costerebbe caro; altrimenti sceglie l’interpretazione più probabile e dice quale.'
+  },
+  {
+    id: 'when_needed',
+    name: 'Quando serve',
+    description: 'Chiede quando le interpretazioni darebbero risposte davvero diverse.'
+  },
+  {
+    id: 'often',
+    name: 'Spesso',
+    description: 'Chiede ogni volta che c’è un dubbio ragionevole, anche se una lettura sembra più probabile.'
+  }
+];
+
 const DEFAULT_INSTRUCTIONS = `Sei l'assistente di 7hub, il gestionale usato dai consulenti del credito di WeUnit.
 Rispondi SEMPRE in italiano, con il tu, in modo diretto e concreto.
 
@@ -125,6 +149,11 @@ export const DEFAULT_SETTINGS = {
   instructions: DEFAULT_INSTRUCTIONS,
   // full text of each goes straight into the system prompt, next to `instructions` — see systemPrompt.js
   instructionsAttachments: [], // [{ name, content }]
+  // when the request is ambiguous the assistant shows clickable choices (ask_options / offer_files); the
+  // rules of how are fixed in the code (systemPrompt.js), these two are the admin's: rare | when_needed |
+  // often, and the ambiguities typical of the company, in the admin's own words ('' = none)
+  clarificationFrequency: 'when_needed',
+  clarificationInstructions: '',
   // the 7Hub tools' rules (Impostazioni → 7Hub), used only inside 7Hub; empty = the default
   hostToolsInstructions: DEFAULT_HOST_TOOLS_INSTRUCTIONS,
   hostToolsAttachments: [], // [{ name, content }]
