@@ -21,7 +21,11 @@ export default function ChatPanel({
   onStatus,
   ref
 }) {
-  const { messages, status, send, reset, selectOption } = useConversation({ uid, context, isAdmin });
+  const { messages, status, send, reset, selectOption, pickFile } = useConversation({
+    uid,
+    context,
+    isAdmin
+  });
   const inputRef = useRef(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -90,6 +94,7 @@ export default function ChatPanel({
         userName={context?.user?.name?.trim()}
         onAsk={send}
         onSelect={selectOption}
+        onPickFile={pickFile}
         onFocusInput={() => inputRef.current?.focus()}
         onNavigate={onNavigate}
       />

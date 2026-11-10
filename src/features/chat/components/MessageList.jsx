@@ -28,6 +28,7 @@ export default function MessageList({
   userName,
   onAsk,
   onSelect,
+  onPickFile,
   onFocusInput,
   onNavigate
 }) {
@@ -71,7 +72,8 @@ export default function MessageList({
             return <ChatChart key={message.id} chart={message.chart} />;
           }
           // the assistant asks what the operator means (ask_options / offer_files). Answered once a message
-          // follows it, whether the operator clicked or typed: the card stays, with the pick marked
+          // follows it, whether the operator clicked or typed: the card stays, with the pick marked. A picked
+          // file adds its own user bubble (see `useConversation.pickFile`), so it counts like a typed one
           if (
             message.role === 'activity' &&
             message.outcome === 'done' &&
@@ -94,7 +96,7 @@ export default function MessageList({
                 key={message.id}
                 activity={message}
                 answered={answered}
-                onSelect={onSelect}
+                onPickFile={onPickFile}
                 onAsk={onAsk}
               />
             );

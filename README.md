@@ -258,18 +258,22 @@ text. Both tools end the model's turn: it writes at most one short sentence and 
   `no_exact_match`. The model uses it whenever the request only approximately matches a file (a typo, a partial
   name, a guessed abbreviation) instead of silently correcting it and calling `share_file`. Ids not in the
   catalog are dropped; with none left the model gets an error. `FileChoiceCard.jsx` shows the thumbnails
-  (`PreviewImage`, a file icon for non-images); picking one turns it into the usual `SharedFileCard` right
-  below **without a model round trip**, and the other thumbnails stay in view, dimmed. "Nessuno di questi" sends
-  that text as a normal message.
+  (`PreviewImage`, a file icon for non-images); picking one is played out by the app as a normal exchange
+  **without a model round trip** — at the end of the conversation, under the model's own line, a user bubble
+  "Ho scelto <nome file>", then the usual `SharedFileCard` and "Ecco il file." — while the other thumbnails stay
+  in view, dimmed. `useConversation.pickFile` stores that exchange like any turn (`recordQuestion` for the pick,
+  `recordTurn` for the card and the line), so it comes back in order after a reload and the model sees it in its
+  history. "Nessuno di questi" sends that text as a normal message.
 - **`ask_options`** `{ question, options[2–5], allow_other? }` — each option is a full answer the operator would
   type. `ChoiceCard.jsx` (same look as `OptionsCard`) sends the clicked option's text as the next user message
   through the normal send path. "Altro…" (unless `allow_other` is false) only focuses the message box.
 - A card is _answered_ once any message follows it (clicked or typed): the pick is marked, the rest is off. The
-  pick is stored as `selected` on the activity message: `useConversation.selectOption` updates the state and
-  calls the `choice` action of the `history` function (`recordChoice` in `historyStore.js`), which accepts only
-  something the card offered. Activity rows carry `kind` (`choice` | `file_choice`), `label` (the question),
-  `choices` / `files`, `allowOther`, `reason`; all are allow-listed in `storableActivity`, so a restored
-  conversation shows the cards again. The model is not told which file was picked.
+  pick is stored as `selected` on the activity message: `useConversation.selectOption` (and `pickFile`, for files)
+  updates the state and calls the `choice` action of the `history` function (`recordChoice` in `historyStore.js`),
+  which accepts only something the card offered. Activity rows carry `kind` (`choice` | `file_choice`),
+  `label` (the question), `choices` / `files`, `allowOther`, `reason`; all are allow-listed in
+  `storableActivity`, so a restored conversation shows the cards again. The model sees a picked answer as the
+  user's next message, and a picked file as the "Ho scelto …" / "Ecco il file." pair.
 - The contract (when to ask, one question at most, never when the answer is the same) is fixed in
   `systemPrompt.js` (`CLARIFICATION_RULES`, `FILE_CLARIFICATION_RULES`). The admin sets, in Configurazione →
   Modello IA → "Domande di chiarimento", how often to ask (`clarificationFrequency`: rare / when_needed /

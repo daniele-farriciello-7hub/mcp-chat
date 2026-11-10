@@ -129,14 +129,19 @@ export function useConversation({ uid, context, isAdmin = false }) {
           history = [];
           setMessages(current => current.slice(current.findIndex(m => m.id === questionId)));
         }
-        stored = recordQuestion({
-          id: questionId,
-          text,
-          clientAt: questionAt,
-          userName: context?.user?.name,
-          page: context?.page,
-          chatModel: settings.chatModel
-        })
+        // behind the previous write (a picked file's exchange may still be on its way), so the question
+        // is never stored ahead of what came before it
+        stored = turnWriteRef.current
+          .then(() =>
+            recordQuestion({
+              id: questionId,
+              text,
+              clientAt: questionAt,
+              userName: context?.user?.name,
+              page: context?.page,
+              chatModel: settings.chatModel
+            })
+          )
           .then(conversation => {
             if (conversation) conversationRef.current = { id: conversation.id, day: conversation.day };
             return conversation;
@@ -225,9 +230,9 @@ export function useConversation({ uid, context, isAdmin = false }) {
   );
 
   /**
-   * The operator picked something on a clarification card (`ask_options` / `offer_files`): remembered on
-   * that activity, in state and in the stored conversation, so the card stays answered after a reload.
-   * Picking a file sends nothing to the model; picking an answer is followed by `send` from the card.
+   * The operator picked an answer on an `ask_options` card: remembered on that activity, in state and in
+   * the stored conversation, so the card stays answered after a reload. The card then sends the answer
+   * with `send`. (A file picked on an `offer_files` card goes through `pickFile` instead.)
    */
   const selectOption = useCallback(
     (activityId, selected) => {
@@ -242,15 +247,98 @@ export function useConversation({ uid, context, isAdmin = false }) {
     [uid]
   );
 
+  /**
+   * The operator picked a file on an `offer_files` card. No round trip through the model: the app plays
+   * the rest of the exchange itself, as a normal conversation — the operator's pick ("Ho scelto …"), then
+   * the answer, which is what `share_file` would have produced (its card, `kind: 'file'`) and a short
+   * line. All three go to the end of the conversation, under the model's own line.
+   *
+   * It is stored as one ordinary turn (`recordQuestion` for the pick, `recordTurn` for the card and the
+   * line), so a reload brings the bubbles and the card back in order and the model sees the pair in its
+   * history, in strict user / model alternation. The `selected` mark on the choice card (`recordChoice`)
+   * is written first: that card's own turn must be stored before either, so everything waits on
+   * `turnWriteRef`, and the next write waits on this one.
+   */
+  const pickFile = useCallback(
+    (activityId, { documentId, documentName }) => {
+      // the tiles are already off while a reply is being written or after a pick: this only keeps a
+      // stray call from adding a second exchange
+      if (status !== 'idle') return;
+      if (messages.find(m => m.id === activityId)?.selected) return;
+
+      const at = Date.now();
+      const name = documentName?.trim();
+      const pickText = name ? `Ho scelto ${name}` : 'Ho scelto questo file';
+      const replyText = 'Ecco il file.';
+      const turn = `t${pageLoadId}${++turnCounter}:`;
+      const pick = { id: newMessageId(), role: 'user', text: pickText };
+      const sharedFile = {
+        id: `${turn}pick-file`,
+        role: 'activity',
+        kind: 'file',
+        outcome: 'done',
+        label: 'File pronto',
+        documentId,
+        documentName: name || ''
+      };
+      const reply = { id: newMessageId(), role: 'assistant', text: replyText };
+
+      const logging = Boolean(uid && settingsRef.current?.historyEnabled);
+      const conversation = conversationRef.current;
+      // same as `send`: the day changed since this conversation started, so the pick opens a new one
+      // (the server closes the old one when it records it), on screen and for the model alike
+      const startsNewDay = logging && conversation && conversation.day !== romeDay();
+
+      setMessages(current => [
+        ...(startsNewDay ? [] : current.map(m => (m.id === activityId ? { ...m, selected: documentId } : m))),
+        pick,
+        sharedFile,
+        reply
+      ]);
+
+      if (!logging) return;
+      turnWriteRef.current = turnWriteRef.current
+        .then(async () => {
+          if (conversation) {
+            await recordChoice({ conversationId: conversation.id, activityId, selected: documentId }).catch(
+              warn('saving the choice')
+            );
+          }
+          const stored = await recordQuestion({
+            id: pick.id,
+            text: pickText,
+            clientAt: at,
+            userName: context?.user?.name,
+            page: context?.page,
+            chatModel: settingsRef.current?.chatModel
+          });
+          if (!stored) return;
+          conversationRef.current = { id: stored.id, day: stored.day };
+          // same `clientAt` as the pick: the stored sequence numbers (pick 0, card 1, line 2) keep the order
+          await recordTurn({
+            conversationId: stored.id,
+            activities: [sharedFile],
+            reply: { id: reply.id, text: replyText, clientAt: at }
+          });
+        })
+        .catch(warn('saving the picked file'));
+    },
+    [status, uid, context, messages]
+  );
+
   const reset = useCallback(() => {
     conversationRef.current = null;
-    // the server closes whichever conversation of this user is open, known here or not
+    // the server closes whichever conversation of this user is open, known here or not — after any write
+    // still pending: a picked file's exchange is recorded through the open conversation, and would
+    // otherwise start a new one right after this closes it
     if (uid && settingsRef.current?.historyEnabled) {
-      endConversation().catch(warn('closing the conversation'));
+      turnWriteRef.current = turnWriteRef.current
+        .then(() => endConversation())
+        .catch(warn('closing the conversation'));
     }
     setMessages([]);
     setStatus('idle');
   }, [uid]);
 
-  return { messages, status, send, reset, selectOption };
+  return { messages, status, send, reset, selectOption, pickFile };
 }
