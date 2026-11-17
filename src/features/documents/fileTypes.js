@@ -1,5 +1,6 @@
 /** File families, what Gemini can index, and how documents are compared. */
 
+// also in functions/src/drive/archive.js: the Drive sync applies the same limit
 export const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 export const isImage = mimeType => /^image\//.test(mimeType || '');

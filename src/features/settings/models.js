@@ -21,6 +21,7 @@ export const MODELS = [
   }
 ];
 
+// both defaults are copied in functions/src/drive/indexCard.js (server-side indexing of Drive documents)
 export const DEFAULT_CHAT_MODEL = 'gemini-3.5-flash';
 
 // indexing runs once per document, so it defaults to the most capable model

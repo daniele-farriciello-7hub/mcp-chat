@@ -97,6 +97,7 @@ export default function EmbedPage() {
         // the host draws the header (7Hub's 7AI panel): commands and busy state go through the bridge
         hideHeader={!!hostContext?.hostChrome}
         onStatus={reportStatus}
+        onUserMessage={text => postToHost({ type: 'user_message', text }, hostOrigin)}
       />
     </div>
   );

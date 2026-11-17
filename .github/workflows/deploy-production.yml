@@ -1,5 +1,6 @@
 # Push to `production` → https://assistente-7hub.web.app and the production Cloud Functions
-# (`database`, `history`, `tools`). Their development twins are deployed only from `development`.
+# (`database`, `history`, `tools` and the Google Drive sync: `drive`, `driveWebhook`, `driveScheduler`).
+# Their development twins are deployed only from `development`.
 # Secrets (repo Settings → Secrets and variables → Actions):
 #   FIREBASE_SERVICE_ACCOUNT  JSON key of a service account allowed to deploy Hosting and Functions
 #   DB_CRED_KEY               the key that decrypts the stored database passwords (functions/.env.*):
@@ -58,4 +59,4 @@ jobs:
           printf 'DB_CRED_KEY=%s\n' "$DB_CRED_KEY" > functions/.env.mappa-contatti-217007
 
       - name: Deploy hosting and production functions
-        run: npx --yes firebase-tools@13 deploy --only hosting:production,functions:assistente:database,functions:assistente:history,functions:assistente:tools --project mappa-contatti-217007 --non-interactive
+        run: npx --yes firebase-tools@13 deploy --only hosting:production,functions:assistente:database,functions:assistente:history,functions:assistente:tools,functions:assistente:drive,functions:assistente:driveWebhook,functions:assistente:driveScheduler --project mappa-contatti-217007 --non-interactive

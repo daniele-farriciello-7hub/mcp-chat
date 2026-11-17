@@ -9,6 +9,15 @@
  * error, indexCard { summary, banks, products, topics, keywords }, createdAt, uploadedBy, indexedAt,
  * indexedWithModel, description. Cards written before banks and products existed simply lack those two.
  *
+ * `source` is 'upload' (an admin's file, from the browser) or 'drive' (a PDF kept in step with Google
+ * Drive by the server: functions/src/drive/). A Drive document has the id `drive-<driveFileId>`, is
+ * indexed on the server with the same card (functions/src/drive/indexCard.js) and also carries:
+ * driveFileId, driveSourceIds (the Drive sources it belongs to: it leaves the archive when the last one
+ * lets it go), driveVersion, driveMd5, driveModifiedTime (what the sync compares to see a file changed),
+ * driveWebViewLink, drivePath (the folder it sits in, from the source's root), driveSyncedAt and
+ * driveIndexFailedAt. The browser never replaces or deletes one: the next sync would undo it. The
+ * sources themselves (`apps/<app>/driveSources`) are server-only and reached through the `drive` function.
+ *
  * `description` is free text the admin writes about an image ("Logo WeUnit, versione bianca su sfondo
  * trasparente"). It is mandatory for an image to be indexed (indexability.js) and, once the image is
  * indexed, it cannot be emptied; documents uploaded before it existed simply lack it. It is saved on

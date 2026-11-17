@@ -19,8 +19,8 @@ const withTimestamps = c => ({
   endedAt: timestamp(c.endedAt)
 });
 
-/** Stored message → the shape `useConversation` keeps in state. */
-function toUiMessage(message) {
+/** Stored message → the shape `useConversation` keeps in state (tool activity flattened onto the message). */
+export function toUiMessage(message) {
   if (message.role === 'activity') return { id: message.id, role: 'activity', ...message.activity };
   return { id: message.id, role: message.role, text: message.text || '' };
 }

@@ -5,10 +5,12 @@ import Tooltip from '@/shared/ui/Tooltip';
 
 /**
  * Sticky actions for the selected documents: index (only the ones that can be, `skippedNote` says how
- * many are left out and why) or delete, with an in-place confirmation before deleting.
+ * many are left out and why) or delete, with an in-place confirmation before deleting. Documents that
+ * come from Google Drive are not deleted from here (`deletableCount` leaves them out).
  */
 export default function SelectionBar({
   count,
+  deletableCount,
   indexableCount,
   skippedNote,
   actionLabel,
@@ -18,6 +20,8 @@ export default function SelectionBar({
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const driveCount = count - deletableCount;
 
   const confirmDelete = async () => {
     setDeleting(true);
@@ -38,8 +42,16 @@ export default function SelectionBar({
         {confirmingDelete ? (
           <>
             <span className="flex-1 text-[12px] font-medium text-ink">
-              Eliminare {count === 1 ? 'il documento selezionato' : `${count} documenti`}? Non si può
-              annullare.
+              Eliminare {deletableCount === 1 ? 'il documento selezionato' : `${deletableCount} documenti`}?
+              Non si può annullare.
+              {driveCount > 0 && (
+                <span className="block text-[11px] font-normal text-warn">
+                  {driveCount === 1
+                    ? '1 documento di Google Drive resta'
+                    : `${driveCount} documenti di Google Drive restano`}
+                  : tornerebbero alla prossima sincronizzazione.
+                </span>
+              )}
             </span>
             <button
               type="button"
@@ -68,12 +80,20 @@ export default function SelectionBar({
             >
               Deseleziona
             </button>
-            <Tooltip label="Elimina dall’archivio i documenti selezionati" align="right">
+            <Tooltip
+              label={
+                deletableCount === 0
+                  ? 'Arrivano da Google Drive: tornerebbero alla prossima sincronizzazione. Toglili da Drive, o scollega la cartella dalla scheda Drive.'
+                  : 'Elimina dall’archivio i documenti selezionati'
+              }
+              align="right"
+            >
               <button
                 type="button"
                 onClick={() => setConfirmingDelete(true)}
+                disabled={deletableCount === 0}
                 aria-label="Elimina i selezionati"
-                className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-[12px] font-semibold text-danger transition hover:bg-danger-soft"
+                className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-[12px] font-semibold text-danger transition hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
               >
                 <Trash2 size={14} /> Elimina
               </button>

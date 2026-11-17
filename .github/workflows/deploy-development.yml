@@ -1,5 +1,6 @@
 # Push to `development` → https://assistente-7hub-development.web.app and the development function
-# twins (`databaseDev`, `historyDev`). Everything here runs as the app `assistente-7hub-development`:
+# twins (`databaseDev`, `historyDev`, `driveDev`, `driveWebhookDev`, `driveSchedulerDev`). Everything here
+# runs as the app `assistente-7hub-development`:
 # its own data under apps/assistente-7hub-development, Storage folder and permission key — see
 # src/shared/environment.js. Production data and functions are never touched from here.
 # Secrets (repo Settings → Secrets and variables → Actions):
@@ -62,4 +63,4 @@ jobs:
           printf 'DB_CRED_KEY=%s\n' "$DB_CRED_KEY" > functions/.env.mappa-contatti-217007
 
       - name: Deploy hosting and development functions
-        run: npx --yes firebase-tools@13 deploy --only hosting:development,functions:assistente:databaseDev,functions:assistente:historyDev --project mappa-contatti-217007 --non-interactive
+        run: npx --yes firebase-tools@13 deploy --only hosting:development,functions:assistente:databaseDev,functions:assistente:historyDev,functions:assistente:driveDev,functions:assistente:driveWebhookDev,functions:assistente:driveSchedulerDev --project mappa-contatti-217007 --non-interactive

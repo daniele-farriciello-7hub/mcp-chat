@@ -10,9 +10,12 @@
   },
   "scripts": {
     "serve": "firebase emulators:start --only functions",
+    "test": "node --experimental-test-module-mocks --test \"scripts/*.test.mjs\"",
     "smoke-test": "node scripts/smoke-test.mjs"
   },
   "dependencies": {
+    "@google/genai": "^3.3.0",
+    "@googleapis/drive": "^27.1.0",
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.0.0",
     "google-auth-library": "^10.9.1",

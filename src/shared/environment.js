@@ -13,8 +13,9 @@ export const IS_DEVELOPMENT = process.env.NEXT_PUBLIC_APP_ENV === 'development';
 /** This app's id in the suite: permission key, Firestore root and Storage folder. */
 export const APP_ID = IS_DEVELOPMENT ? 'assistente-7hub-development' : 'assistente-7hub';
 
-// functions with a development twin (functions/index.js); `tools` touches no app data and has none
-const DEVELOPMENT_TWINS = new Set(['database', 'history']);
+// functions with a development twin (functions/index.js); `tools` touches no app data and has none.
+// (`driveWebhook` and `driveScheduler` have twins too, but only Google and the scheduler call them.)
+const DEVELOPMENT_TWINS = new Set(['database', 'history', 'drive']);
 
 /** The deployed name of a function in this environment: `database` → `databaseDev` in development. */
 export const functionName = name => (IS_DEVELOPMENT && DEVELOPMENT_TWINS.has(name) ? `${name}Dev` : name);

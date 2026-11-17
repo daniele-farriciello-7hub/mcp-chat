@@ -5,6 +5,9 @@
  * Both inline each file's full text, never a summary, under its own filename header — see
  * `PromptAttachments.jsx` for why: a file that guides *how* the model answers or drafts a card has
  * to apply before it produces anything, so fetching it on demand would be too late.
+ *
+ * Copied in functions/src/drive/promptAttachments.js, for the indexing prompt the server writes: keep
+ * the two identical.
  */
 export function attachmentsBlock(attachments) {
   if (!attachments?.length) return null;

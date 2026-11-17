@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Info, Loader2, Trash2 } from 'lucide-react';
 import { deleteDocument } from '@/features/documents/documentStore';
 import Tooltip from '@/shared/ui/Tooltip';
 
@@ -13,11 +13,35 @@ const describeDeleteError = error =>
     ? 'Permesso negato'
     : 'Non riuscito';
 
+/**
+ * A Drive document is not deleted from here: the Drive sync would bring it back at the next run. The
+ * button explains where it is removed instead.
+ */
+function DriveDocumentNote({ document }) {
+  return (
+    <Tooltip
+      label="Arriva da Google Drive: eliminato qui tornerebbe alla prossima sincronizzazione. Toglilo da Drive, o scollega la cartella dalla scheda Drive."
+      align="right"
+    >
+      <button
+        type="button"
+        onClick={stopEvent}
+        aria-label={`Perché ${document.name} non si elimina da qui`}
+        className="rounded-lg p-1.5 text-slate-soft transition hover:bg-surface hover:text-ink"
+      >
+        <Info size={14} />
+      </button>
+    </Tooltip>
+  );
+}
+
 /** Trash icon with in-place confirmation: one click to ask, a second to delete. */
 export default function DeleteDocumentButton({ document, disabled }) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState(null);
+
+  if (document.source === 'drive') return <DriveDocumentNote document={document} />;
 
   if (deleting) return <Loader2 size={14} className="mx-1.5 mt-1.5 shrink-0 animate-spin text-slate-soft" />;
 
