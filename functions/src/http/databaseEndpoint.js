@@ -47,6 +47,40 @@ class HttpError extends Error {
   }
 }
 
+/**
+ * A 400 caused by the query itself: the database refused it, or the validator did (not a missing
+ * field or a missing permission). It is an `HttpError` — the response is the same — that also carries
+ * what the handler logs, because the browser only ever sees the reason, not which query it was for.
+ */
+class QueryError extends HttpError {
+  constructor(message, { connectionId, sql, code }) {
+    super(400, message);
+    this.connectionId = connectionId;
+    this.sql = sql;
+    this.code = code;
+  }
+}
+
+// a long query or a verbose driver message must not fill the log line
+const LOGGED_SQL_CHARS = 2000;
+const LOGGED_ERROR_CHARS = 1000;
+
+/**
+ * Cloud Logging otherwise shows only a 400 and its latency. Who asked, on which connection, the
+ * reason and the model's SQL: enough to see why a query fails. No email and no row data: the query
+ * either never ran or failed before returning any.
+ */
+function logQueryFailure(action, user, error) {
+  console.warn('database query failed', {
+    action,
+    connectionId: error.connectionId,
+    uid: user.uid,
+    error: error.message.slice(0, LOGGED_ERROR_CHARS),
+    ...(error.code ? { code: error.code } : {}),
+    sql: error.sql.slice(0, LOGGED_SQL_CHARS)
+  });
+}
+
 function requireString(body, field) {
   const value = body?.[field];
   if (typeof value !== 'string' || !value.trim()) throw new HttpError(400, `missing "${field}"`);
@@ -212,7 +246,11 @@ async function queryContext(user, body) {
         : await withConnection(connectionId, async pool => (await pool.query(statement))[0]);
       return Array.isArray(rows) ? rows : [];
     } catch (error) {
-      throw new HttpError(400, error?.sqlMessage || error?.message || 'query failed');
+      throw new QueryError(error?.sqlMessage || error?.message || 'query failed', {
+        connectionId,
+        sql,
+        code: error?.code
+      });
     }
   };
 
@@ -222,7 +260,7 @@ async function queryContext(user, body) {
     try {
       return fn();
     } catch (error) {
-      if (error instanceof InvalidQueryError) throw new HttpError(400, error.message);
+      if (error instanceof InvalidQueryError) throw new QueryError(error.message, { connectionId, sql });
       throw error;
     }
   };
@@ -491,7 +529,10 @@ export async function handleDatabaseRequest(req, res) {
     }
     return res.status(200).json(result);
   } catch (error) {
-    if (error instanceof HttpError) return res.status(error.status).json({ error: error.message });
+    if (error instanceof HttpError) {
+      if (error instanceof QueryError) logQueryFailure(action, user, error);
+      return res.status(error.status).json({ error: error.message });
+    }
     if (error?.name === 'DecryptionError' || error?.name === 'CredentialKeyError') {
       return res.status(500).json({ error: error.message });
     }

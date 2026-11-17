@@ -44,12 +44,46 @@ function ReplyMeta({ message }) {
 const noop = () => {};
 
 /**
+ * A failed database call (`query_database`, `export_database`) as the operator never saw it: the chat
+ * hides it, but the admin needs the reason and the query to tell why it failed. Same look as `ReplyMeta`'s
+ * error line (small, `text-danger`), the SQL folded away in a monospace block. A failure stored with
+ * neither (before these fields existed) has nothing to add and stays hidden, as before.
+ */
+function FailedCall({ activity }) {
+  const { label, databaseLabel, errorDetail, sql } = activity;
+  return (
+    <div className="flex flex-col gap-0.5 text-[10px]">
+      <div className="text-slate-soft">{[label, databaseLabel].filter(Boolean).join(' · ')}</div>
+      {errorDetail && (
+        <div className="line-clamp-3 break-words text-danger" title={errorDetail}>
+          {errorDetail}
+        </div>
+      )}
+      {sql && (
+        <details>
+          <summary className="w-fit cursor-pointer select-none text-slate-soft hover:text-brand-600">
+            SQL
+          </summary>
+          <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface px-2 py-1.5 font-mono text-[10px] text-ink">
+            {sql}
+          </pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/**
  * The card the live chat (`MessageList`) draws for a stored tool step, or null when it shows none. Same
- * picks as there, with two differences: a history view is always decided, so clarification cards are
- * `answered` (the stored `selected` marks the pick) with every handler a no-op; and only what is stored
- * can be drawn (no rows, no `options`: the server never keeps those).
+ * picks as there, with three differences: a history view is always decided, so clarification cards are
+ * `answered` (the stored `selected` marks the pick) with every handler a no-op; only what is stored can
+ * be drawn (no rows, no `options`: the server never keeps those); and a failed database call is shown,
+ * with its reason and SQL, which the chat never draws.
  */
 function activityCard(activity) {
+  if (activity.outcome === 'failed' && (activity.errorDetail || activity.sql)) {
+    return <FailedCall activity={activity} />;
+  }
   if (activity.outcome !== 'done') return null;
   if (activity.chart) return <ChatChart chart={activity.chart} />;
   if (activity.kind === 'choice' && activity.choices?.length) {
@@ -73,7 +107,8 @@ export default function ConversationDetail({ conversation, onBack }) {
   }, [conversation.id]);
 
   // the conversation as the operator saw it: their questions, the replies and the tool cards that stayed
-  // in view; the tool steps the chat hides (failed, running, nothing to open) stay hidden here too
+  // in view; the tool steps the chat hides (running, nothing to open) stay hidden here too, except the
+  // failed database calls, which an admin reads here with their reason
   const visible = messages?.flatMap(m => {
     if (m.role === 'activity') {
       const card = activityCard(toUiMessage(m));

@@ -3,7 +3,9 @@
  * parameters or JSON. `outcome` is 'running' | 'done' | 'failed'.
  *
  * Only finished, useful cards reach this component (`MessageList.jsx` filters the rest): the source
- * a document answer came from, or the data an operator can download. No SQL is shown here.
+ * a document answer came from, or the data an operator can download. No SQL and no raw error is shown
+ * here: `sql` and `errorDetail` ride on a failed database call for the conversation history only (an
+ * admin reads them in `ConversationDetail.jsx`), and this component draws only the fields it names below.
  *
  * `columns`/`rows` ride along on a successful `query_database` or `export_excel` result (for every
  * operator, not just admins — it's the data they already received, not the query that produced it)

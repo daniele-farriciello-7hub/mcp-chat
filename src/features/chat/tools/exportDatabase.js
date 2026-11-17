@@ -53,9 +53,19 @@ export async function runExportDatabaseCall(call, { schema, round, index, onActi
   const activityId = `export-db-${round}-${index}`;
   onActivityStart(activityId, { kind: 'export', label: 'Preparo il file' });
 
+  // the raw reason and the SQL of a failure ride on the activity for the history only, as in
+  // `query_database`: the card the operator sees just says the file was not prepared
+  const failure = errorDetail => ({
+    outcome: 'failed',
+    label: 'File non preparato',
+    errorDetail,
+    ...(typeof sql === 'string' ? { sql } : {})
+  });
+
   if (!connectionId || !sql) {
-    onActivityEnd(activityId, { outcome: 'failed', label: 'File non preparato' });
-    return { response: { error: 'connectionId and sql are required' } };
+    const reason = 'connectionId and sql are required';
+    onActivityEnd(activityId, failure(reason));
+    return { response: { error: reason } };
   }
 
   try {
@@ -86,8 +96,9 @@ export async function runExportDatabaseCall(call, { schema, round, index, onActi
       }
     };
   } catch (error) {
-    onActivityEnd(activityId, { outcome: 'failed', label: 'File non preparato' });
+    const reason = error.message || 'export failed';
+    onActivityEnd(activityId, failure(reason));
     // the raw reason goes back to the model, so it can fix the query
-    return { response: { error: error.message || 'export failed' } };
+    return { response: { error: reason } };
   }
 }
