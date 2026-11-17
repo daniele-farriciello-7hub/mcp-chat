@@ -33,18 +33,25 @@ function LoadingSkeleton() {
   );
 }
 
-/** `documents`: the whole archive, live, to say how many documents each source holds. */
+// one stable array for a source without documents, so its row does not see a "new" list at every update
+const NO_DOCUMENTS = [];
+
+/** `documents`: the whole archive, live, to list the files each source holds. */
 export default function DriveView({ documents }) {
   const { data, error, refresh, replace, drop } = useDriveSources();
   const [busy, setBusy] = useState({}); // source id -> 'sync' | 'reindex' | 'remove' | 'save'
   const [messages, setMessages] = useState({}); // source id -> what went wrong
 
-  const documentCounts = useMemo(() => {
-    const counts = {};
+  // the archive's documents grouped by the source they belong to (one can belong to several)
+  const documentsBySource = useMemo(() => {
+    const groups = {};
     for (const document of documents) {
-      for (const id of document.driveSourceIds || []) counts[id] = (counts[id] || 0) + 1;
+      for (const id of document.driveSourceIds || []) {
+        if (!groups[id]) groups[id] = [];
+        groups[id].push(document);
+      }
     }
-    return counts;
+    return groups;
   }, [documents]);
 
   const track = async (id, kind, action) => {
@@ -117,7 +124,7 @@ export default function DriveView({ documents }) {
           <DriveSourceRow
             key={source.id}
             source={source}
-            documentCount={documentCounts[source.id] || 0}
+            documents={documentsBySource[source.id] || NO_DOCUMENTS}
             busy={busy[source.id]}
             message={messages[source.id]}
             onSchedule={changeSchedule}

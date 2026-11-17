@@ -14,6 +14,8 @@ import {
 import Button from '@/shared/ui/Button';
 import Tooltip from '@/shared/ui/Tooltip';
 import { formatTimestamp } from '@/features/documents/format';
+import { plural } from '../plural';
+import DriveFileBrowser from './DriveFileBrowser';
 import FrequencyPicker from './FrequencyPicker';
 
 const TRIGGER_LABELS = {
@@ -24,8 +26,6 @@ const TRIGGER_LABELS = {
 const ISSUE_TONES = { failed: 'text-danger', source: 'text-danger', skipped: 'text-warn' };
 // the scheduler wakes up every 15 minutes (functions/index.js): a source that is due waits for the next one
 const DUE_NOTE = 'al prossimo giro (entro 15 minuti)';
-
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 function StatusPill({ source, working }) {
   if (working) {
@@ -74,11 +74,11 @@ function Progress({ progress }) {
 /** What the last run did, as chips: only what is not zero. */
 function ResultChips({ result }) {
   const chips = [
-    [result.added, 'aggiunti', 'bg-ok-soft text-ok'],
-    [result.updated, 'aggiornati', 'bg-brand-50 text-brand-600'],
-    [result.removed, 'rimossi', 'bg-surface text-slate-soft'],
-    [result.skipped, 'saltati', 'bg-warn-soft text-warn'],
-    [result.failed, 'con errore', 'bg-danger-soft text-danger']
+    [result.added, 'aggiunto', 'aggiunti', 'bg-ok-soft text-ok'],
+    [result.updated, 'aggiornato', 'aggiornati', 'bg-brand-50 text-brand-600'],
+    [result.removed, 'rimosso', 'rimossi', 'bg-surface text-slate-soft'],
+    [result.skipped, 'saltato', 'saltati', 'bg-warn-soft text-warn'],
+    [result.failed, 'con errore', 'con errore', 'bg-danger-soft text-danger']
   ].filter(([count]) => count > 0);
 
   return (
@@ -86,9 +86,9 @@ function ResultChips({ result }) {
       {chips.length === 0 && (
         <span className="text-[11px] text-slate-soft">Nessuna novità all’ultimo controllo.</span>
       )}
-      {chips.map(([count, label, tone]) => (
-        <span key={label} className={`rounded-pill px-2 py-0.5 text-[10px] font-semibold ${tone}`}>
-          {count} {label}
+      {chips.map(([count, one, many, tone]) => (
+        <span key={one} className={`rounded-pill px-2 py-0.5 text-[10px] font-semibold ${tone}`}>
+          {plural(count, one, many)}
         </span>
       ))}
       {result.deferred > 0 && (
@@ -167,19 +167,14 @@ function IssueList({ errors }) {
 
 /**
  * One Drive source: what it is, how often it is synchronised, how the last run went and what the admin
- * can do with it. All state lives in `DriveView`; this only shows it and calls back.
+ * can do with it. All state lives in `DriveView`, except whether the file list is open; this only shows
+ * it and calls back. `documents` are the archive's documents that belong to this source, live.
  * `busy` is what this browser asked for and is still waiting on: 'sync' | 'reindex' | 'remove' | 'save'.
  */
-export default function DriveSourceRow({
-  source,
-  documentCount,
-  busy,
-  message,
-  onSchedule,
-  onSync,
-  onRemove
-}) {
+export default function DriveSourceRow({ source, documents, busy, message, onSchedule, onSync, onRemove }) {
   const [confirming, setConfirming] = useState(null); // null | 'reindex' | 'remove'
+  const [filesOpen, setFilesOpen] = useState(false);
+  const documentCount = documents.length;
   const working = source.status === 'running' || busy === 'sync' || busy === 'reindex';
   const locked = working || busy === 'remove';
   const Icon = source.kind === 'folder' ? Folder : FileText;
@@ -215,8 +210,7 @@ export default function DriveSourceRow({
             )}
           </div>
           <div className="mt-0.5 text-[10px] text-slate-soft">
-            {source.kind === 'folder' ? 'Cartella' : 'File PDF'} ·{' '}
-            {plural(documentCount, 'documento', 'documenti')} in archivio
+            {source.kind === 'folder' ? 'Cartella' : 'File PDF'}
           </div>
         </div>
         <StatusPill source={source} working={working} />
@@ -303,35 +297,78 @@ export default function DriveSourceRow({
           </div>
         </div>
       ) : (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button
-            primary
-            onClick={() => onSync(source, { force: false })}
-            disabled={locked}
-            tooltip="Controlla subito cosa è cambiato su Drive"
-            tooltipAlign="left"
-          >
-            {working ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Sincronizza
-            ora
-          </Button>
-          <Button
-            onClick={() => setConfirming('reindex')}
-            disabled={locked}
-            tooltip="Riscrive la scheda di ogni file, ad esempio dopo aver cambiato modello o istruzioni"
-          >
-            <Sparkles size={13} /> Reindicizza tutto
-          </Button>
-          <Button
-            onClick={() => setConfirming('remove')}
-            disabled={locked}
-            tooltip="Scollega e togli i suoi documenti dall’archivio"
-            tooltipAlign="right"
-          >
-            {busy === 'remove' ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}{' '}
-            Rimuovi
-          </Button>
-        </div>
+        <>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              primary
+              onClick={() => onSync(source, { force: false })}
+              disabled={locked}
+              tooltip="Scarica da Drive i PDF nuovi o modificati, li indicizza subito e toglie quelli spariti"
+              tooltipAlign="left"
+            >
+              {working ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Sincronizza
+              ora
+            </Button>
+            <Button
+              onClick={() => setConfirming('reindex')}
+              disabled={locked}
+              tooltip="Riscrive la scheda di ogni file, anche di quelli invariati, ad esempio dopo aver cambiato modello o istruzioni"
+            >
+              <Sparkles size={13} /> Reindicizza tutto
+            </Button>
+            <Button
+              onClick={() => setConfirming('remove')}
+              disabled={locked}
+              tooltip="Scollega e togli i suoi documenti dall’archivio"
+              tooltipAlign="right"
+            >
+              {busy === 'remove' ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}{' '}
+              Rimuovi
+            </Button>
+          </div>
+          <p className="mt-2 text-[11px] leading-snug text-slate-soft">
+            <span className="font-semibold text-ink">Sincronizza ora</span> scarica da Drive i PDF nuovi o
+            modificati, li indicizza subito e toglie dall’archivio quelli spariti da Drive.{' '}
+            <span className="font-semibold text-ink">Reindicizza tutto</span> rifà la scheda di ogni file,
+            anche di quelli che non sono cambiati.
+          </p>
+        </>
       )}
+
+      <div className="mt-3 border-t border-line pt-2.5">
+        {documentCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setFilesOpen(v => !v)}
+            aria-expanded={filesOpen}
+            className="flex w-full items-center justify-between text-[11px] font-semibold text-brand-600 transition hover:text-brand-700"
+          >
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Folder size={13} className="shrink-0" />
+              <span className="truncate">
+                {filesOpen
+                  ? source.kind === 'folder'
+                    ? 'Nascondi i file'
+                    : 'Nascondi il file'
+                  : source.kind === 'folder'
+                    ? `Mostra i file (${documentCount})`
+                    : 'Mostra il file'}
+              </span>
+            </span>
+            <ChevronDown
+              size={14}
+              className={`shrink-0 transition-transform ${filesOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+        ) : (
+          <p className="text-[11px] text-slate-soft">
+            {working ? 'I file compaiono qui man mano che arrivano.' : 'Nessun file in archivio.'}
+          </p>
+        )}
+        {documentCount > 0 && filesOpen && (
+          <DriveFileBrowser source={source} documents={documents} syncing={working} />
+        )}
+      </div>
     </div>
   );
 }
