@@ -1,7 +1,7 @@
 /**
  * A chart in the chat, drawn by the app from exact numbers (`show_chart`): never an image the model
  * made up. Bars, line or donut; hover for the exact value; a legend from two series up; "Mostra i
- * dati" for the table behind it; PNG and Excel downloads.
+ * dati" for the table behind it; PNG, JPG and Excel downloads.
  *
  * Laid out in real pixels from the measured width (not a stretched viewBox), so labels stay sharp
  * in the narrow 7hub panel. Colours: fixed categorical order from `chartData.js`, validated for
@@ -296,8 +296,8 @@ function DonutChart({ chart, width }) {
   );
 }
 
-/** Serialises the drawn SVG into a 2× PNG, on a white background, with the title on top. */
-async function savePng(svg, title) {
+/** Serialises the drawn SVG into a 2× PNG or JPG, on a white background, with the title on top. */
+async function saveImage(svg, title, format) {
   const ratio = 2;
   const { width, height } = svg.getBoundingClientRect();
   const titleHeight = 36;
@@ -316,11 +316,13 @@ async function savePng(svg, title) {
   ctx.font = `600 14px ${FONT}`;
   ctx.fillText(title, 16, 26);
   ctx.drawImage(image, 16, titleHeight, width, height);
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  const blob = await new Promise(resolve =>
+    format === 'jpg' ? canvas.toBlob(resolve, 'image/jpeg', 0.92) : canvas.toBlob(resolve, 'image/png')
+  );
   const url = URL.createObjectURL(blob);
   const link = Object.assign(document.createElement('a'), {
     href: url,
-    download: `${slugify(title) || 'grafico'}.png`
+    download: `${slugify(title) || 'grafico'}.${format}`
   });
   link.click();
   URL.revokeObjectURL(url);
@@ -341,14 +343,14 @@ export default function ChatChart({ chart }) {
     setSaved(what);
     setTimeout(() => setSaved(null), 1800);
   };
-  const png = async () => {
+  const image = async format => {
     const svg = svgHost.current?.querySelector('svg');
     if (!svg) return;
     try {
-      await savePng(svg, title);
-      flash('png');
+      await saveImage(svg, title, format);
+      flash(format);
     } catch (error) {
-      console.error('[chart] png export failed:', error);
+      console.error(`[chart] ${format} export failed:`, error);
     }
   };
   const excel = async () => {
@@ -430,8 +432,11 @@ export default function ChatChart({ chart }) {
         >
           <Table2 size={13} /> {showTable ? 'Nascondi i dati' : 'Mostra i dati'}
         </button>
-        <button type="button" onClick={png} className={ACTION_CLASS}>
+        <button type="button" onClick={() => image('png')} className={ACTION_CLASS}>
           {saved === 'png' ? <Check size={13} className="text-ok" /> : <ImageIcon size={13} />} Scarica PNG
+        </button>
+        <button type="button" onClick={() => image('jpg')} className={ACTION_CLASS}>
+          {saved === 'jpg' ? <Check size={13} className="text-ok" /> : <ImageIcon size={13} />} Scarica JPG
         </button>
         <button type="button" onClick={excel} className={ACTION_CLASS}>
           {saved === 'xlsx' ? <Check size={13} className="text-ok" /> : <Download size={13} />} Scarica Excel
