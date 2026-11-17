@@ -13,3 +13,23 @@ export function describeModelError(error) {
   }
   return 'Qualcosa non ha funzionato nel rispondere. Riprova, e se continua serve un controllo.';
 }
+
+const MAX_DETAIL_CHARS = 500;
+
+/**
+ * A short technical line for the history (admins only): HTTP status and error code when the message
+ * does not already say them, then the message itself, without URLs. Trimmed so one failure cannot
+ * bloat a stored conversation.
+ */
+export function describeErrorDetail(error) {
+  const message = String(error?.message || error)
+    .replace(/https?:\/\/\S+/g, '[url]')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const status = error?.customErrorData?.status ?? error?.status;
+  const extras = [status ? `HTTP ${status}` : null, typeof error?.code === 'string' ? error.code : null]
+    .filter(Boolean)
+    .filter(extra => !message.includes(extra.replace('HTTP ', '')));
+  const detail = extras.length ? `${extras.join(' ')}: ${message}` : message;
+  return detail.length > MAX_DETAIL_CHARS ? `${detail.slice(0, MAX_DETAIL_CHARS - 1)}…` : detail;
+}

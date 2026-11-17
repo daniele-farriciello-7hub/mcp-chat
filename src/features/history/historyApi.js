@@ -40,7 +40,11 @@ export async function recordQuestion(question) {
   return result.disabled ? null : result;
 }
 
-/** Records the end of a turn: tool activity (allow-listed again on the server), reply, usage, timing. */
+/**
+ * Records the end of a turn: tool activity (allow-listed again on the server), reply, usage, timing, and
+ * for admins the technical `errorDetail` of a failure and the model a rate limit made the turn leave
+ * (`fallbackFrom`).
+ */
 export const recordTurn = turn => callFunction('history', 'turn', turn);
 
 /** What the operator picked on a clarification card; the server checks it against what the card offered. */

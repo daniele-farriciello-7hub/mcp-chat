@@ -204,7 +204,17 @@ export function useConversation({ uid, context, isAdmin = false }) {
           replyText += chunk;
           updateLastReply(m => ({ ...m, text: m.text + chunk }));
         },
-        onDone: ({ card, suggestions, usage, model, durationMs, firstTokenMs, error } = {}) => {
+        onDone: ({
+          card,
+          suggestions,
+          usage,
+          model,
+          durationMs,
+          firstTokenMs,
+          error,
+          errorDetail,
+          fallbackFrom
+        } = {}) => {
           if (card || suggestions) updateLastReply(m => ({ ...m, card, suggestions }));
           setStatus('idle');
           turnWriteRef.current = stored
@@ -219,7 +229,9 @@ export function useConversation({ uid, context, isAdmin = false }) {
                   usage,
                   durationMs,
                   firstTokenMs,
-                  error
+                  error,
+                  errorDetail,
+                  fallbackFrom
                 })
             )
             .catch(warn('saving the reply'));

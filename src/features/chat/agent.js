@@ -6,7 +6,11 @@
  *   onReplyStart()                           text is about to arrive
  *   onChunk(text)                            a piece of text
  *   onDone({ usage, model, durationMs,       end of the reply, with what history records
- *           firstTokenMs, error })
+ *           firstTokenMs, error,
+ *           errorDetail, fallbackFrom })
+ *
+ * `errorDetail` is the technical cause of a failed turn (for admins; the operator sees a sentence).
+ * `fallbackFrom` is set when the turn left a rate-limited model: `model` is the one that took over.
  *
  * Besides talking, the assistant can open indexed documents (tools/readDocument.js), hand the operator
  * a file from the archive with a download button (tools/shareFile.js), query an enabled database
@@ -18,12 +22,13 @@
  */
 import { ThinkingLevel } from 'firebase/ai';
 import { getModel } from '@/shared/firebase/ai';
-import { isTransientError, withRetry } from '@/shared/retry';
+import { isRateLimitError, isTransientError, withRetry } from '@/shared/retry';
 import { getChatCatalog } from '@/features/documents/chatCatalog';
 import { getChatSchema } from '@/features/database/chatSchema';
 import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
+import { fallbackModelFor } from '@/features/settings/models';
 import { getSettings, trimHistory } from '@/features/settings/settingsStore';
-import { describeModelError } from './errors';
+import { describeErrorDetail, describeModelError } from './errors';
 import { buildSystemInstruction, toModelHistory } from './systemPrompt';
 import { READ_DOCUMENT_TOOL } from './tools/readDocument';
 import { SHARE_FILE_TOOL } from './tools/shareFile';
@@ -45,6 +50,13 @@ import { hostToolDeclarations } from './tools/hostTools';
  * model: 1152 tokens of thinking left 44 for the text. Only added when a ceiling is set at all.
  */
 const THINKING_HEADROOM_TOKENS = 2000;
+
+/**
+ * Rate limits (429) come in bursts and clear within seconds, so a rate-limited call is retried for
+ * longer than an overload: 5 tries, waiting 2 + 4 + 6 + 6 s at most (a little less, with jitter),
+ * before the round is handed to the fallback model.
+ */
+const RATE_LIMIT_PATIENCE = { attempts: 5, maxDelayMs: 6000 };
 
 // tools whose card ends the model's turn: the operator answers by clicking
 const CLARIFICATION_TOOL_NAMES = new Set([OFFER_FILES_TOOL_NAME, ASK_OPTIONS_TOOL_NAME]);
@@ -85,7 +97,9 @@ export async function streamAgentReply({
     usage.thinking += metadata?.thoughtsTokenCount || 0;
   };
   let usedModel = null;
+  let fallbackFrom = null;
   let failed = false;
+  let errorDetail;
 
   try {
     const settings = await getSettings();
@@ -180,7 +194,7 @@ export async function streamAgentReply({
     // a 503/429 can surface either when opening the stream or while reading its chunks; retrying
     // the whole round is safe as long as no text has reached the user yet — once it has, a retry
     // would show a duplicated answer, so from there the failure just falls through to the catch
-    const streamRound = message =>
+    const attemptRound = (message, { patient }) =>
       withRetry(
         async () => {
           const stream = await chat.sendMessageStream(message);
@@ -196,8 +210,37 @@ export async function streamAgentReply({
           addUsage(response.usageMetadata || usageMetadata);
           return response;
         },
-        { attempts: 3, shouldRetry: error => !replyStarted && isTransientError(error) }
+        {
+          attempts: 3,
+          rateLimit: patient ? RATE_LIMIT_PATIENCE : undefined,
+          shouldRetry: error => !replyStarted && (isTransientError(error) || isRateLimitError(error))
+        }
       );
+
+    // One round on the current model. If it stays rate-limited after the retries and nothing has
+    // reached the user, the turn moves — silently, once — to the fallback model: a new chat there
+    // with everything the current one has seen so far (earlier rounds of this turn included), and
+    // the same message sent again. From then on every round, and the database switch below, stays
+    // on that model. `fallbackFrom` is what history shows for it.
+    const streamRound = async message => {
+      try {
+        return await attemptRound(message, { patient: !fallbackFrom });
+      } catch (error) {
+        if (fallbackFrom || replyStarted || !isRateLimitError(error)) throw error;
+        const fallbackId = fallbackModelFor(usedModel);
+        let fallbackChat;
+        try {
+          fallbackChat = buildModel(fallbackId).startChat({ history: [...(await chat.getHistory())] });
+        } catch {
+          throw error; // the history cannot be carried over: report the rate limit, as before
+        }
+        console.warn(`[agent] ${usedModel} is rate-limited, continuing this turn on ${fallbackId}`);
+        fallbackFrom = usedModel;
+        usedModel = fallbackId;
+        chat = fallbackChat;
+        return attemptRound(message, { patient: false });
+      }
+    };
 
     const maxRounds = Math.max(1, settings.maxToolRounds || DEFAULT_SETTINGS.maxToolRounds);
     let outOfRounds = false;
@@ -211,7 +254,13 @@ export async function streamAgentReply({
       // is that model — not this one — that writes the SQL, fixes it and answers. The original question
       // is what is replayed, even from a later round: a function response has no meaning in a chat
       // that never saw the call it answers. It only happens once per turn; every later round, the final answer included, stays on the database model.
-      if (databaseModelId && !onDatabaseModel && calls?.some(call => DATABASE_TOOL_NAMES.has(call.name))) {
+      // Not after a fallback, though: a turn that had to leave a rate-limited model stays on the fallback.
+      if (
+        databaseModelId &&
+        !onDatabaseModel &&
+        !fallbackFrom &&
+        calls?.some(call => DATABASE_TOOL_NAMES.has(call.name))
+      ) {
         onDatabaseModel = true;
         chat = buildModel(databaseModelId).startChat({ history: modelHistory });
         usedModel = databaseModelId;
@@ -262,7 +311,16 @@ export async function streamAgentReply({
     // the operator sees a readable sentence; the real cause stays in the console
     console.error('[agent] model request failed:', error);
     failed = true;
+    errorDetail = describeErrorDetail(error);
     emit(describeModelError(error));
   }
-  return onDone({ usage, model: usedModel, durationMs: Date.now() - startedAt, firstTokenMs, error: failed });
+  return onDone({
+    usage,
+    model: usedModel,
+    durationMs: Date.now() - startedAt,
+    firstTokenMs,
+    error: failed,
+    errorDetail,
+    fallbackFrom
+  });
 }

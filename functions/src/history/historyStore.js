@@ -24,6 +24,7 @@ const RESTORE_LIMIT = 200;
 const LIST_PAGE = 500;
 const MAX_TEXT_CHARS = 200_000;
 const MAX_SQL_CHARS = 10_000;
+const MAX_ERROR_DETAIL_CHARS = 500;
 const MAX_ACTIVITIES = 50;
 const FIRST_QUESTION_CHARS = 140;
 const SETTINGS_TTL_MS = 30_000;
@@ -342,6 +343,10 @@ export async function recordTurn(user, body) {
     thinking: count(body.usage?.thinking)
   };
   const failed = body.error === true;
+  // technical cause of a failed turn (admins read it in the history) and, when a rate limit made the turn
+  // leave its model, which one: both optional, and the detail is only ever kept for a failure
+  const errorDetail = failed ? text(body.errorDetail, MAX_ERROR_DETAIL_CHARS).trim() : '';
+  const fallbackFrom = text(body.fallbackFrom, 100).trim();
 
   const batch = db().batch();
   let seq = 1;
@@ -369,6 +374,8 @@ export async function recordTurn(user, body) {
       durationMs: Number.isFinite(body.durationMs) ? Math.round(body.durationMs) : null,
       firstTokenMs: Number.isFinite(body.firstTokenMs) ? Math.round(body.firstTokenMs) : null,
       error: failed,
+      ...(errorDetail ? { errorDetail } : {}),
+      ...(fallbackFrom ? { fallbackFrom } : {}),
       createdAt: FieldValue.serverTimestamp(),
       expiresAt
     });

@@ -20,12 +20,25 @@ import { SkeletonConversation } from '@/shared/ui/Skeleton';
 function ReplyMeta({ message }) {
   const parts = [
     message.model,
+    // a rate limit made the turn leave the model the operator had chosen
+    message.fallbackFrom && `riserva al posto di ${message.fallbackFrom}`,
     message.usage &&
       `${(message.usage.input + message.usage.output + message.usage.thinking).toLocaleString('it-IT')} token`,
     message.durationMs != null && `${(message.durationMs / 1000).toFixed(1)} s`,
     message.error && 'errore'
   ].filter(Boolean);
-  return parts.length ? <div className="ml-9 text-[10px] text-slate-soft">{parts.join(' · ')}</div> : null;
+  const detail = message.error ? message.errorDetail : null;
+  if (!parts.length && !detail) return null;
+  return (
+    <div className="ml-9 flex flex-col gap-0.5 text-[10px]">
+      {parts.length > 0 && <div className="text-slate-soft">{parts.join(' · ')}</div>}
+      {detail && (
+        <div className="line-clamp-3 break-words text-danger" title={detail}>
+          {detail}
+        </div>
+      )}
+    </div>
+  );
 }
 
 const noop = () => {};
