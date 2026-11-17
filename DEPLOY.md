@@ -5,17 +5,17 @@ How mcp-chat gets from a branch to a running site. Everything lives in one Fireb
 
 ## Environments
 
-|                 | Production                                    | Development                                               |
-| --------------- | --------------------------------------------- | --------------------------------------------------------- |
-| Branch          | `production` (default branch)                 | `development`                                             |
-| Site            | https://assistente-7hub.web.app               | https://assistente-7hub-development.web.app               |
-| Hosting target  | `production` → site `assistente-7hub`         | `development` → site `assistente-7hub-development`        |
-| App id          | `assistente-7hub`                             | `assistente-7hub-development`                             |
-| Firestore data  | `apps/assistente-7hub/…`                      | `apps/assistente-7hub-development/…` (same database)      |
-| Storage folder  | `assistente-7hub/`                            | `assistente-7hub-development/`                            |
-| Permission key  | `users/{uid}.permessi_app['assistente-7hub']` | `users/{uid}.permessi_app['assistente-7hub-development']` |
-| Cloud Functions | `database`, `history`, `tools`                | `databaseDev`, `historyDev` (twins, same code)            |
-| Build flag      | none                                          | `NEXT_PUBLIC_APP_ENV=development`                         |
+|                 | Production                                                                | Development                                                                                        |
+| --------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Branch          | `production` (default branch)                                             | `development`                                                                                      |
+| Site            | https://assistente-7hub.web.app                                           | https://assistente-7hub-development.web.app                                                        |
+| Hosting target  | `production` → site `assistente-7hub`                                     | `development` → site `assistente-7hub-development`                                                 |
+| App id          | `assistente-7hub`                                                         | `assistente-7hub-development`                                                                      |
+| Firestore data  | `apps/assistente-7hub/…`                                                  | `apps/assistente-7hub-development/…` (same database)                                               |
+| Storage folder  | `assistente-7hub/`                                                        | `assistente-7hub-development/`                                                                     |
+| Permission key  | `users/{uid}.permessi_app['assistente-7hub']`                             | `users/{uid}.permessi_app['assistente-7hub-development']`                                          |
+| Cloud Functions | `database`, `history`, `tools`, `drive`, `driveWebhook`, `driveScheduler` | `databaseDev`, `historyDev`, `driveDev`, `driveWebhookDev`, `driveSchedulerDev` (twins, same code) |
+| Build flag      | none                                                                      | `NEXT_PUBLIC_APP_ENV=development`                                                                  |
 
 What decides the environment:
 
@@ -52,10 +52,10 @@ Only `production` ever deploys the production functions; only `development` depl
 
 ## Automatic deploys (GitHub Actions)
 
-| Workflow                                   | On push to    | Deploys                                                                    |
-| ------------------------------------------ | ------------- | -------------------------------------------------------------------------- |
-| `.github/workflows/deploy-production.yml`  | `production`  | `hosting:production` + `functions:assistente:database`, `history`, `tools` |
-| `.github/workflows/deploy-development.yml` | `development` | `hosting:development` + `functions:assistente:databaseDev`, `historyDev`   |
+| Workflow                                   | On push to    | Deploys                                                                                                                      |
+| ------------------------------------------ | ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/deploy-production.yml`  | `production`  | `hosting:production` + `functions:assistente:database`, `history`, `tools`, `drive`, `driveWebhook`, `driveScheduler`        |
+| `.github/workflows/deploy-development.yml` | `development` | `hosting:development` + `functions:assistente:databaseDev`, `historyDev`, `driveDev`, `driveWebhookDev`, `driveSchedulerDev` |
 
 Both install, run `npm run lint` and `npm run build` first: a lint or build error stops the deploy and the
 site stays as it was. Both can also be started by hand from the repository's **Actions** tab (**Run
@@ -85,9 +85,10 @@ says `Skipped (No changes detected)` for the functions — the environment is pa
 ### Service account roles
 
 `mcp-chat-deploy` needs, on the project: Cloud Functions Admin, Firebase Hosting Admin, Service Account
-User, Service Usage Consumer, Firebase Extensions Viewer (the deploy lists the installed extensions).
-The project also needs the Cloud Billing API enabled (the functions deploy checks the billing plan).
-Granting roles needs a project **owner**.
+User, Service Usage Consumer, Firebase Extensions Viewer (the deploy lists the installed extensions) and
+**Cloud Scheduler Admin** (the deploy creates the scheduler jobs of `driveScheduler` and
+`driveSchedulerDev`). The project also needs the Cloud Billing API enabled (the functions deploy checks the
+billing plan). Granting roles needs a project **owner**.
 
 ## Manual deploy (emergencies only)
 
@@ -100,13 +101,13 @@ cd /path/to/mcp-chat && nvm use 22
 Production — from the `production` branch, clean working tree:
 
 ```bash
-npm run build && firebase deploy --only hosting:production,functions:assistente:database,functions:assistente:history,functions:assistente:tools
+npm run build && firebase deploy --only hosting:production,functions:assistente:database,functions:assistente:history,functions:assistente:tools,functions:assistente:drive,functions:assistente:driveWebhook,functions:assistente:driveScheduler
 ```
 
 Development — from the `development` branch:
 
 ```bash
-NEXT_PUBLIC_APP_ENV=development npm run build && firebase deploy --only hosting:development,functions:assistente:databaseDev,functions:assistente:historyDev
+NEXT_PUBLIC_APP_ENV=development npm run build && firebase deploy --only hosting:development,functions:assistente:databaseDev,functions:assistente:historyDev,functions:assistente:driveDev,functions:assistente:driveWebhookDev,functions:assistente:driveSchedulerDev
 ```
 
 - **Always build right before deploying.** `firebase deploy` publishes whatever is in `out/`; deploying
@@ -151,6 +152,64 @@ Already done on 2026-10-09; repeat only to rebuild it.
 3. **Sign-in and App Check** — the dev domains must be in Firebase Auth → Authorised domains and in the
    reCAPTCHA key's allowed domains (both done).
 4. **CORS** — `functions/src/http/cors.js` lists the dev site origins (done).
+
+## Google Drive sync (set up once)
+
+The Documents tab's **Drive** view links Drive folders and PDFs to the archive; the server keeps them in step
+(`functions/src/drive/`). One-time setup in the Google Cloud project `mappa-contatti-217007`, by a project
+owner:
+
+1. **Enable the Google Drive API** (it is off by default):
+
+   ```bash
+   gcloud services enable drive.googleapis.com --project mappa-contatti-217007
+   ```
+
+   Cloud Scheduler must be enabled too (`cloudscheduler.googleapis.com`; the first deploy of the scheduled
+   functions offers to do it) and the deploy service account needs **Cloud Scheduler Admin** (see
+   [Service account roles](#service-account-roles)).
+
+2. **Roles of the runtime service account.** Gen2 functions run as the project's default Compute Engine
+   account, `<project-number>-compute@developer.gserviceaccount.com`. Its exact address is shown at the top of
+   the Drive view, or by
+   `gcloud functions describe drive --gen2 --region europe-west1 --format='value(serviceConfig.serviceAccountEmail)'`.
+   It needs, on the project: **Vertex AI User** (the server indexes Drive files with Gemini, location
+   `global`, as the browser does through Firebase AI Logic), **Storage Object Admin** (or Storage Object User:
+   it writes the PDFs to `<app>/documents/…` and Vertex reads them from there) and access to Firestore (it
+   already has it for the other functions). No Drive role is needed: Drive access is by sharing.
+3. **Share what you want to sync.** In Drive: open the folder (or the PDF) → Share → paste the service account
+   address → **Viewer**, notification off. For a shared drive, add the address as a member. Then paste the link
+   in Documents → Drive → "Collega". Production and development keep separate sources; the same account is
+   shared with by both.
+4. **Cloud Scheduler jobs** are created by the deploy (`firebase-schedule-driveScheduler-europe-west1` and
+   `…-driveSchedulerDev-…`), every 15 minutes, Europe/Rome. Nothing to create by hand. Each source runs at its
+   own frequency (15 minutes, hourly, every 6 hours, daily or weekly at a chosen hour, or manual only): the
+   scheduler only decides _when to look_.
+
+How a source is kept in step, and what is automatic:
+
+- **Version comparison, always.** At each source's frequency the sync lists the source's PDFs (metadata only)
+  and compares Drive's checksum/version with what each document stored last time. Only new or changed files
+  are downloaded and indexed; files gone from Drive, or no longer inside any linked source, are removed from
+  the archive (Firestore entry and Storage file). This alone is a complete sync.
+- **Webhooks, as an accelerator.** For each source the sync also registers Drive push-notification channels
+  (`files.watch`) on the folder, its sub-folders or the single file, pointing at `driveWebhook` (`…Dev`). A
+  notification only marks the source due; the next scheduler tick (within 15 minutes) syncs it. Channels last
+  at most a day and are renewed by the scheduler. A folder notification fires when files are added to or
+  removed from it, **not** when a file's content changes: the version comparison finds those. The panel shows
+  per source whether notifications are active, until when, and why not if Google refused them.
+- The webhook address is `https://europe-west1-mappa-contatti-217007.cloudfunctions.net/driveWebhook`.
+  Google can refuse an address on a domain not verified for the project (`push.webhookUrlUnauthorized`); the
+  panel then reads "Google non accetta l’indirizzo delle notifiche" and the source simply runs on the
+  comparison alone. To get notifications anyway, verify a domain you own in Search Console, add it under
+  Console → APIs & Services → Domain verification, serve the webhook from it and change `webhookAddress()` in
+  `functions/src/drive/channels.js`. The token that authenticates each notification is an HMAC derived from
+  `DB_CRED_KEY`, so there is no extra secret to deploy.
+
+Drive state lives in `apps/<app>/driveSources` (server only: the browser reaches it through the `drive`
+function). If the Firestore rules do not already close unknown collections, add `driveSources` to the
+`isServerOnly` list next to `chatConversations` and `chatUsers`: it holds nothing secret, but nobody except the
+functions should write it.
 
 ## Security rules, TTL and other console settings
 

@@ -5,12 +5,12 @@ const STEPS = [
   {
     icon: Upload,
     title: 'Carica',
-    text: 'PDF, TXT, CSV, Markdown o immagini (PNG, JPG, WebP, GIF, SVG) fino a 20 MB. Il file entra nell’archivio, ma l’assistente non lo vede ancora. Ogni immagine vuole una breve descrizione, obbligatoria: dice cosa mostra e serve a ritrovarla.'
+    text: 'PDF, TXT, CSV, Markdown o immagini (PNG, JPG, WebP, GIF, SVG) fino a 20 MB. Il file entra nell’archivio, ma l’assistente non lo vede ancora. Ogni immagine vuole una breve descrizione, obbligatoria: dice cosa mostra e serve a ritrovarla. In alternativa collega una cartella o un PDF di Google Drive (scheda Drive): i PDF si scaricano da soli, anche quando cambiano.'
   },
   {
     icon: Sparkles,
     title: 'Indicizza',
-    text: 'Gemini legge tutto il documento e scrive una scheda: sintesi, argomenti e parole chiave. Un’immagine senza descrizione non si indicizza: la scheda parte da quello che hai scritto.'
+    text: 'Gemini legge tutto il documento e scrive una scheda: sintesi, argomenti e parole chiave. Un’immagine senza descrizione non si indicizza: la scheda parte da quello che hai scritto. I file di Drive li indicizza il server subito dopo averli scaricati, senza che tu faccia nulla.'
   },
   {
     icon: MessageSquareText,

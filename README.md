@@ -59,7 +59,7 @@ src/
     shortcuts/             personal shortcuts and their admin views
     documents/             archive schema, store, indexing + background queue, chat catalog, Documents tab
     database/              db connections schema/store, schema scan, card drafting, chat schema, Database tab
-    drive/                 Drive OAuth, filename search, copy to Storage (disabled until the OAuth client exists)
+    drive/                 Google Drive sources: the "Drive" view of the Documents tab, `drive` function client
     settings/              settings store and defaults, model list, settings panel
   shared/
     environment.js         production or development: app id and function names (DEPLOY.md)
@@ -70,14 +70,15 @@ functions/
   index.js                 Cloud Functions wiring only (production functions and their development twins)
   src/
     appContext.js          which app a request works for (production / development)
-    http/                  tools, database and history HTTP endpoints (shared CORS, token check, dispatch)
+    http/                  tools, database, history, drive and driveWebhook HTTP endpoints (shared CORS, token check, dispatch)
     history/               conversation history store (server side)
     shortcuts/             personal shortcuts store (server side)
     auth/                  Keycloak token verification, Firebase ID token + app-permission checks
     clients/               Java services client
     tools/                 person registry tools, emulator-only diagnostics
     db/                    MariaDB/MySQL pool, schema introspection, SQL validation, credential encryption, xlsx
-    drive/                 Drive client, nightly index sync, job requests
+    drive/                 Google Drive → archive sync: Drive client, listing, change plan, notification
+                           channels, server-side indexing, source store, scheduler tick
   scripts/                 tests, smoke test, response inspection, schema migration
 ```
 
@@ -107,10 +108,9 @@ Shown for production; development has the same layout under `apps/assistente-7hu
 `Storage assistente-7hub-development/` (DEPLOY.md).
 
 ```
-apps/assistente-7hub/documents/{id}       document metadata, indexingStatus (pending|done|failed), indexCard, description (images)
-apps/assistente-7hub/driveFolders/{id}    Drive folders, written by the nightly sync
-apps/assistente-7hub/drive/status         last Drive sync outcome
-apps/assistente-7hub/jobRequests/{id}     work requested from the server (sync, copy)
+apps/assistente-7hub/documents/{id}       document metadata, source (upload|drive), indexingStatus (pending|done|failed), indexCard, description (images); drive* fields for Drive files
+apps/assistente-7hub/driveSources/{id}    a linked Drive folder or PDF: frequency, next/last run and result, lease, webhook state — server only
+  /channels/{id}                          its Drive notification channels
 apps/assistente-7hub/config/settings      chatModel, indexingModel, instructions, historyLimit, shortcuts…
 apps/assistente-7hub/dbConnections/{id}   database connection config (host, port, user…), never the password
   /tables/{t}                             per table: columns, keys, enabled, card { summary, columns }
@@ -119,11 +119,12 @@ apps/assistente-7hub/chatConversations/{id}            conversation: who, when, 
   /chatMessages/{id}                                    questions, replies, tool steps (no data rows)
 apps/assistente-7hub/chatUsers/{uid}                   pointer to the user's open conversation
   /private/shortcuts                                    the user's personal shortcuts
-Storage assistente-7hub/documents/{id}/…  file bytes read by Gemini
+Storage assistente-7hub/documents/{id}/…  file bytes read by Gemini (Drive files: id `drive-<driveFileId>`)
 ```
 
 `chatConversations` and `chatUsers` are closed to browsers by the security rules: only the `history`
-function reads and writes them. TTL on `expiresAt` deletes history after the retention set in Storico; with "Mai" `expiresAt` is null and nothing is deleted.
+function reads and writes them. `driveSources` is handled the same way in code — only the `drive` function
+(and the scheduler) touch it — and needs no rule change; closing it in the rules too is advisable (DEPLOY.md). TTL on `expiresAt` deletes history after the retention set in Storico; with "Mai" `expiresAt` is null and nothing is deleted.
 
 ## How it talks to 7hub
 
@@ -155,6 +156,9 @@ Outgoing messages also carry the legacy Italian `tipo` key, and legacy incoming 
   and Storage copy).
 - Gemini overload and rate-limit errors (503/429) are retried with backoff, in indexing and in chat. Failed
   documents keep the raw error on the document and show a one-line explanation in the panel.
+- **Google Drive** (Documents → Drive): the admin shares a folder or a PDF with the functions' service account
+  (the address is shown in the panel, with a copy button), pastes its link and picks how often to sync.
+  See "Google Drive sync" below.
 - **Images** (PNG, JPEG, WebP, GIF, SVG, up to 20 MB) go in the same archive. Gemini reads PNG, JPEG and WebP
   as they are; an SVG is sent as the XML text it is (`indexMimeType: text/plain`, `mimeType` stays
   `image/svg+xml` so it previews and downloads as an image); a GIF cannot be given to Gemini at all, so its
@@ -180,6 +184,42 @@ Outgoing messages also carry the legacy Italian `tipo` key, and legacy incoming 
   description goes into the indexing prompt as the authoritative word on what the image is, and into the chat
   catalog directly: editing it on an indexed image needs no re-index (`updateDocumentDescription` only drops
   the cached catalog), the "Aggiorna anche la scheda" button is there for when the card should follow.
+
+## Google Drive sync
+
+Documents → **Drive** links Drive folders (sub-folders included) and single PDFs to the archive. The server
+does everything: the browser only configures it, through the `drive` function, and watches the state by
+polling it.
+
+- **Access** is by sharing: the functions read Drive as their runtime service account (Application Default
+  Credentials, scope `drive.readonly`, no OAuth screen). One-time setup — enabling the Drive API, roles,
+  sharing — in [DEPLOY.md](DEPLOY.md#google-drive-sync-set-up-once).
+- **Only PDFs** (`application/pdf`), up to 20 MB (the archive's limit): Google Docs, shortcuts and anything else
+  are ignored, an oversized PDF is listed as "saltato" with the reason.
+- **A source** has its own frequency: every 15 minutes, hourly, every 6 hours, daily or weekly at a chosen hour
+  (Rome time), or manual only. The scheduler (`driveScheduler`, every 15 minutes) runs the sources that are due.
+  "Sincronizza ora" runs one at once and answers when done; "Reindicizza tutto" also rewrites every card.
+- **What a run does**: lists the source's PDFs (metadata), compares Drive's checksum/version/modified time with
+  what each document stored (`driveMd5`, `driveVersion`, `driveModifiedTime`), and downloads and indexes only
+  the new or changed files. A rename alone updates the name without a new download or card. Indexing is done by
+  the server with Gemini on Vertex, with the same model, instructions, attachments, schema and prompt as the
+  browser (`functions/src/drive/indexCard.js` is a copy of `features/documents/indexing.js`: keep them
+  identical; a test fails if they drift) and the same fields on the document.
+- **Removal**: a file deleted from Drive, or no longer inside any linked source, leaves the archive (Firestore
+  entry and Storage file) at the next run, and the chat catalog follows. A file reachable from two sources is
+  one document (`driveSourceIds`) and goes only when none holds it. A source that cannot be read in full (a
+  sub-folder refuses access) removes nothing that run. Unlinking a source removes its documents.
+- **Names are unique**: a Drive PDF whose name an uploaded document already has is not imported ("esiste già
+  un documento caricato con questo nome"), never overwriting it. Drive documents cannot be deleted or replaced
+  from the browser (they would come back); they carry a Drive icon with a link to the file.
+- **Webhooks speed it up, polling is the guarantee.** Each source registers Drive notification channels
+  (`files.watch`) on its folders; a notification marks the source due and the next tick syncs it (the webhook
+  never syncs inline). A folder notification fires for files added or removed, not for edits inside a file:
+  the version comparison, which runs at every scheduled time whether or not a webhook is active, finds those.
+  Channels are renewed by the scheduler, stopped when a source is removed; if Google refuses to register one,
+  the reason is stored and shown and the source runs on polling alone.
+- **A run is bounded** (about 7 minutes) and resumable: what it cannot finish stays due, and the next tick
+  continues. A lease on the source (transactional) keeps two runs from working on it at once.
 
 ## Chat and databases
 
@@ -388,14 +428,16 @@ The operator's Keycloak token is forwarded to the Java services as is (same mode
 and the sales hierarchy keep applying. **The environment comes from the token issuer**, not configuration.
 Writes to production are blocked unless `ALLOW_PRODUCTION_WRITES=true`.
 
-| Export                      | Trigger                             | Purpose                                                                                                                                 |
-| --------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `tools`                     | HTTP `POST /tools/<name>`           | `search-person`, `person-details`                                                                                                       |
-| `database`                  | HTTP `POST /database/<action>`      | connection test/save/delete/scan/sample (admin-only); `query`, `chartData`, `exportPreview`, `exportFile` (any operator — used by chat) |
-| `history`                   | HTTP `POST /history/<action>`       | the caller's own `restore`/`question`/`turn`/`reset`/`shortcuts`/`saveShortcuts`; admin-only `list`/`transcript`/`users`/`allShortcuts` |
-| `databaseDev`, `historyDev` | same as above                       | development twins, working for `assistente-7hub-development` (DEPLOY.md)                                                                |
-| `syncDrive`                 | schedule, 03:00 Europe/Rome         | nightly Drive → Firestore index sync                                                                                                    |
-| `processJobRequest`         | Firestore create `jobRequests/{id}` | "sync now" and Drive file copies                                                                                                        |
+| Export                                             | Trigger                        | Purpose                                                                                                                                       |
+| -------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tools`                                            | HTTP `POST /tools/<name>`      | `search-person`, `person-details`                                                                                                             |
+| `database`                                         | HTTP `POST /database/<action>` | connection test/save/delete/scan/sample (admin-only); `query`, `chartData`, `exportPreview`, `exportFile` (any operator — used by chat)       |
+| `history`                                          | HTTP `POST /history/<action>`  | the caller's own `restore`/`question`/`turn`/`reset`/`shortcuts`/`saveShortcuts`; admin-only `list`/`transcript`/`users`/`allShortcuts`       |
+| `databaseDev`, `historyDev`                        | same as above                  | development twins, working for `assistente-7hub-development` (DEPLOY.md)                                                                      |
+| `drive`                                            | HTTP `POST /drive/<action>`    | admin only: `list` (service account email + sources), `add`, `update` (frequency), `remove`, `syncNow` (runs inside the request, up to 9 min) |
+| `driveWebhook`                                     | HTTP `POST`, public            | Google Drive push notifications; verifies the channel token, marks the source due, syncs nothing                                              |
+| `driveScheduler`                                   | schedule, every 15 minutes     | renews notification channels, runs the Drive sources that are due                                                                             |
+| `driveDev`, `driveWebhookDev`, `driveSchedulerDev` | same as above                  | development twins                                                                                                                             |
 
 `database` verifies the caller's **Firebase ID token** (`functions/src/auth/firebaseUser.js`) against
 `users/{uid}` — unlike `tools`, a database connection has no per-operator ACL of its own, so this is the
@@ -404,7 +446,7 @@ stored passwords: copy `functions/.env.example` to `functions/.env` for the emul
 
 ```bash
 cd functions && npm install
-npm test               # sync diff + schema migration mapping tests
+npm test               # Drive sync tests: links, schedules, change plan, webhook token, index-card parity
 npm run serve          # emulator on :5001
 npm run smoke-test     # endpoint checks; set TOKEN_7HUB for real jsoggetto calls
 ```
@@ -449,8 +491,8 @@ The rename of Firestore/Storage paths, fields and the host protocol needs this o
    written and tested; how the chat obtains the operator token is still undecided.
 2. **App Check enforcement** is in monitoring mode only; it becomes mandatory for AI Logic on 2 November 2026.
    Both sites' domains are in the reCAPTCHA key.
-3. **Drive search and sync** stay disabled until the OAuth client (`features/drive/driveConfig.js`) and the
-   functions IAM grants exist.
+3. **Drive notifications** (webhooks) depend on Google accepting the function's address; if it does not, sources
+   run on scheduled comparison alone (DEPLOY.md, "Google Drive sync").
 4. **`dbSecrets/{id}` is still readable** by anyone with the app's `read` permission: the rules close only
    `chatConversations` and `chatUsers` to browsers. The AES-GCM encryption in
    `functions/src/db/credentials.js` is what protects the password; add `dbSecrets` to the rules'

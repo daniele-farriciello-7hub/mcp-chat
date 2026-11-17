@@ -47,6 +47,8 @@ export default function SelectableDocumentList({ mode, documents, typed, filters
   // a document already in the indexing queue is not selectable: it would be indexed or deleted mid-work
   const selectable = documents.filter(d => !isQueued(d.id));
   const selected = selectable.filter(d => selectedIds.has(d.id));
+  // a Drive document is not deleted from here: the next sync would bring it back
+  const selectedDeletable = selected.filter(d => d.source !== 'drive');
   // judged on the text in the description fields, not on what is saved yet
   const selectedIndexable = selected.filter(d => canIndexNow(typed.withTyped(d)));
   const selectedSkipped = selected.filter(d => !canIndexNow(typed.withTyped(d))).map(typed.withTyped);
@@ -79,7 +81,7 @@ export default function SelectableDocumentList({ mode, documents, typed, filters
 
   const deleteSelected = async () => {
     setActionError(null);
-    const results = await Promise.allSettled(selected.map(deleteDocument));
+    const results = await Promise.allSettled(selectedDeletable.map(deleteDocument));
     const failures = results.filter(result => result.status === 'rejected');
     if (failures.length) {
       console.error(
@@ -145,6 +147,7 @@ export default function SelectableDocumentList({ mode, documents, typed, filters
           {selected.length > 0 && (
             <SelectionBar
               count={selected.length}
+              deletableCount={selectedDeletable.length}
               indexableCount={selectedIndexable.length}
               skippedNote={skippedNote(selectedSkipped, selectedIndexable.length)}
               actionLabel={copy.action}

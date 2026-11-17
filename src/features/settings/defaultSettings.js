@@ -93,6 +93,8 @@ Scegli la connessione giusta in base a cosa contengono le sue tabelle, non chied
 quale database usare.
 Se una query non basta a rispondere, affinala invece di rispondere con un dato parziale senza dirlo.`;
 
+// the indexing defaults (this text, the models in models.js) are copied in functions/src/drive/indexCard.js,
+// which indexes the Drive documents on the server: keep them identical
 const DEFAULT_INDEXING_INSTRUCTIONS = `Sei il bibliotecario di una società di mediazione creditizia.
 Ti do UN documento. Crea la sua scheda-indice per un motore di ricerca interno.
 Riconosci gli istituti di cui parla e i prodotti che tratta (mutuo, cessione del quinto, prestito personale, lead...): servono a capire, fra tanti documenti simili, che questo è quello giusto.

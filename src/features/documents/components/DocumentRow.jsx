@@ -1,10 +1,11 @@
-import { AlertTriangle, Loader2, Upload } from 'lucide-react';
+import { AlertTriangle, Cloud, Loader2, Upload } from 'lucide-react';
 import Tooltip from '@/shared/ui/Tooltip';
 import { formatFileSize, formatTimestamp } from '@/features/documents/format';
 import { getFileBlocker } from '@/features/documents/indexability';
 import { describeIndexingError } from '@/features/documents/indexingErrors';
 import { isImage } from '@/features/documents/fileTypes';
 import { INDEXING_STATUS } from '@/features/documents/schema';
+import DriveLinkButton from '@/features/drive/components/DriveLinkButton';
 import DeleteDocumentButton from './DeleteDocumentButton';
 import FileActionButton from './FileActionButton';
 import FileTypeIcon from './FileTypeIcon';
@@ -53,7 +54,10 @@ export default function DocumentRow({ document, selected, onToggle, phase, onDes
   // blocked documents (and images without a description) stay selectable so they can be deleted in
   // bulk; indexing skips them
   const selectable = !phase;
-  const location = `Caricato ${formatTimestamp(document.createdAt) || ''}`.trim();
+  const fromDrive = document.source === 'drive';
+  const location = fromDrive
+    ? ['Da Google Drive', document.drivePath].filter(Boolean).join(' · ')
+    : `Caricato ${formatTimestamp(document.createdAt) || ''}`.trim();
   const meta = [location, formatFileSize(document.sizeBytes)].filter(Boolean).join(' · ');
   const image = isImage(document.mimeType);
 
@@ -89,7 +93,7 @@ export default function DocumentRow({ document, selected, onToggle, phase, onDes
           </div>
         </Tooltip>
         <div className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-soft">
-          <Upload size={10} />
+          {fromDrive ? <Cloud size={10} /> : <Upload size={10} />}
           <span className="truncate">{meta}</span>
         </div>
         <StatusLine document={document} phase={phase} blocker={blocker} />
@@ -101,6 +105,7 @@ export default function DocumentRow({ document, selected, onToggle, phase, onDes
         )}
       </div>
       <div className="flex shrink-0 items-center" onClick={e => e.stopPropagation()}>
+        {fromDrive && <DriveLinkButton document={document} />}
         <FileActionButton document={document} />
         <DeleteDocumentButton document={document} disabled={Boolean(phase)} />
       </div>

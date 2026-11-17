@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, Loader2, RefreshCw, Sparkles, Upload } from 'lucide-react';
+import { ChevronDown, Cloud, Loader2, RefreshCw, Sparkles, Upload } from 'lucide-react';
 import Tooltip from '@/shared/ui/Tooltip';
 import { MODELS } from '@/features/settings/models';
 import { formatFileSize, formatTimestamp } from '@/features/documents/format';
@@ -7,6 +7,7 @@ import { isImage } from '@/features/documents/fileTypes';
 import { canIndexNow, getIndexingBlocker } from '@/features/documents/indexability';
 import { enqueueForIndexing } from '@/features/documents/indexingQueue';
 import { useIndexingQueue } from '@/features/documents/useIndexingQueue';
+import DriveLinkButton from '@/features/drive/components/DriveLinkButton';
 import DeleteDocumentButton from './DeleteDocumentButton';
 import FileActionButton from './FileActionButton';
 import FileTypeIcon from './FileTypeIcon';
@@ -68,8 +69,10 @@ export default function IndexedDocumentRow({ document }) {
   const card = document.indexCard || {};
   const image = isImage(document.mimeType);
   const description = document.description?.trim();
+  const fromDrive = document.source === 'drive';
 
   const meta = [
+    fromDrive && ['Google Drive', document.drivePath].filter(Boolean).join(' · '),
     formatTimestamp(document.indexedAt),
     document.indexedWithModel && modelName(document.indexedWithModel),
     formatFileSize(document.sizeBytes)
@@ -99,7 +102,7 @@ export default function IndexedDocumentRow({ document }) {
               {reindexing ? 'In aggiornamento' : 'Pronto per la chat'}
             </span>
             <span className="flex min-w-0 items-center gap-1 text-[10px] text-slate-soft" title={meta}>
-              <Upload size={10} />
+              {fromDrive ? <Cloud size={10} /> : <Upload size={10} />}
               <span className="truncate">{meta}</span>
             </span>
           </span>
@@ -116,6 +119,7 @@ export default function IndexedDocumentRow({ document }) {
           </span>
         </button>
         <div className="flex shrink-0 items-center">
+          {fromDrive && <DriveLinkButton document={document} />}
           <ReindexButton document={document} busy={reindexing} />
           <FileActionButton document={document} />
           <DeleteDocumentButton document={document} disabled={reindexing} />

@@ -2,6 +2,11 @@
  * Indexing runs in the browser, as in instant-rating: Gemini reads the file from Storage through a
  * gs:// URI and returns an index card (summary, topics, keywords) that the chat uses to decide
  * which documents to open.
+ *
+ * Documents synchronised from Google Drive are indexed on the server instead, with a copy of
+ * INDEX_CARD_SCHEMA, of the prompt below and of the indexing defaults: functions/src/drive/indexCard.js.
+ * KEEP THEM IDENTICAL — change one, change the other (functions/scripts/drive-sync.test.mjs fails if
+ * the schema, the default instructions or the prompt sentences drift apart).
  */
 'use client';
 
@@ -16,6 +21,7 @@ import { getIndexingBlocker } from './indexability';
 import { geminiMimeTypeOf, isImage } from './fileTypes';
 import { gcsUri } from './chatCatalog';
 
+// copied in functions/src/drive/indexCard.js
 const INDEX_CARD_SCHEMA = {
   type: 'object',
   properties: {
@@ -59,6 +65,7 @@ const IMAGE_CARD_HINT =
 
 // the admin edits the instructions in the panel; what is appended here cannot be lost: the file name,
 // what the admin wrote about it, and what to do with a file Gemini cannot look at
+// (the PDF part of this is copied in functions/src/drive/indexCard.js: keep them identical)
 const indexingPrompt = (instructions, attachments, document, canSeeFile) =>
   [
     instructions || DEFAULT_SETTINGS.indexingInstructions,

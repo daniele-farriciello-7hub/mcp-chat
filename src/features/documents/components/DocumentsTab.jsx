@@ -3,6 +3,8 @@
  * counters that open each list, a collapsible upload summary that offers to index what was just uploaded
  * (an image's mandatory description is written on its row in the "Da indicizzare" list, which the summary
  * points to), and a progress card for the background indexing queue (which survives closing the panel).
+ * The "Drive" view is the other way in: folders and PDFs on Google Drive that the server keeps in step
+ * with the archive (features/drive); their documents show up in the same lists.
  */
 'use client';
 
@@ -13,6 +15,7 @@ import { useDocuments } from '@/features/documents/useDocuments';
 import { useIndexingQueue } from '@/features/documents/useIndexingQueue';
 import { useTypedDescriptions } from '@/features/documents/useTypedDescriptions';
 import { useUploads } from '@/features/documents/useUploads';
+import DriveView from '@/features/drive/components/DriveView';
 import ArchiveHeader from './ArchiveHeader';
 import DocumentViewTabs from './DocumentViewTabs';
 import FileTypeFilters from './FileTypeFilters';
@@ -116,7 +119,7 @@ export default function DocumentsTab() {
 
       <DocumentViewTabs activeView={view} onChange={setView} totals={catalog.totals} />
 
-      <NameFilterInput value={nameFilter} onChange={setNameFilter} />
+      {view !== 'drive' && <NameFilterInput value={nameFilter} onChange={setNameFilter} />}
 
       {showsSelectableList && (
         <>
@@ -138,6 +141,8 @@ export default function DocumentsTab() {
       {view === 'indexed' && (
         <IndexedDocumentList documents={catalog.indexed} filtersActive={Boolean(nameFilter)} />
       )}
+
+      {view === 'drive' && <DriveView documents={catalog.documents || []} />}
     </div>
   );
 }

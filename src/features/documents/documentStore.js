@@ -1,5 +1,7 @@
 /**
- * Reads and writes the document archive: files uploaded by an admin from their computer.
+ * Reads and writes the document archive: files uploaded by an admin from their computer. Documents
+ * with `source: 'drive'` are kept by the Drive sync on the server: the browser neither replaces nor
+ * deletes them, since the next sync would undo it.
  */
 'use client';
 
@@ -71,6 +73,11 @@ export async function uploadDocument(file, { replace = false } = {}) {
     .find(
       d => nameKey(d) === nameKey(file) && (d.indexingStatus === INDEXING_STATUS.done || !getFileBlocker(d))
     );
+  if (existing?.source === 'drive') {
+    throw new Error(
+      'Esiste già un documento con questo nome che arriva da Google Drive: non si sostituisce da qui.'
+    );
+  }
   if (existing && !replace) throw new DuplicateNameError(existing.id);
 
   const id = existing?.id ?? `upload-${crypto.randomUUID()}`;
@@ -112,8 +119,11 @@ export async function updateDocumentDescription(id, description) {
   invalidateChatCatalog();
 }
 
-/** Removes a document from the catalog: its Firestore entry and its Storage copy. */
+/** Removes a document from the catalog: its Firestore entry and its Storage copy. Not one from Drive. */
 export async function deleteDocument(document) {
+  if (document.source === 'drive') {
+    throw new Error('Il documento arriva da Google Drive: si toglie da Drive o scollegando la cartella.');
+  }
   if (document.storagePath) {
     await deleteObject(ref(storage, document.storagePath)).catch(error => {
       if (error?.code !== 'storage/object-not-found') throw error;
