@@ -38,9 +38,12 @@ export const QUERY_DATABASE_TOOL = {
 /**
  * One call to `query_database`. Returns the `{response}` half of a functionResponse.
  *
- * `isAdmin` only decides whether the SQL text rides along on the activity row: regular operators
- * see the same plain-language activity as any other tool (ActivityRow's own rule — never function
- * names or raw parameters), admins get the query itself to check what actually ran.
+ * What the operator sees is the same plain-language activity as any other tool (ActivityRow's own
+ * rule — never function names or raw parameters). Two more fields ride on the activity, for the
+ * conversation history only (`recordTurn` stores them, the admin's Storico shows them; no live
+ * component draws either, and a failed activity is not drawn at all): `sql`, sent from the start for
+ * admins and on a failure for every user, and `errorDetail`, the raw reason of a failure. Without them
+ * a failed query leaves nothing to look at afterwards, for the operators who are not admins.
  */
 export async function runQueryDatabaseCall(
   call,
@@ -60,9 +63,18 @@ export async function runQueryDatabaseCall(
     ...(isAdmin ? { sql } : {})
   });
 
+  // history-only fields of a failed call (see above); `sql` stays whatever the model sent, if it is text
+  const failure = (label, errorDetail) => ({
+    outcome: 'failed',
+    label,
+    errorDetail,
+    ...(typeof sql === 'string' ? { sql } : {})
+  });
+
   if (!connectionId || !sql) {
-    onActivityEnd(activityId, { outcome: 'failed', label: 'Query non valida' });
-    return { response: { error: 'connectionId and sql are required' } };
+    const reason = 'connectionId and sql are required';
+    onActivityEnd(activityId, failure('Query non valida', reason));
+    return { response: { error: reason } };
   }
 
   try {
@@ -90,13 +102,13 @@ export async function runQueryDatabaseCall(
       }
     };
   } catch (error) {
+    const reason = error.message || 'query failed';
     onActivityEnd(activityId, {
-      outcome: 'failed',
-      label: 'Non riuscita',
+      ...failure('Non riuscita', reason),
       message: 'Non sono riuscito a leggere questi dati dal database.'
     });
     // the raw reason goes back to the model, not the sentence shown above: it needs the real cause
     // to correct the query, not a sentence written for a person (see plan edge case 16)
-    return { response: { error: error.message || 'query failed' } };
+    return { response: { error: reason } };
   }
 }

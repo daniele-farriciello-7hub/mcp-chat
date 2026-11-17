@@ -39,6 +39,9 @@ const ACTIVITY_FIELDS = [
   'exportTitle',
   // short text under a card, e.g. "12.430 righe" on an export
   'detail',
+  // the raw reason a database call failed (the same one the model got): read by admins in the history,
+  // never drawn in the chat — an operator's card only says that it did not work
+  'errorDetail',
   // why a file picker is shown: 'ambiguous' | 'no_exact_match'
   'reason'
 ];
@@ -92,7 +95,10 @@ const count = value => (Number.isFinite(value) && value > 0 ? Math.round(value) 
 const millis = value => (Number.isFinite(value) ? value : Date.now());
 const safeId = value => (typeof value === 'string' && /^[A-Za-z0-9_:-]{1,128}$/.test(value) ? value : null);
 
-/** Only the fields worth keeping — never rows or columns of data; SQL only if the tool attached it. */
+/**
+ * Only the fields worth keeping — never rows or columns of data; SQL only if the tool attached it (for
+ * every user on a failed database call, so an admin can see what failed; otherwise for admins only).
+ */
 function storableActivity(activity = {}) {
   const stored = {};
   for (const field of ACTIVITY_FIELDS) {
