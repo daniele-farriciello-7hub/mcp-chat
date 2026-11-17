@@ -15,6 +15,10 @@
  *   { type: 'navigate', url: '/dashboard/…' }
  *   { type: 'close' }
  *   { type: 'status', busy }             so the host can show that the assistant is working
+ *   { type: 'user_message', text }       what the operator typed (or picked) in the chat, so the host can offer
+ *                                         something next to the reply (7Hub: "Segnala un problema")
+ *   { type: 'open_help', tab, description } ask the host to open its help panel ('assistente' | 'segnala'),
+ *                                         with a description for the problem report (not sent by the chat yet)
  *   { type: 'tool_call', id, name, args } the host runs it in the operator's own 7Hub session (their
  *                                         login and visibility rules) and answers with tool_result
  */

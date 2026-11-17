@@ -19,6 +19,7 @@ export default function ChatPanel({
   onSignOut,
   hideHeader = false,
   onStatus,
+  onUserMessage,
   ref
 }) {
   const { messages, status, send, reset, selectOption, pickFile } = useConversation({
@@ -28,6 +29,14 @@ export default function ChatPanel({
   });
   const inputRef = useRef(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // What the operator types (or picks from the suggestions) is told to the host, which can offer something
+  // on top of the reply (7Hub: the "Segnala un problema" button). Questions the host itself sends through the
+  // handle below are not repeated back to it.
+  const sendFromUser = text => {
+    onUserMessage?.(text);
+    return send(text);
+  };
 
   // Embedded in 7Hub, the host's header and entry points (home box, search bar) drive the chat through
   // this handle. A question asked while a reply is still being written waits for it instead of being lost.
@@ -92,13 +101,13 @@ export default function ChatPanel({
         messages={messages}
         status={status}
         userName={context?.user?.name?.trim()}
-        onAsk={send}
+        onAsk={sendFromUser}
         onSelect={selectOption}
         onPickFile={pickFile}
         onFocusInput={() => inputRef.current?.focus()}
         onNavigate={onNavigate}
       />
-      <ChatInput ref={inputRef} busy={status !== 'idle'} onSend={send} />
+      <ChatInput ref={inputRef} busy={status !== 'idle'} onSend={sendFromUser} />
     </div>
   );
 }
