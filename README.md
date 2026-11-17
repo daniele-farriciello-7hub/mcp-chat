@@ -154,7 +154,11 @@ Outgoing messages also carry the legacy Italian `tipo` key, and legacy incoming 
   only copy is a Drive file that cannot be indexed yet. Indexed documents can be deleted (Firestore entry
   and Storage copy).
 - Gemini overload and rate-limit errors (503/429) are retried with backoff, in indexing and in chat. Failed
-  documents keep the raw error on the document and show a one-line explanation in the panel.
+  documents keep the raw error on the document and show a one-line explanation in the panel. In chat a
+  429 is waited out longer (up to ~18 s, with jitter); if it persists the turn moves, silently and once, to
+  a fallback model (`fallbackModelFor` in `features/settings/models.js`: Flash-Lite, or Flash when Flash-Lite
+  is the one limited). History records `fallbackFrom` on that reply, and `errorDetail` (the technical cause,
+  admins only) on a failed one.
 - **Images** (PNG, JPEG, WebP, GIF, SVG, up to 20 MB) go in the same archive. Gemini reads PNG, JPEG and WebP
   as they are; an SVG is sent as the XML text it is (`indexMimeType: text/plain`, `mimeType` stays
   `image/svg+xml` so it previews and downloads as an image); a GIF cannot be given to Gemini at all, so its

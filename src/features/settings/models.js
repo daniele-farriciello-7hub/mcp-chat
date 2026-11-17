@@ -25,3 +25,12 @@ export const DEFAULT_CHAT_MODEL = 'gemini-3.5-flash';
 
 // indexing runs once per document, so it defaults to the most capable model
 export const DEFAULT_INDEXING_MODEL = 'gemini-3.1-pro-preview';
+
+// When the chat model stays rate-limited after the retries, the turn goes on with this one: the lightest,
+// so the likeliest to have headroom. If that is the model being limited, the next one up takes over.
+export const FALLBACK_CHAT_MODEL = 'gemini-3.5-flash-lite';
+const SECOND_FALLBACK_CHAT_MODEL = 'gemini-3.5-flash';
+
+/** The model to finish a turn with when `modelId` is rate-limited. */
+export const fallbackModelFor = modelId =>
+  modelId === FALLBACK_CHAT_MODEL ? SECOND_FALLBACK_CHAT_MODEL : FALLBACK_CHAT_MODEL;
