@@ -2,8 +2,11 @@
 export function describeModelError(error) {
   const text = String(error?.message || error);
 
+  // A 429 here is Google's Dynamic Shared Quota: the shared capacity for the model was momentarily
+  // full for everyone, not a per-user or per-project limit. The app has already retried and tried a
+  // fallback model by now, so the text must not suggest that "requests were used up".
   if (/quota|RESOURCE_EXHAUSTED|429/i.test(text)) {
-    return 'Ho esaurito le richieste disponibili per ora. Riprova tra qualche minuto.';
+    return 'Il servizio di Google è momentaneamente sovraccarico. Riprova tra qualche minuto.';
   }
   if (/API key|PERMISSION_DENIED|403|not enabled|SERVICE_DISABLED/i.test(text)) {
     return 'Il servizio del modello non risulta abilitato su questo progetto. Serve una verifica di configurazione.';
