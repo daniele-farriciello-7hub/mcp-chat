@@ -33,7 +33,8 @@ export const showChartTool = (limits = DEFAULT_CHART_LIMITS) => ({
         `punti), "donut" per le parti di un totale (una sola serie, max ${limits.donut} fette). ` +
         `Al massimo ${limits.series} serie, tutte con la stessa unità: numeri e importi vanno in due grafici. ` +
         "Se l'operatore chiede colori precisi passali in colors; per cambiare i colori di un grafico già " +
-        'mostrato richiamalo con gli stessi dati e i nuovi colors. ' +
+        'mostrato richiamalo con gli stessi dati e i nuovi colors. Se lo richiami nella stessa risposta con ' +
+        'stesso tipo, titolo ed etichette, il nuovo grafico sostituisce il precedente (utile per correggere un errore). ' +
         'Il grafico compare da solo sopra la tua risposta: nel testo commenta il dato principale, ' +
         'senza ripetere tutti i numeri.',
       parameters: {
@@ -91,6 +92,18 @@ export const showChartTool = (limits = DEFAULT_CHART_LIMITS) => ({
     }
   ]
 });
+
+const normalized = text => String(text).trim().toLowerCase();
+
+/**
+ * What makes two charts "the same chart": type, title and labels. A redraw in the same turn (a typo in
+ * a value, new colours, another unit) keeps all three, so it replaces the earlier one — see
+ * `replaceKey` in `useConversation`. Values, colours and unit are left out on purpose, since those are
+ * what a redraw changes. The type stays in: asked for "a barre e a torta" the model gives both the same
+ * title and labels, and the second must not swallow the first.
+ */
+export const chartReplaceKey = ({ type, title, labels }) =>
+  `chart:${JSON.stringify([type, normalized(title), labels.map(normalized)])}`;
 
 /** One call to `show_chart`. Returns the `{response}` half of a functionResponse. */
 export async function runShowChartCall(
@@ -156,7 +169,13 @@ export async function runShowChartCall(
   const problem = chartProblem(chart, chartLimits);
   if (problem) return fail(problem);
 
-  onActivityEnd(activityId, { outcome: 'done', label: 'Grafico pronto', chart });
+  // only a chart that was drawn carries the key (`fail` never does): a failed retry leaves the earlier one
+  onActivityEnd(activityId, {
+    outcome: 'done',
+    label: 'Grafico pronto',
+    chart,
+    replaceKey: chartReplaceKey(chart)
+  });
   return {
     response: {
       shown: true,

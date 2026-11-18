@@ -158,6 +158,8 @@ export function useConversation({ uid, context, isAdmin = false }) {
       // what this turn did, kept here for the history write at the end: React state is not
       // readable from inside these callbacks without going stale
       const activities = new Map();
+      // `replaceKey` -> id of the latest finished activity of this turn that carries it
+      const latestByReplaceKey = new Map();
       let replyId = null;
       let replyText = '';
 
@@ -191,8 +193,22 @@ export function useConversation({ uid, context, isAdmin = false }) {
         // doesn't set on end (e.g. label, sql) simply keeps its value from the start payload
         onActivityEnd: (rawId, payload) => {
           const id = turn + rawId;
+          // the opposite of `dedupeKey`: a tool that redraws what it already showed in this turn (same
+          // `replaceKey`: a chart corrected or recoloured) replaces it — the earlier card leaves the
+          // chat and is never recorded, the new one keeps its own place. Only a finished call counts, so
+          // a failed retry leaves the earlier one; the map belongs to this turn, so cards of earlier
+          // turns are never touched. (`replaceKey` itself is not a stored field of the history.)
+          let replacedId = null;
+          if (payload.outcome === 'done' && payload.replaceKey) {
+            const earlierId = latestByReplaceKey.get(payload.replaceKey);
+            if (earlierId && earlierId !== id) replacedId = earlierId;
+            latestByReplaceKey.set(payload.replaceKey, id);
+          }
+          if (replacedId) activities.delete(replacedId);
           if (activities.has(id)) activities.set(id, { ...activities.get(id), ...payload });
-          setMessages(current => current.map(m => (m.id === id ? { ...m, ...payload } : m)));
+          setMessages(current =>
+            current.filter(m => m.id !== replacedId).map(m => (m.id === id ? { ...m, ...payload } : m))
+          );
           setStatus('thinking');
         },
         onReplyStart: () => {
