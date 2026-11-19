@@ -142,8 +142,14 @@ goes through `postMessage` with verified origins (`src/shared/embed/hostBridge.j
 
 ## Appearance (light/dark, colours, font size)
 
-Inside 7hub the chat follows 7hub's settings drawer; opened on its own it has an "Aspetto" menu in the header
-(Chiaro / Scuro / Sistema and an accent colour, saved in `localStorage`). The host sends `appearance` in the
+Inside 7hub the chat follows 7hub's settings drawer; opened on its own it has the same drawer, opened by a gear in
+the header (red dot when something is not default): "Modalità" (Chiaro / Scuro, plus Sistema), "Temi coordinati"
+(the gradient of the strip across the top, plus "Sfondo animato"), "Colore principale" (the 12 presets) and "Font"
+(12-20 px), with a reset for each card and "Ripristina tutto". The options and their ids are 7hub's own
+(`src/shared/appearance/palettes.js`, `navGradients.js`, `settingsConfig.js`), so a stored setting and a host
+message mean the same thing. The choice is saved in `localStorage` (`mcp-chat:appearance`:
+`{ mode, primaryColor, navColor, navAnimated, fontSize }`; values saved by the first version of the menu, which
+had an `accent` key, are mapped to the preset with the same colour). The host sends `appearance` in the
 `context` and again, live, in `{ type: 'appearance', appearance }` whenever a setting changes:
 
 ```
@@ -153,11 +159,14 @@ appearance = { version: 1, mode: 'light'|'dark',
                fontSize: 10..24 }                                       // px, 7hub's base is 13
 ```
 
-Every key is optional and validated (`src/shared/appearance/validate.js`): known keys only, hex colours only, no CSS
+or, for any of these, 7hub's ids instead of the resolved values: `primaryColor` (`'default'`, `'preset1'`…`'preset11'`),
+`navColor` (`'default'` or a "Temi coordinati" id) and `navAnimated`. Resolved values win over an id.
+
+Every key is optional and validated (`src/shared/appearance/validate.js`): known keys and ids only, hex colours only, no CSS
 string is ever taken from a message (the gradient is rebuilt from the validated stops). The values are written on
 `<html>` as a `data-theme` attribute and `--accent*` / `--fs-scale` variables (`apply.js`); `globals.css` turns them
 into the design tokens (`bg-panel`, `bg-surface`, `text-ink`, `brand-*`, `text-fs-*`), so components never use a fixed
-white or hex colour and need no `dark:` variants. Embedded, the menu is hidden: the host's settings win.
+white or hex colour and need no `dark:` variants. Embedded, the drawer and its gear are hidden: the host's settings win.
 
 Outgoing messages also carry the legacy Italian `tipo` key, and legacy incoming context is normalised, until
 7hub-revolution with the English protocol is in production (blocks marked `LEGACY` in `hostBridge.js` and

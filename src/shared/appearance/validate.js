@@ -3,7 +3,14 @@
  * coordinated menu theme and font size). The values arrive through postMessage, so nothing is trusted:
  * only known keys survive, colours must be hex, numbers must be in range. Nothing here ever builds CSS
  * from a received string; `gradientCss` rebuilds a gradient from validated hex stops and numbers.
+ *
+ * The host may describe its look in two ways, which can be mixed: with resolved colours (`primary`, `accent`) or with the
+ * ids of its settings drawer (`primaryColor`, `navColor`, `navAnimated`: the same ids the standalone chat stores), which
+ * are looked up in the chat's own copy of 7hub's presets (palettes.js, navGradients.js) and so only known ids count.
+ * Resolved colours win over an id, because they are exactly what the host draws.
  */
+import { isPrimaryColorId, primaryOf } from './palettes';
+import { isNavGradient, navAccent } from './navGradients';
 
 const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -104,12 +111,17 @@ export const sanitizeMode = raw => (MODES.includes(raw) ? raw : null);
 /**
  * The host's `appearance` object, reduced to what the chat understands. Every key is optional: a missing or
  * invalid one is simply left out (the chat keeps its own default for it). Returns null if nothing valid is left.
+ * `primaryColor` / `navColor` (7hub's ids) fill in `primary` / `accent` when the host sends no resolved colours;
+ * `navColor: 'default'` is "no menu theme", the same as `accent: null`.
  */
 export function sanitizeAppearance(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const mode = sanitizeMode(raw.mode);
-  const primary = sanitizePrimary(raw.primary);
-  const accent = sanitizeAccent(raw.accent);
+  const primary =
+    sanitizePrimary(raw.primary) ?? (isPrimaryColorId(raw.primaryColor) ? primaryOf(raw.primaryColor) : null);
+  const accent =
+    sanitizeAccent(raw.accent) ??
+    (isNavGradient(raw.navColor) ? navAccent(raw.navColor, raw.navAnimated) : null);
   const fontSize = sanitizeFontSize(raw.fontSize);
   const result = {
     ...(mode ? { mode } : {}),
