@@ -20,8 +20,8 @@ function Stat({ value, label, tone = 'neutral', active, onClick }) {
         active ? 'bg-brand-50 ring-1 ring-brand-200' : 'bg-surface hover:bg-line/60'
       }`}
     >
-      <div className={`text-[16px] font-bold leading-none ${STAT_TONES[tone]}`}>{value}</div>
-      <div className="mt-1 text-[10px] text-slate-soft">{label}</div>
+      <div className={`text-fs-16 font-bold leading-none ${STAT_TONES[tone]}`}>{value}</div>
+      <div className="mt-1 text-fs-10 text-slate-soft">{label}</div>
     </button>
   );
 }
@@ -34,8 +34,8 @@ export default function ArchiveHeader({ totals, activeView, onSelectView, onUplo
     <div className="rounded-xl border border-line p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-[13px] font-bold text-ink">Archivio documenti</h3>
-          <p className="mt-0.5 text-[11px] leading-snug text-slate-soft">
+          <h3 className="text-fs-13 font-bold text-ink">Archivio documenti</h3>
+          <p className="mt-0.5 text-fs-11 leading-snug text-slate-soft">
             Quello che l’assistente può consultare e mostrarti quando risponde.
           </p>
         </div>

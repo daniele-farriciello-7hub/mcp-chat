@@ -20,7 +20,7 @@ import { formatFileSize } from '@/features/documents/format';
 import FileTypeIcon from '@/features/documents/components/FileTypeIcon';
 import PreviewImage from '@/features/documents/components/PreviewImage';
 
-const CARD_CLASS = 'overflow-hidden rounded-card border border-line bg-white shadow-soft';
+const CARD_CLASS = 'overflow-hidden rounded-card border border-line bg-panel shadow-soft';
 
 /** "PNG · 120 KB": the extension and the size, whichever are known. */
 function fileMeta(file) {
@@ -86,7 +86,7 @@ export default function SharedFileCard({ activity }) {
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface text-slate-soft">
           <FileX size={16} />
         </span>
-        <p className="min-w-0 flex-1 text-[12px] leading-snug text-slate-soft">
+        <p className="min-w-0 flex-1 text-fs-12 leading-snug text-slate-soft">
           <span className="font-semibold text-ink">{documentName || 'Il file'}</span> non è più nell’archivio.
         </p>
       </div>
@@ -131,17 +131,17 @@ export default function SharedFileCard({ activity }) {
       )}
       <div className={`flex items-center gap-2.5 px-3 py-2.5 ${showPreview ? 'border-t border-line' : ''}`}>
         {file ? (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-fg">
             <FileTypeIcon mimeType={file.mimeType} size={16} />
           </span>
         ) : (
           <span className="skeleton h-8 w-8 shrink-0 rounded-lg" aria-hidden />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[12px] font-semibold text-ink" title={name}>
+          <div className="truncate text-fs-12 font-semibold text-ink" title={name}>
             {name || <span className="skeleton inline-block h-2.5 w-28 rounded align-middle" aria-hidden />}
           </div>
-          <div className="text-[11px] text-slate-soft">
+          <div className="text-fs-11 text-slate-soft">
             {file ? (
               fileMeta(file)
             ) : (

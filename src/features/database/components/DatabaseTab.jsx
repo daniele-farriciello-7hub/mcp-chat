@@ -17,23 +17,11 @@ import ModelPicker from '@/features/settings/components/ModelPicker';
 import Slider from '@/shared/ui/Slider';
 import { HELP_TEXT_CLASS } from '@/shared/ui/formStyles';
 import { useConnections } from '../useConnections';
+import { EXPORT_TIMEOUT_STOPS, TIMEOUT_STOPS, formatSeconds } from '../timeoutStops';
 import ConnectionForm from './ConnectionForm';
 import ConnectionRow from './ConnectionRow';
 import HowDatabaseWorks from './HowDatabaseWorks';
-
-// Stops of the two timeout sliders: fine steps while a query is short, wide ones past the minute.
-// The ceiling (600 s) is the server's own: QUERY_MAX_SECONDS and EXPORT_LIMITS in databaseEndpoint.js.
-const TIMEOUT_STOPS = [
-  3, 5, 10, 15, 20, 25, 30, 40, 45, 60, 90, 120, 150, 180, 210, 240, 270, 300, 360, 420, 480, 540, 600
-];
-const EXPORT_TIMEOUT_STOPS = TIMEOUT_STOPS.filter(seconds => seconds >= 10);
-
-/** 45 → "45 s", 150 → "2 min 30 s", 600 → "10 min". */
-function formatSeconds(seconds) {
-  if (seconds < 60) return `${seconds} s`;
-  const rest = seconds % 60;
-  return `${Math.floor(seconds / 60)} min${rest ? ` ${rest} s` : ''}`;
-}
+import NoAiCommandsSection from './NoAiCommandsSection';
 
 function LoadingSkeleton() {
   return (
@@ -45,7 +33,7 @@ function LoadingSkeleton() {
   );
 }
 
-export default function DatabaseTab({ settings, onChange }) {
+export default function DatabaseTab({ settings, onChange, hasUnsavedChanges = false }) {
   const { connections, loadError } = useConnections();
   const [creating, setCreating] = useState(false);
 
@@ -53,8 +41,8 @@ export default function DatabaseTab({ settings, onChange }) {
     <div className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-[13px] font-bold text-ink">Connessioni al database</h3>
-          <p className="mt-0.5 text-[11px] leading-snug text-slate-soft">
+          <h3 className="text-fs-13 font-bold text-ink">Connessioni al database</h3>
+          <p className="mt-0.5 text-fs-11 leading-snug text-slate-soft">
             Dati veri per rispondere con i numeri, non solo con i documenti.
           </p>
         </div>
@@ -65,14 +53,14 @@ export default function DatabaseTab({ settings, onChange }) {
         )}
       </div>
 
-      {loadError && <div className="rounded-xl bg-danger-soft p-3 text-[12px] text-danger">{loadError}</div>}
+      {loadError && <div className="rounded-xl bg-danger-soft p-3 text-fs-12 text-danger">{loadError}</div>}
 
       {creating && <ConnectionForm onSaved={() => setCreating(false)} onCancel={() => setCreating(false)} />}
 
       {!connections && !loadError && <LoadingSkeleton />}
 
       {connections?.length === 0 && !creating && (
-        <p className="rounded-xl bg-surface px-3 py-4 text-center text-[12px] text-slate-soft">
+        <p className="rounded-xl bg-surface px-3 py-4 text-center text-fs-12 text-slate-soft">
           Nessuna connessione ancora. Aggiungine una per far leggere i dati all’assistente.
         </p>
       )}
@@ -210,6 +198,13 @@ export default function DatabaseTab({ settings, onChange }) {
             riuscire.
           </p>
         </Section>
+
+        <NoAiCommandsSection
+          commands={settings.noAiCommands}
+          connections={connections}
+          hasUnsavedChanges={hasUnsavedChanges}
+          onChange={value => onChange('noAiCommands', value)}
+        />
       </div>
     </div>
   );

@@ -5,7 +5,20 @@
  *
  * host → iframe
  *   { type: 'context', user: { firstName, lastName, email }, page: '/dashboard/…', pageTitle,
- *     theme: 'light'|'dark', tools: ['get_context', 'search_records', 'open_page', 'open_record'] }
+ *     theme: 'light'|'dark', appearance, tools: ['get_context', 'search_records', 'open_page', 'open_record'] }
+ *   { type: 'appearance', appearance }    the host's appearance changed (mode, colours, font size): applied live.
+ *                                         `context.appearance` carries the same object at start-up.
+ *                                         appearance = {
+ *                                           version: 1,
+ *                                           mode: 'light'|'dark',
+ *                                           primary: { main, light, dark, contrastText },   // hex colours
+ *                                           accent: { start, stops: [{ color, at }], glow, glowAt: 'top'|'bottom',
+ *                                                     animated } | null,   // the coordinated menu theme (+ tableHeader)
+ *                                           fontSize: 10…24                 // px, the host's base is 13
+ *                                         }
+ *                                         Every key is optional and validated here (shared/appearance/validate.js):
+ *                                         hex colours and known keys only, CSS strings are never used. `theme` stays
+ *                                         for hosts that only know the old field.
  *   { type: 'tool_result', id, ok: true, result } | { type: 'tool_result', id, ok: false, error }
  *   { type: 'ask', text }                 the operator asked from the host (home box, search bar): send it
  *   { type: 'reset' } | { type: 'open_settings' } | { type: 'sign_out' }   the host's header buttons
@@ -102,9 +115,10 @@ const HOST_COMMANDS = new Set(['ask', 'reset', 'open_settings', 'sign_out']);
 
 /**
  * Listens to the host. `onContext(context, origin)` for context, `onCommand(command, origin)` for the host's
- * commands (ask, reset, open_settings, sign_out). Trusted origins only. Returns cleanup.
+ * commands (ask, reset, open_settings, sign_out), `onAppearance(appearance, origin)` for its live appearance
+ * updates (the raw object: the caller validates it). Trusted origins only. Returns cleanup.
  */
-export function listenToHost(onContext, onCommand) {
+export function listenToHost(onContext, onCommand, onAppearance) {
   if (typeof window === 'undefined') return () => {};
 
   const handler = event => {
@@ -112,6 +126,8 @@ export function listenToHost(onContext, onCommand) {
     if (!event.data || typeof event.data !== 'object') return;
     const data = fromLegacyContext(event.data);
     if (data.type === 'context') onContext(data, event.origin);
+    else if (onAppearance && data.type === 'appearance' && event.source === window.parent)
+      onAppearance(data.appearance, event.origin);
     else if (onCommand && event.source === window.parent && HOST_COMMANDS.has(data.type))
       onCommand(data, event.origin);
   };

@@ -33,9 +33,9 @@ export default function ChatPanel({
   // What the operator types (or picks from the suggestions) is told to the host, which can offer something
   // on top of the reply (7Hub: the "Segnala un problema" button). Questions the host itself sends through the
   // handle below are not repeated back to it.
-  const sendFromUser = text => {
+  const sendFromUser = (text, options) => {
     onUserMessage?.(text);
-    return send(text);
+    return send(text, options);
   };
 
   // Embedded in 7Hub, the host's header and entry points (home box, search bar) drive the chat through

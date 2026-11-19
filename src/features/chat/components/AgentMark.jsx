@@ -167,7 +167,7 @@ export function AgentFace({ size = 27, working = false, monochrome = null, cycle
   }, [working]);
 
   const shape = SHAPES[state];
-  // two colours only: the product blue and the logo orange
+  // two colours only: the accent (the product blue, or the host's primary colour) and the logo orange
   const ink = monochrome ?? 'var(--color-brand-600)';
   const tint = monochrome ?? 'var(--color-brand-400)';
   const accent = monochrome ?? 'var(--color-accent)';
@@ -221,8 +221,8 @@ export function AgentFace({ size = 27, working = false, monochrome = null, cycle
 }
 
 /**
- * The mark on its tile. `filled`: the blue→violet gradient tile with a white mark, same as the
- * floating button that opens the chat. Otherwise a white tile with the coloured mark; `ring`
+ * The mark on its tile. `filled`: the accent gradient tile (blue→violet by default) with a mark in the accent's
+ * contrast colour, same as the floating button that opens the chat. Otherwise a panel-coloured tile with the coloured mark; `ring`
  * ('subtle' | 'strong') warms its border.
  */
 export default function AgentMark({
@@ -244,22 +244,22 @@ export default function AgentMark({
           height: tile,
           borderRadius: Math.round(tile * 0.3),
           background: 'var(--gradient-ai)',
-          boxShadow: '0 2px 10px -2px rgb(111 60 224 / 0.45)'
+          boxShadow: '0 2px 10px -2px color-mix(in srgb, var(--accent-end) 45%, transparent)'
         }}
       >
-        <AgentFace size={size} working={working} monochrome="#fff" />
+        <AgentFace size={size} working={working} monochrome="var(--accent-contrast)" />
       </span>
     );
   }
 
   return (
     <span
-      className={`inline-flex aspect-square shrink-0 items-center justify-center bg-white ${className}`}
+      className={`inline-flex aspect-square shrink-0 items-center justify-center bg-panel ${className}`}
       style={{
         width: tile,
         height: tile,
         borderRadius: Math.round(tile * 0.3),
-        boxShadow: `0 0 0 1px rgb(62 151 255 / 0.20), 0 0 ${Math.round(tile * 0.28)}px rgb(62 151 255 / ${glow})`
+        boxShadow: `0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent), 0 0 ${Math.round(tile * 0.28)}px color-mix(in srgb, var(--accent) ${Math.round(glow * 100)}%, transparent)`
       }}
     >
       <AgentFace size={size} working={working} />

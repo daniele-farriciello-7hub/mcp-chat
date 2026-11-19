@@ -21,7 +21,7 @@ export function DayBars({ series }) {
   return (
     <div className="relative">
       {empty && (
-        <p className="absolute inset-x-0 top-12 text-center text-[12px] text-slate-soft">
+        <p className="absolute inset-x-0 top-12 text-center text-fs-12 text-slate-soft">
           Nessuna domanda nel periodo.
         </p>
       )}
@@ -44,7 +44,7 @@ export function DayBars({ series }) {
           </div>
         ))}
       </div>
-      <div className="mt-1 flex gap-0.5 text-[10px] text-slate-soft">
+      <div className="mt-1 flex gap-0.5 text-fs-10 text-slate-soft">
         {series.map((d, i) => (
           <span key={d.day} className="flex-1 truncate text-center">
             {i % labelEvery === 0 ? formatDay(d.day) : ''}
@@ -53,7 +53,7 @@ export function DayBars({ series }) {
       </div>
       {hover !== null && !empty && (
         <div
-          className="pointer-events-none absolute -top-2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg bg-ink px-2 py-1 text-[11px] text-white shadow-soft"
+          className="pointer-events-none absolute -top-2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg bg-ink px-2 py-1 text-fs-11 text-panel shadow-soft"
           style={{ left: `${((hover + 0.5) / series.length) * 100}%` }}
         >
           {formatDay(series[hover].day)} · <b>{series[hover].value}</b> domande
@@ -66,12 +66,12 @@ export function DayBars({ series }) {
 /** Ranked horizontal bars with the value at the end of each; nothing to show → one quiet line. */
 export function BarList({ items, emptyText = 'Nessun dato nel periodo.' }) {
   const max = Math.max(1, ...items.map(i => i.value));
-  if (!items.some(i => i.value > 0)) return <p className="text-[12px] text-slate-soft">{emptyText}</p>;
+  if (!items.some(i => i.value > 0)) return <p className="text-fs-12 text-slate-soft">{emptyText}</p>;
   return (
     <ul className="flex flex-col gap-2">
       {items.map(item => (
         <li key={item.label} className="group" title={`${item.label}: ${item.value}`}>
-          <div className="mb-0.5 flex items-baseline justify-between gap-2 text-[12px]">
+          <div className="mb-0.5 flex items-baseline justify-between gap-2 text-fs-12">
             <span className="min-w-0 truncate text-ink">{item.label}</span>
             <span className="shrink-0 font-semibold tabular-nums text-ink">
               {item.value.toLocaleString('it-IT')}
@@ -79,7 +79,7 @@ export function BarList({ items, emptyText = 'Nessun dato nel periodo.' }) {
           </div>
           <div className="h-2 rounded-full bg-surface">
             <div
-              className="h-2 rounded-full bg-brand-500 transition-colors group-hover:bg-brand-600"
+              className="h-2 rounded-full bg-brand-500 transition-colors group-hover:bg-brand-hover"
               style={{ width: `${(item.value / max) * 100}%` }}
             />
           </div>

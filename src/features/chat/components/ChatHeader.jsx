@@ -1,4 +1,5 @@
 import { LogOut, RotateCcw, Settings, X } from 'lucide-react';
+import AppearanceMenu from '@/shared/appearance/AppearanceMenu';
 import Tooltip from '@/shared/ui/Tooltip';
 import AgentMark from './AgentMark';
 
@@ -38,10 +39,12 @@ export default function ChatHeader({
 }) {
   const busy = status !== 'idle';
   return (
-    <div className="relative z-10 flex items-center gap-3 border-b border-line bg-white/90 px-4 py-3 backdrop-blur">
+    // z-20, above the z-10 of the welcome cards and the composer: the Aspetto panel (and the button tooltips) hang
+    // below the header over the conversation and must not be painted under them
+    <div className="relative z-20 flex items-center gap-3 border-b border-line bg-panel/90 px-4 py-3 backdrop-blur">
       <AgentMark size={26} working={busy} filled />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[15px] font-bold leading-tight text-ink">Assistente 7hub</div>
+        <div className="truncate text-fs-15 font-bold leading-tight text-ink">Assistente 7hub</div>
         <div className="flex items-center gap-1.5">
           <span
             className={`h-2 w-2 rounded-full transition-colors ${busy ? 'animate-pulse bg-brand-500' : 'bg-ok'}`}
@@ -49,12 +52,14 @@ export default function ChatHeader({
           <span className="text-xs text-slate-soft">{STATUS_LABELS[status]}</span>
         </div>
         {email && (
-          <div className="truncate text-[11px] text-slate-soft" title={email}>
+          <div className="truncate text-fs-11 text-slate-soft" title={email}>
             {email}
           </div>
         )}
       </div>
 
+      {/* standalone only: embedded, 7hub's own appearance settings apply */}
+      <AppearanceMenu />
       {onOpenSettings && (
         <HeaderButton onClick={onOpenSettings} label={settingsLabel}>
           <Settings size={18} />

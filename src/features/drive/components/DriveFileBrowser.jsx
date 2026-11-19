@@ -17,7 +17,7 @@ import {
 import { plural } from '../plural';
 import DriveLinkButton from './DriveLinkButton';
 
-const PILL = 'shrink-0 rounded-pill px-2 py-0.5 text-[10px] font-semibold';
+const PILL = 'shrink-0 rounded-pill px-2 py-0.5 text-fs-10 font-semibold';
 
 /** Where a PDF stands: indexed, waiting (or being indexed by the sync running right now) or failed. */
 function IndexingPill({ document, syncing }) {
@@ -61,7 +61,7 @@ function Summary({ counts, syncing }) {
   ].filter(([count]) => count > 0);
 
   return (
-    <p className="text-[11px] leading-snug text-slate-soft">
+    <p className="text-fs-11 leading-snug text-slate-soft">
       {parts.map(([count, one, many, tone], index) => (
         <span key={one}>
           {index > 0 && ' · '}
@@ -76,7 +76,7 @@ function Summary({ counts, syncing }) {
 function Breadcrumb({ rootName, path, onGo }) {
   const crumbs = [rootName, ...path];
   return (
-    <nav aria-label="Percorso" className="flex flex-wrap items-center gap-y-0.5 text-[12px]">
+    <nav aria-label="Percorso" className="flex flex-wrap items-center gap-y-0.5 text-fs-12">
       {crumbs.map((name, depth) => {
         const current = depth === crumbs.length - 1;
         return (
@@ -89,13 +89,13 @@ function Breadcrumb({ rootName, path, onGo }) {
               aria-current={current ? 'page' : undefined}
               title={name}
               className={`flex min-w-0 max-w-[12rem] items-center gap-1 rounded-lg px-1.5 py-0.5 transition ${
-                current ? 'font-semibold text-ink' : 'text-slate-soft hover:bg-white hover:text-ink'
+                current ? 'font-semibold text-ink' : 'text-slate-soft hover:bg-panel hover:text-ink'
               }`}
             >
               {depth === 0 && (
                 <Folder
                   size={12}
-                  className="shrink-0 text-brand-500"
+                  className="shrink-0 text-brand-fg"
                   fill="currentColor"
                   fillOpacity={0.18}
                   aria-hidden
@@ -119,16 +119,16 @@ function FolderRow({ folder, syncing, onOpen }) {
     >
       <Folder
         size={16}
-        className="shrink-0 text-brand-500"
+        className="shrink-0 text-brand-fg"
         fill="currentColor"
         fillOpacity={0.18}
         aria-hidden
       />
       <span className="min-w-0 flex-1">
-        <span title={folder.name} className="block truncate text-[13px] font-medium text-ink">
+        <span title={folder.name} className="block truncate text-fs-13 font-medium text-ink">
           {folder.name}
         </span>
-        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-soft">
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-fs-10 text-slate-soft">
           {plural(folder.total, 'PDF', 'PDF')}
           {folder.failed > 0 ? (
             <span className={`${PILL} bg-danger-soft text-danger`}>{folder.failed} con errore</span>
@@ -150,14 +150,14 @@ function FileRow({ document, syncing }) {
   const size = formatFileSize(document.sizeBytes);
   return (
     <div className="flex items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-surface/60">
-      <FileTypeIcon mimeType={document.mimeType} size={16} className="shrink-0 text-brand-500" />
+      <FileTypeIcon mimeType={document.mimeType} size={16} className="shrink-0 text-brand-fg" />
       <div className="min-w-0 flex-1">
-        <div title={document.name} className="truncate text-[13px] font-medium text-ink">
+        <div title={document.name} className="truncate text-fs-13 font-medium text-ink">
           {document.name}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <IndexingPill document={document} syncing={syncing} />
-          {size && <span className="text-[10px] text-slate-soft">{size}</span>}
+          {size && <span className="text-fs-10 text-slate-soft">{size}</span>}
         </div>
       </div>
       <div className="flex shrink-0 items-center">

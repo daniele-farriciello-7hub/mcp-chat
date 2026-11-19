@@ -14,15 +14,20 @@ import ChoiceCard from '@/features/chat/components/ChoiceCard';
 import FileChoiceCard from '@/features/chat/components/FileChoiceCard';
 import SharedFileCard from '@/features/chat/components/SharedFileCard';
 import ChatChart from '@/features/charts/ChatChart';
+import { commandReplyLabel } from '@/features/chat/commands/matchCommand';
 import { loadTranscript, toUiMessage } from '../historyApi';
 import { SkeletonConversation } from '@/shared/ui/Skeleton';
 
 function ReplyMeta({ message }) {
+  // a command without AI's reply (`model: 'comando'`, the command's name in `command`): the server ran a
+  // query and the chat wrote the answer, so there is no model to name and no tokens to count
+  const command = commandReplyLabel(message);
   const parts = [
-    message.model,
+    command ?? message.model,
     // a rate limit made the turn leave the model the operator had chosen
     message.fallbackFrom && `riserva al posto di ${message.fallbackFrom}`,
-    message.usage &&
+    !command &&
+      message.usage &&
       `${(message.usage.input + message.usage.output + message.usage.thinking).toLocaleString('it-IT')} token`,
     message.durationMs != null && `${(message.durationMs / 1000).toFixed(1)} s`,
     message.error && 'errore'
@@ -30,7 +35,7 @@ function ReplyMeta({ message }) {
   const detail = message.error ? message.errorDetail : null;
   if (!parts.length && !detail) return null;
   return (
-    <div className="ml-9 flex flex-col gap-0.5 text-[10px]">
+    <div className="ml-9 flex flex-col gap-0.5 text-fs-10">
       {parts.length > 0 && <div className="text-slate-soft">{parts.join(' · ')}</div>}
       {detail && (
         <div className="line-clamp-3 break-words text-danger" title={detail}>
@@ -52,7 +57,7 @@ const noop = () => {};
 function FailedCall({ activity }) {
   const { label, databaseLabel, errorDetail, sql } = activity;
   return (
-    <div className="flex flex-col gap-0.5 text-[10px]">
+    <div className="flex flex-col gap-0.5 text-fs-10">
       <div className="text-slate-soft">{[label, databaseLabel].filter(Boolean).join(' · ')}</div>
       {errorDetail && (
         <div className="line-clamp-3 break-words text-danger" title={errorDetail}>
@@ -64,7 +69,7 @@ function FailedCall({ activity }) {
           <summary className="w-fit cursor-pointer select-none text-slate-soft hover:text-brand-600">
             SQL
           </summary>
-          <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface px-2 py-1.5 font-mono text-[10px] text-ink">
+          <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-surface px-2 py-1.5 font-mono text-fs-10 text-ink">
             {sql}
           </pre>
         </details>
@@ -122,22 +127,22 @@ export default function ConversationDetail({ conversation, onBack }) {
       <button
         type="button"
         onClick={onBack}
-        className="flex w-fit items-center gap-1 text-[12px] font-semibold text-brand-600 hover:underline"
+        className="flex w-fit items-center gap-1 text-fs-12 font-semibold text-brand-600 hover:underline"
       >
         <ArrowLeft size={14} /> Torna allo storico
       </button>
       <div>
-        <div className="text-[14px] font-bold text-ink">{conversation.userName || conversation.email}</div>
-        <div className="text-[11px] text-slate-soft">
+        <div className="text-fs-14 font-bold text-ink">{conversation.userName || conversation.email}</div>
+        <div className="text-fs-11 text-slate-soft">
           {started?.toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' })}
           {conversation.page && ` · pagina ${conversation.page}`}
           {` · ${conversation.userMessages || 0} domande`}
         </div>
       </div>
 
-      {error && <p className="text-[12px] text-danger">Non riesco a leggere questa conversazione.</p>}
+      {error && <p className="text-fs-12 text-danger">Non riesco a leggere questa conversazione.</p>}
       {!messages && !error && <SkeletonConversation />}
-      {messages?.length === 0 && <p className="text-[12px] text-slate-soft">Nessun messaggio salvato.</p>}
+      {messages?.length === 0 && <p className="text-fs-12 text-slate-soft">Nessun messaggio salvato.</p>}
       <div className="flex flex-col gap-3">
         {visible?.map(({ m, card }) =>
           card ? (

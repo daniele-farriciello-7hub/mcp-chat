@@ -18,8 +18,8 @@ export default function Slider({ label, reading, min, max, step, stops, value, r
   return (
     <div>
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
-        <span className="text-[12px] font-semibold text-ink">{label}</span>
-        <span className="rounded-pill bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-600">
+        <span className="text-fs-12 font-semibold text-ink">{label}</span>
+        <span className="rounded-pill bg-brand-50 px-2 py-0.5 text-fs-11 font-semibold text-brand-600">
           {reading}
         </span>
       </div>
@@ -34,7 +34,7 @@ export default function Slider({ label, reading, min, max, step, stops, value, r
         style={{ '--range-fill': fill }}
         className="w-full"
       />
-      <div className="mt-0.5 flex justify-between text-[10px] text-slate-soft">
+      <div className="mt-0.5 flex justify-between text-fs-10 text-slate-soft">
         <span>{rangeLabels[0]}</span>
         <span>{rangeLabels[1]}</span>
       </div>

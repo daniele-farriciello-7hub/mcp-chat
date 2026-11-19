@@ -18,8 +18,8 @@ export default function SegmentedControl({ options, value, onChange, ariaLabel }
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(option.id)}
-            className={`flex-1 rounded-[10px] px-3 py-1.5 text-[12px] font-semibold transition ${
-              selected ? 'bg-white text-brand-600 shadow-soft' : 'text-slate-soft hover:text-ink'
+            className={`flex-1 rounded-[10px] px-3 py-1.5 text-fs-12 font-semibold transition ${
+              selected ? 'bg-panel text-brand-600 shadow-soft' : 'text-slate-soft hover:text-ink'
             }`}
           >
             {option.name}

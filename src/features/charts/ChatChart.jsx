@@ -15,9 +15,22 @@ import { downloadXlsx, slugify } from '@/shared/xlsx';
 import { OTHER_COLOR, colorOf, foldSlices, formatValue, niceTicks } from './chartData';
 
 const HEIGHT = 240;
-const INK = '#16233f';
-const MUTED = '#51607a';
-const GRID = '#e3e8f0';
+// Colours are CSS variables (globals.css), so the drawn chart follows light/dark; the PNG/JPG export swaps
+// them for the light values below (a detached SVG image cannot read the page's variables).
+const INK = 'var(--chart-ink)';
+const MUTED = 'var(--chart-muted)';
+const GRID = 'var(--chart-grid)';
+const AXIS = 'var(--chart-axis)';
+const HALO = 'var(--chart-halo)';
+const LIGHT_VALUES = {
+  '--chart-ink': '#16233f',
+  '--chart-muted': '#51607a',
+  '--chart-grid': '#e3e8f0',
+  '--chart-axis': '#c9d2df',
+  '--chart-halo': '#ffffff',
+  '--chart-tip-bg': '#16233f',
+  '--chart-tip-fg': '#ffffff'
+};
 const FONT = 'Inter, system-ui, sans-serif';
 
 function useWidth() {
@@ -46,7 +59,7 @@ function Tooltip({ x, y, width, lines }) {
         width={boxWidth}
         height={lines.length * 18 + 10}
         rx={8}
-        fill={INK}
+        fill="var(--chart-tip-bg)"
         opacity={0.94}
       />
       {lines.map((line, i) => (
@@ -57,7 +70,7 @@ function Tooltip({ x, y, width, lines }) {
           <text
             x={left + (line.color ? 24 : 10)}
             y={top + 17 + i * 18}
-            fill="#fff"
+            fill="var(--chart-tip-fg)"
             fontSize={11}
             fontWeight={line.bold ? 600 : 400}
           >
@@ -119,7 +132,7 @@ function CartesianChart({ chart, width }) {
             x2={width - right}
             y1={y(t)}
             y2={y(t)}
-            stroke={t === 0 ? '#c9d2df' : GRID}
+            stroke={t === 0 ? AXIS : GRID}
             strokeWidth={1}
           />
           <text x={left - 8} y={y(t) + 4} textAnchor="end" fontSize={10} fill={MUTED}>
@@ -189,7 +202,7 @@ function CartesianChart({ chart, width }) {
                   cy={y(s.values[hover])}
                   r={4.5}
                   fill={colorOf(chart, s.name, k)}
-                  stroke="#fff"
+                  stroke={HALO}
                   strokeWidth={2}
                 />
               )}
@@ -203,7 +216,7 @@ function CartesianChart({ chart, width }) {
           x2={left + band * (hover + 0.5)}
           y1={top}
           y2={top + plotHeight}
-          stroke="#c9d2df"
+          stroke={AXIS}
           strokeDasharray="3 3"
         />
       )}
@@ -301,7 +314,10 @@ async function saveImage(svg, title, format) {
   const ratio = 2;
   const { width, height } = svg.getBoundingClientRect();
   const titleHeight = 36;
-  const markup = new XMLSerializer().serializeToString(svg);
+  const markup = Object.entries(LIGHT_VALUES).reduce(
+    (text, [name, value]) => text.replaceAll(`var(${name})`, value),
+    new XMLSerializer().serializeToString(svg)
+  );
   const image = new Image();
   image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
   await image.decode();
@@ -312,7 +328,7 @@ async function saveImage(svg, title, format) {
   ctx.scale(ratio, ratio);
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, width + 32, height + titleHeight + 24);
-  ctx.fillStyle = INK;
+  ctx.fillStyle = LIGHT_VALUES['--chart-ink'];
   ctx.font = `600 14px ${FONT}`;
   ctx.fillText(title, 16, 26);
   ctx.drawImage(image, 16, titleHeight, width, height);
@@ -329,7 +345,7 @@ async function saveImage(svg, title, format) {
 }
 
 const ACTION_CLASS =
-  'flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-slate-soft transition hover:bg-surface hover:text-brand-600';
+  'flex items-center gap-1 rounded-lg px-2 py-1 text-fs-11 font-medium text-slate-soft transition hover:bg-surface hover:text-brand-600';
 
 export default function ChatChart({ chart }) {
   const [wrapperRef, width] = useWidth();
@@ -368,14 +384,14 @@ export default function ChatChart({ chart }) {
 
   return (
     <figure
-      className="rounded-card border border-line bg-white px-3.5 py-3 shadow-soft"
+      className="rounded-card border border-line bg-panel px-3.5 py-3 shadow-soft"
       style={{ animation: 'var(--animate-fade-up)' }}
     >
-      <figcaption className="text-[13px] font-semibold text-ink">{title}</figcaption>
+      <figcaption className="text-fs-13 font-semibold text-ink">{title}</figcaption>
       {multi && type !== 'donut' && (
         <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
           {series.map((s, i) => (
-            <span key={s.name} className="flex items-center gap-1.5 text-[11px] text-slate-soft">
+            <span key={s.name} className="flex items-center gap-1.5 text-fs-11 text-slate-soft">
               <span className="h-2.5 w-2.5 rounded-sm" style={{ background: colorOf(chart, s.name, i) }} />
               {s.name}
             </span>
@@ -396,7 +412,7 @@ export default function ChatChart({ chart }) {
 
       {showTable && (
         <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-line">
-          <table className="w-full text-left text-[11px]">
+          <table className="w-full text-left text-fs-11">
             <thead className="sticky top-0 bg-surface text-slate-soft">
               <tr>
                 <th className="px-2.5 py-1.5 font-semibold" />

@@ -69,10 +69,10 @@ export default function PromptAttachments({ value, onChange }) {
           key={f.name}
           className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2"
         >
-          <div className="flex min-w-0 items-center gap-2 text-[12px] text-ink">
-            <FileText size={14} className="shrink-0 text-brand-500" />
+          <div className="flex min-w-0 items-center gap-2 text-fs-12 text-ink">
+            <FileText size={14} className="shrink-0 text-brand-fg" />
             <span className="truncate font-medium">{f.name}</span>
-            <span className="shrink-0 text-[10px] text-slate-soft">{fmt(f.content.length)} caratteri</span>
+            <span className="shrink-0 text-fs-10 text-slate-soft">{fmt(f.content.length)} caratteri</span>
           </div>
           <button
             type="button"
@@ -105,12 +105,12 @@ export default function PromptAttachments({ value, onChange }) {
           }}
         />
         {files.length > 0 && (
-          <span className="ml-2 text-[10px] text-slate-soft">
+          <span className="ml-2 text-fs-10 text-slate-soft">
             {fmt(totalChars)} / {fmt(MAX_TOTAL_CHARS)} caratteri totali · scrivi “@” nel testo qui sopra per
             richiamarli
           </span>
         )}
-        {error && <p className="mt-1 text-[11px] text-danger">{error}</p>}
+        {error && <p className="mt-1 text-fs-11 text-danger">{error}</p>}
       </div>
     </div>
   );

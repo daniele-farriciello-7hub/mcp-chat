@@ -145,7 +145,7 @@ export default function ImageDescriptionField({
   return (
     <div className="min-w-0 flex-1">
       {showLabel && (
-        <span className="mb-1 block text-[11px] font-semibold text-ink">
+        <span className="mb-1 block text-fs-11 font-semibold text-ink">
           Descrivi l’immagine{' '}
           <span className={`font-normal ${empty ? 'text-warn' : 'text-slate-soft'}`}>· obbligatoria</span>
         </span>
@@ -167,11 +167,11 @@ export default function ImageDescriptionField({
         }}
         placeholder="Es. Logo WeUnit, versione bianca su sfondo trasparente"
         aria-label={`Descrizione di ${document.name}`}
-        className={`w-full resize-none rounded-lg border px-2.5 py-1.5 text-[12px] leading-snug text-ink outline-none transition placeholder:text-slate-soft/70 focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-100 ${
-          empty ? 'border-accent/70 bg-accent-soft/60' : 'border-line bg-white'
+        className={`w-full resize-none rounded-lg border px-2.5 py-1.5 text-fs-12 leading-snug text-ink outline-none transition placeholder:text-slate-soft/70 focus:border-brand-300 focus:bg-panel focus:ring-2 focus:ring-brand-100 ${
+          empty ? 'border-accent/70 bg-accent-soft/60' : 'border-line bg-panel'
         }`}
       />
-      <div className="mt-1 min-h-3.5 text-[10px] leading-snug">
+      <div className="mt-1 min-h-3.5 text-fs-10 leading-snug">
         <FieldStatus
           status={status}
           empty={empty}

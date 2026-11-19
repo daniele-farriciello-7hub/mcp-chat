@@ -40,8 +40,8 @@ export default function ChatInput({ busy, onSend, ref }) {
   const voiceLabel = voice.listening ? 'Ferma la dettatura' : 'Detta il messaggio';
 
   return (
-    <div className="relative z-10 border-t border-line bg-white px-3 py-3">
-      <div className="flex items-end gap-1 rounded-[22px] border border-line bg-surface px-2 py-1.5 transition focus-within:border-brand-500 focus-within:bg-white focus-within:ring-[3px] focus-within:ring-brand-500/15">
+    <div className="relative z-10 border-t border-line bg-panel px-3 py-3">
+      <div className="flex items-end gap-1 rounded-[22px] border border-line bg-surface px-2 py-1.5 transition focus-within:border-brand-500 focus-within:bg-panel focus-within:ring-[3px] focus-within:ring-brand-500/15">
         {voice.supported && (
           <Tooltip label={voiceLabel} side="top" align="left">
             <button
@@ -51,7 +51,7 @@ export default function ChatInput({ busy, onSend, ref }) {
               className={`rounded-lg p-2 transition ${
                 voice.listening
                   ? 'animate-pulse bg-brand-50 text-brand-600'
-                  : 'text-slate-soft hover:bg-white hover:text-ink'
+                  : 'text-slate-soft hover:bg-panel hover:text-ink'
               }`}
             >
               {voice.listening ? <Square size={16} strokeWidth={2.5} /> : <Mic size={18} />}
@@ -75,7 +75,7 @@ export default function ChatInput({ busy, onSend, ref }) {
               send();
             }
           }}
-          className="max-h-[120px] min-h-[26px] flex-1 resize-none self-center bg-transparent px-1 py-1 text-[13px] leading-relaxed text-ink outline-none placeholder:text-slate-soft/70"
+          className="max-h-[120px] min-h-[26px] flex-1 resize-none self-center bg-transparent px-1 py-1 text-fs-13 leading-relaxed text-ink outline-none placeholder:text-slate-soft/70"
         />
 
         <Tooltip label="Invia (Invio)" side="top" align="right">
@@ -86,7 +86,7 @@ export default function ChatInput({ busy, onSend, ref }) {
             aria-label="Invia messaggio"
             className={`mb-0.5 flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
               canSend
-                ? 'scale-100 bg-brand-500 text-white hover:bg-brand-600'
+                ? 'scale-100 bg-brand-500 text-on-brand hover:bg-brand-hover'
                 : 'scale-95 bg-line text-slate-soft/60'
             }`}
           >

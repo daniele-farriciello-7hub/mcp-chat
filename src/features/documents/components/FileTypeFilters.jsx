@@ -11,7 +11,7 @@ export default function FileTypeFilters({ activeType, countByType, onChange }) {
           key={type.id}
           type="button"
           onClick={() => onChange(type.id)}
-          className={`rounded-pill border px-2.5 py-1 text-[11px] font-medium transition ${
+          className={`rounded-pill border px-2.5 py-1 text-fs-11 font-medium transition ${
             activeType === type.id
               ? 'border-brand-300 bg-brand-50 text-brand-600'
               : 'border-line text-slate-soft hover:text-ink'

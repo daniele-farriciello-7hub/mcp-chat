@@ -43,21 +43,21 @@ function OptionRow({ option }) {
     >
       {option.badge && (
         <span
-          className={`shrink-0 rounded-pill px-2 py-0.5 text-[11px] font-semibold ${badgeClass(option.badge)}`}
+          className={`shrink-0 rounded-pill px-2 py-0.5 text-fs-11 font-semibold ${badgeClass(option.badge)}`}
         >
           {option.badge}
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-semibold text-ink">{option.title}</span>
+        <span className="block truncate text-fs-13 font-semibold text-ink">{option.title}</span>
         {(option.detail || option.disabled) && (
-          <span className="block truncate text-[11px] text-slate-soft">
+          <span className="block truncate text-fs-11 text-slate-soft">
             {option.disabled ? 'Non hai i permessi per aprirlo' : option.detail}
           </span>
         )}
       </span>
       <span
-        className={`flex shrink-0 items-center gap-1 text-[12px] font-semibold ${
+        className={`flex shrink-0 items-center gap-1 text-fs-12 font-semibold ${
           opened ? 'text-ok' : state === 'failed' ? 'text-danger' : 'text-brand-600'
         }`}
       >
@@ -86,12 +86,12 @@ function OptionRow({ option }) {
 export default function OptionsCard({ activity }) {
   return (
     <div
-      className="overflow-hidden rounded-card border border-line bg-white shadow-soft"
+      className="overflow-hidden rounded-card border border-line bg-panel shadow-soft"
       style={{ animation: 'var(--animate-fade-up)' }}
       role="list"
       aria-label={activity.label}
     >
-      <div className="border-b border-line bg-surface px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-soft">
+      <div className="border-b border-line bg-surface px-3 py-1.5 text-fs-11 font-semibold uppercase tracking-[0.08em] text-slate-soft">
         {activity.label}
       </div>
       {activity.options.map(option => (

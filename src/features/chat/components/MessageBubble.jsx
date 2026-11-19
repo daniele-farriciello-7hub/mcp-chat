@@ -10,7 +10,7 @@ export default function MessageBubble({ message, streaming, onNavigate }) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end" style={{ animation: 'var(--animate-fade-up)' }}>
-        <div className="max-w-[85%] rounded-bubble rounded-tr-sm bg-brand-500 px-3.5 py-2 text-[13px] font-medium leading-relaxed text-white">
+        <div className="max-w-[85%] rounded-bubble rounded-tr-sm bg-brand-500 px-3.5 py-2 text-fs-13 font-medium leading-relaxed text-on-brand">
           <span className="whitespace-pre-wrap break-words">{message.text}</span>
         </div>
       </div>
@@ -24,7 +24,7 @@ export default function MessageBubble({ message, streaming, onNavigate }) {
       </span>
 
       <div className="min-w-0 flex-1 pt-0.5">
-        <div className="text-[13px] leading-relaxed text-ink">
+        <div className="text-fs-13 leading-relaxed text-ink">
           <div className="break-words">
             {renderMarkdownLite(
               message.text,

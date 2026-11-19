@@ -20,12 +20,14 @@ function serializeCell(value) {
 /**
  * @param {object[]} rows
  * @param {number} maxRows already-applied row cap, only used to say whether it was hit
+ * @param {number} [maxChars] budget for the serialized rows: the default suits what goes to the model; a
+ *   caller whose rows go to the browser and not through the model (the erogato command) raises it
  * @returns {{columns: string[], rows: object[], rowCount: number, truncated: boolean}}
  */
-export function serializeRows(rows, { maxRows }) {
+export function serializeRows(rows, { maxRows, maxChars = MAX_TOTAL_CHARS }) {
   const columns = rows.length ? Object.keys(rows[0]) : [];
   const serialized = [];
-  let charBudget = MAX_TOTAL_CHARS;
+  let charBudget = maxChars;
   let truncated = rows.length >= maxRows;
 
   for (const row of rows) {

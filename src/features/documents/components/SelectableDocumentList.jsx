@@ -108,7 +108,7 @@ export default function SelectableDocumentList({ mode, documents, typed, filters
   return (
     <div className="rounded-xl border border-line">
       {documents.length === 0 ? (
-        <p className="px-3 py-8 text-center text-[12px] text-slate-soft">
+        <p className="px-3 py-8 text-center text-fs-12 text-slate-soft">
           {filtersActive ? 'Nessun documento corrisponde alla ricerca.' : copy.empty}
         </p>
       ) : (
@@ -122,13 +122,13 @@ export default function SelectableDocumentList({ mode, documents, typed, filters
               className="h-4 w-4 accent-brand-500"
               aria-label="Seleziona tutti"
             />
-            <span className="text-[11px] font-medium text-slate-soft">
+            <span className="text-fs-11 font-medium text-slate-soft">
               Seleziona tutti ({selectable.length})
             </span>
           </label>
 
           {actionError && (
-            <p className="border-b border-line bg-danger-soft px-3 py-2 text-[11px] text-danger">
+            <p className="border-b border-line bg-danger-soft px-3 py-2 text-fs-11 text-danger">
               {actionError}
             </p>
           )}
@@ -137,7 +137,7 @@ export default function SelectableDocumentList({ mode, documents, typed, filters
 
           {blocked.length > 0 && (
             <>
-              <div className="border-y border-line bg-surface px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-soft">
+              <div className="border-y border-line bg-surface px-3 py-1.5 text-fs-10 font-semibold uppercase tracking-[0.08em] text-slate-soft">
                 Non indicizzabili per ora ({blocked.length})
               </div>
               <div className="divide-y divide-line">{blocked.map(renderRow)}</div>

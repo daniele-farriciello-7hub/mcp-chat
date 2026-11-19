@@ -35,7 +35,7 @@ function DeleteButton({ connection }) {
               setConfirming(false);
             }
           }}
-          className="rounded-lg bg-danger px-2 py-1 text-[11px] font-semibold text-white transition hover:opacity-90"
+          className="rounded-lg bg-danger px-2 py-1 text-fs-11 font-semibold text-white transition hover:opacity-90"
         >
           Elimina
         </button>
@@ -45,7 +45,7 @@ function DeleteButton({ connection }) {
             stopEvent(event);
             setConfirming(false);
           }}
-          className="rounded-lg px-1.5 py-1 text-[11px] text-slate-soft transition hover:text-ink"
+          className="rounded-lg px-1.5 py-1 text-fs-11 text-slate-soft transition hover:text-ink"
         >
           Annulla
         </button>
@@ -84,8 +84,8 @@ export default function ConnectionRow({ connection }) {
     <div className="rounded-xl border border-line p-3">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold text-ink">{connection.label}</div>
-          <div className="truncate text-[11px] text-slate-soft">
+          <div className="text-fs-13 font-semibold text-ink">{connection.label}</div>
+          <div className="truncate text-fs-11 text-slate-soft">
             {connection.user}@{connection.host}:{connection.port} · {connection.database}
           </div>
         </div>

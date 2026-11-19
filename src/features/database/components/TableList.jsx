@@ -43,18 +43,18 @@ function TableRow({ connectionId, allowSampling, table }) {
           aria-label={`Attiva ${table.name}`}
         />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[12px] font-semibold text-ink">
+          <div className="flex items-center gap-1.5 text-fs-12 font-semibold text-ink">
             <span className="truncate">{table.name}</span>
             {table.kind === 'view' && (
-              <span className="shrink-0 rounded-pill bg-line px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-soft">
+              <span className="shrink-0 rounded-pill bg-line px-1.5 py-0.5 text-fs-9 font-bold uppercase text-slate-soft">
                 Vista
               </span>
             )}
             {table.removed && (
-              <span className="shrink-0 text-[10px] font-normal text-danger">non esiste più</span>
+              <span className="shrink-0 text-fs-10 font-normal text-danger">non esiste più</span>
             )}
           </div>
-          <div className="text-[10px] text-slate-soft">
+          <div className="text-fs-10 text-slate-soft">
             {table.approxRows != null ? `~${table.approxRows.toLocaleString('it-IT')} righe · ` : ''}
             {table.columns.length} colonne
             {hasCard ? ' · scheda pronta' : queued ? ' · scrivo la scheda…' : ' · nessuna scheda'}
@@ -109,12 +109,12 @@ export default function TableList({ connection }) {
         )}
       </div>
 
-      {scanError && <p className="text-[11px] text-danger">{scanError}</p>}
-      {loadError && <p className="text-[11px] text-danger">{loadError}</p>}
+      {scanError && <p className="text-fs-11 text-danger">{scanError}</p>}
+      {loadError && <p className="text-fs-11 text-danger">{loadError}</p>}
 
       {queue && (
         <div className="rounded-lg bg-brand-50/40 px-2.5 py-2">
-          <div className="flex items-center justify-between text-[11px] font-medium text-ink">
+          <div className="flex items-center justify-between text-fs-11 font-medium text-ink">
             <span>
               Scrivo le schede: {queue.done} di {queue.total}
             </span>
@@ -131,14 +131,14 @@ export default function TableList({ connection }) {
       )}
 
       {enabledTables.length > 0 && (
-        <p className="text-[10px] text-slate-soft">
+        <p className="text-fs-10 text-slate-soft">
           {enabledTables.length} tabell{enabledTables.length === 1 ? 'a attiva' : 'e attive'} · circa{' '}
           {estimateTokens(enabledTables).toLocaleString('it-IT')} token aggiunti a ogni messaggio
         </p>
       )}
 
       {!tables && !scanning && (
-        <p className="text-[11px] text-slate-soft">Nessuna tabella letta: prova prima la connessione.</p>
+        <p className="text-fs-11 text-slate-soft">Nessuna tabella letta: prova prima la connessione.</p>
       )}
 
       <div className="flex flex-col gap-1.5">

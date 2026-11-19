@@ -54,6 +54,7 @@ src/
     auth/                  useSession, login screen, access denied
     chat/                  agent (Gemini streaming + tools), conversation state, voice input, chat UI
       tools/               tools the model can call and their dispatcher (see "Model tools" below)
+      commands/            commands without AI (settings.noAiCommands): trigger matching, format registry, runner, composers
     charts/                charts drawn in the chat: data helpers and the SVG component
     history/               conversation history client, Storico tab (admin)
     shortcuts/             personal shortcuts and their admin views
@@ -111,7 +112,7 @@ Shown for production; development has the same layout under `apps/assistente-7hu
 apps/assistente-7hub/documents/{id}       document metadata, source (upload|drive), indexingStatus (pending|done|failed), indexCard, description (images); drive* fields for Drive files
 apps/assistente-7hub/driveSources/{id}    a linked Drive folder or PDF: frequency, next/last run and result, lease, webhook state — server only
   /channels/{id}                          its Drive notification channels
-apps/assistente-7hub/config/settings      chatModel, indexingModel, instructions, historyLimit, shortcuts…
+apps/assistente-7hub/config/settings      chatModel, indexingModel, instructions, historyLimit, shortcuts, noAiCommands…
 apps/assistente-7hub/dbConnections/{id}   database connection config (host, port, user…), never the password
   /tables/{t}                             per table: columns, keys, enabled, card { summary, columns }
 apps/assistente-7hub/dbSecrets/{id}       encrypted database password
@@ -131,12 +132,32 @@ function reads and writes them. `driveSources` is handled the same way in code �
 The iframe is on another origin: it can neither read 7hub cookies nor navigate the parent page. Everything
 goes through `postMessage` with verified origins (`src/shared/embed/hostBridge.js`).
 
-| Direction   | Message                                  | Meaning                            |
-| ----------- | ---------------------------------------- | ---------------------------------- |
-| 7hub → chat | `{ type: 'context', user, page, theme }` | who the user is and where they are |
-| chat → 7hub | `{ type: 'ready', releasedAt }`          | loaded, send the context           |
-| chat → 7hub | `{ type: 'navigate', url }`              | go to this page                    |
-| chat → 7hub | `{ type: 'close' }`                      | close the panel                    |
+| Direction   | Message                                              | Meaning                                                |
+| ----------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| 7hub → chat | `{ type: 'context', user, page, theme, appearance }` | who the user is and where they are, and how 7hub looks |
+| 7hub → chat | `{ type: 'appearance', appearance }`                 | 7hub's look changed: applied live                      |
+| chat → 7hub | `{ type: 'ready', releasedAt }`                      | loaded, send the context                               |
+| chat → 7hub | `{ type: 'navigate', url }`                          | go to this page                                        |
+| chat → 7hub | `{ type: 'close' }`                                  | close the panel                                        |
+
+## Appearance (light/dark, colours, font size)
+
+Inside 7hub the chat follows 7hub's settings drawer; opened on its own it has an "Aspetto" menu in the header
+(Chiaro / Scuro / Sistema and an accent colour, saved in `localStorage`). The host sends `appearance` in the
+`context` and again, live, in `{ type: 'appearance', appearance }` whenever a setting changes:
+
+```
+appearance = { version: 1, mode: 'light'|'dark',
+               primary: { main, light, dark, contrastText },            // hex
+               accent: { start, stops: [{ color, at }], glow, glowAt, animated } | null,   // coordinated menu theme
+               fontSize: 10..24 }                                       // px, 7hub's base is 13
+```
+
+Every key is optional and validated (`src/shared/appearance/validate.js`): known keys only, hex colours only, no CSS
+string is ever taken from a message (the gradient is rebuilt from the validated stops). The values are written on
+`<html>` as a `data-theme` attribute and `--accent*` / `--fs-scale` variables (`apply.js`); `globals.css` turns them
+into the design tokens (`bg-panel`, `bg-surface`, `text-ink`, `brand-*`, `text-fs-*`), so components never use a fixed
+white or hex colour and need no `dark:` variants. Embedded, the menu is hidden: the host's settings win.
 
 Outgoing messages also carry the legacy Italian `tipo` key, and legacy incoming context is normalised, until
 7hub-revolution with the English protocol is in production (blocks marked `LEGACY` in `hostBridge.js` and
@@ -367,6 +388,70 @@ text. Both tools end the model's turn: it writes at most one short sentence and 
 - Only when the operator asked for a file. Meant for small tables: every row is written by the model, so it
   costs output tokens. Its rows live only in the open page: after a reload the card is not restored.
 
+## Commands without AI
+
+Some questions always have the same answer shape and come from one fixed query: "erogato" (this year's and
+this month's liquidated amount by product, with the comparison to the same days of last year, the monthly trend,
+the territorial directors and the top banks) went through Gemini for 2–4 minutes. A **command without AI**
+skips the model: **the server runs the query and the browser writes the answer**, in a few seconds, always with
+live data. The admin manages them in Configurazione → Database → **Comandi senza AI**: a list where he adds,
+edits, switches on or off and deletes commands. "Erogato" is just one of them, started from a preset.
+
+- **A command** (`settings.noAiCommands`, an array; shape and defaults in
+  `features/chat/commands/commandSettings.js`): `id` (generated, stable: shortcuts point to it), `name`,
+  `enabled`, `triggers`, `connectionId`, `sql`, `format`, `title` / `intro` (for the `table` format), `maxRows`
+  (default 10.000), `timeoutSeconds` (default 60, capped at 600 by the server) and `errorMessage` (empty = a
+  default that names the command). It can be switched on only with a connection and a query (an empty SQL is
+  a query for a format that has a default one: `erogato`).
+- **When it runs.** The message is exactly one of a command's triggers: compared trimmed, lowercase, one space
+  between words and without trailing punctuation (`Erogato?`, `erogato.`). Anything else (`erogato agos`,
+  `erogato luglio 2026`) still goes to the model. The message is matched against **all the commands that are
+  on** (`commandFor` in `features/chat/commands/matchCommand.js`). Two commands cannot share a trigger: the
+  panel leaves out a word another command has (and says whose it is) and flags any clash that is already
+  there; a list that has one still behaves the same every time, the first command of the list runs.
+- **Formats** (`features/chat/commands/formats.js`, matching `COMMAND_FORMATS` in
+  `functions/src/db/commandFormats.js`: keep the two in step, `chat-commands.test.mjs` checks it). A format is
+  how the rows become the answer. Browser side: a label, a summary for the panel, `hasDefaultSql` and
+  `compose({ rows, columns, command })` returning markdown. Server side: the **column contract** (`columns`: the
+  query must return them all, or the command fails and names the missing ones; empty = any) and `defaultSql`
+  (what an empty SQL runs). Today: `erogato` (the report; `componiErogato` in `commands/erogato.js`, contract
+  `EROGATO_COLUMNS`, default query `EROGATO_SQL`) and `table` (a markdown table of the rows with an optional
+  title and intro, numbers in it-IT, dates as dd/mm/yyyy, the first 50 rows and a note with the total;
+  `componiTabella` in `commands/tabella.js`, no contract). To add one: an entry on each side and a composer.
+- **Presets.** "Aggiungi comando" offers "Da modello: Erogato" (name, triggers, `format: 'erogato'`, the default
+  SQL and a message, copied into a new command: it is the admin's own from then on) and "Vuoto" (a `table`
+  command, off, no connection). The presets are served by the admin-only `commandPresets` action
+  (`COMMAND_PRESETS`), so the SQL stays in the server code.
+- **Flow.** `useConversation.send` records the question and shows the working indicator as for any turn, then
+  calls `streamCommandReply` (`features/chat/commands/`) instead of `streamAgentReply`: `POST /database/command`
+  with `{ commandId }`, the composer of the answer's `format` writes the markdown, and the reply is a normal
+  assistant message, so later model turns see it in their history. History gets one `data` activity ("Dati
+  letti", `N righe`) and the reply with `model: 'comando'`, `command: <the command's name that day>`,
+  `durationMs` and zero usage; the Storico shows "comando «Erogato», senza AI" (the first version stored
+  `model: 'comando-erogato'`: still read). If it fails the chat shows the command's message and the turn is
+  recorded with `error` and `errorDetail`; it **never falls back to the model**.
+- **The server** (`actionCommand` in `functions/src/http/databaseEndpoint.js`, settings reader and migration in
+  `functions/src/db/commandSettings.js`) finds the command by id in the stored settings and reads everything
+  from it: the request carries only the id, never SQL or a connection, so a browser cannot choose the query.
+  Same checks as `query`: command enabled, with a connection and a query, enabled connection, enabled tables,
+  `validateSelect`, and `queryAsUser` with the verified email on a `userScoped` connection. Two results are
+  errors instead of partial answers: the rows reach `maxRows` (the query is run with `maxRows + 1` to tell),
+  and the query lacks a column of its format's contract (not checked on an empty result). The answer carries
+  the `format` it ran. Failures are logged like the other query actions (`action: 'command'` plus `commandId`).
+  Unknown id: 404.
+- **Shortcuts.** A shortcut's `command` is a command id (the editor's "Cosa fa" lists the configured commands
+  by name; the server only checks the id's shape, `[A-Za-z0-9_-]{1,64}`, since it cannot know the commands). In
+  the chat it shows the command's first trigger as the question; if the command is off, incomplete or deleted,
+  that text goes to the model as for any shortcut.
+- **Migration.** Settings saved when there was one command hold it in `erogatoCommand`. Until the panel is saved
+  (which writes the array), both readers (`normalizeCommands` in the browser, `commandsFromSettings` on the
+  server) turn it into one command: `id: 'erogato'`, name «Erogato», `format: 'erogato'`, its connection,
+  triggers, limits and message, and its SQL (an empty one runs the default query), so shortcuts saved with
+  `command: 'erogato'` keep working. Once the array exists (even empty) `erogatoCommand` is ignored; a save
+  does not write it back, and it is left in the document, unused.
+- **"Prova ora"** (per command) runs the SAVED command as the signed-in admin and shows the row count and time, or
+  the reason (missing columns, truncation, disabled tables…).
+
 ## Charts in the chat
 
 `show_chart` draws a chart **in the browser** from exact numbers — it is never an image generated by a model.
@@ -435,7 +520,7 @@ Writes to production are blocked unless `ALLOW_PRODUCTION_WRITES=true`.
 | Export                                             | Trigger                        | Purpose                                                                                                                                       |
 | -------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tools`                                            | HTTP `POST /tools/<name>`      | `search-person`, `person-details`                                                                                                             |
-| `database`                                         | HTTP `POST /database/<action>` | connection test/save/delete/scan/sample (admin-only); `query`, `chartData`, `exportPreview`, `exportFile` (any operator — used by chat)       |
+| `database`                                         | HTTP `POST /database/<action>` | connections and `commandPresets` (admin-only); `query`, `command`, `chartData`, `exportPreview`, `exportFile` (any operator, used by chat)    |
 | `history`                                          | HTTP `POST /history/<action>`  | the caller's own `restore`/`question`/`turn`/`reset`/`shortcuts`/`saveShortcuts`; admin-only `list`/`transcript`/`users`/`allShortcuts`       |
 | `databaseDev`, `historyDev`                        | same as above                  | development twins, working for `assistente-7hub-development` (DEPLOY.md)                                                                      |
 | `drive`                                            | HTTP `POST /drive/<action>`    | admin only: `list` (service account email + sources), `add`, `update` (frequency), `remove`, `syncNow` (runs inside the request, up to 9 min) |

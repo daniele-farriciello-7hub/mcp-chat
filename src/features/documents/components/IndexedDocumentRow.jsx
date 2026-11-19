@@ -20,7 +20,7 @@ const modelName = id => (MODELS.find(model => model.id === id)?.name || id).repl
 function CardSection({ title, hint, children }) {
   return (
     <section>
-      <h4 className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-soft">
+      <h4 className="text-fs-10 font-bold uppercase tracking-[0.1em] text-slate-soft">
         {title}
         {hint && <span className="ml-1.5 font-normal normal-case tracking-normal">· {hint}</span>}
       </h4>
@@ -86,7 +86,7 @@ export default function IndexedDocumentRow({ document }) {
         {image ? (
           <ImageThumb document={document} className="h-10 w-10" />
         ) : (
-          <FileTypeIcon mimeType={document.mimeType} size={15} className="mt-0.5 shrink-0 text-brand-500" />
+          <FileTypeIcon mimeType={document.mimeType} size={15} className="mt-0.5 shrink-0 text-brand-fg" />
         )}
         <button
           type="button"
@@ -95,25 +95,25 @@ export default function IndexedDocumentRow({ document }) {
           className="min-w-0 flex-1 text-left"
         >
           <Tooltip label={document.name} align="left" className="block w-full">
-            <span className="block truncate text-[13px] font-medium text-ink">{document.name}</span>
+            <span className="block truncate text-fs-13 font-medium text-ink">{document.name}</span>
           </Tooltip>
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="rounded-pill bg-ok-soft px-1.5 py-0.5 text-[10px] font-semibold text-ok">
+            <span className="rounded-pill bg-ok-soft px-1.5 py-0.5 text-fs-10 font-semibold text-ok">
               {reindexing ? 'In aggiornamento' : 'Pronto per la chat'}
             </span>
-            <span className="flex min-w-0 items-center gap-1 text-[10px] text-slate-soft" title={meta}>
+            <span className="flex min-w-0 items-center gap-1 text-fs-10 text-slate-soft" title={meta}>
               {fromDrive ? <Cloud size={10} /> : <Upload size={10} />}
               <span className="truncate">{meta}</span>
             </span>
           </span>
           {image && (
             <span
-              className={`mt-1 block text-[11px] leading-snug ${description ? 'line-clamp-2 text-slate-soft' : 'text-warn'}`}
+              className={`mt-1 block text-fs-11 leading-snug ${description ? 'line-clamp-2 text-slate-soft' : 'text-warn'}`}
             >
               {description || 'Senza descrizione: apri la scheda e scrivila.'}
             </span>
           )}
-          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600">
+          <span className="mt-1 inline-flex items-center gap-1 text-fs-11 font-semibold text-brand-600">
             {expanded ? 'Nascondi la scheda' : 'Vedi la scheda'}
             <ChevronDown size={12} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
           </span>
@@ -127,7 +127,7 @@ export default function IndexedDocumentRow({ document }) {
       </div>
 
       {expanded && (
-        <div className="mx-3 mb-3 ml-9 flex flex-col gap-3 rounded-xl border border-line bg-white p-3">
+        <div className="mx-3 mb-3 ml-9 flex flex-col gap-3 rounded-xl border border-line bg-panel p-3">
           {image && (
             <CardSection title="Descrizione" hint="obbligatoria">
               <ImageThumb document={document} className="mb-2 h-40 w-full" openable caption />
@@ -137,7 +137,7 @@ export default function IndexedDocumentRow({ document }) {
                 showLabel={false}
                 onSaved={() => setCardOutdated(true)}
               />
-              <p className="mt-1.5 text-[11px] leading-snug text-slate-soft">
+              <p className="mt-1.5 text-fs-11 leading-snug text-slate-soft">
                 L’assistente usa subito la descrizione, anche senza rigenerare la scheda.
               </p>
               {cardOutdated && !reindexing && (
@@ -148,7 +148,7 @@ export default function IndexedDocumentRow({ document }) {
                     setCardOutdated(false);
                   }}
                   disabled={!canIndexNow(document)}
-                  className="mt-1.5 inline-flex items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50 disabled:opacity-40"
+                  className="mt-1.5 inline-flex items-center gap-1 rounded-lg border border-line px-2 py-1 text-fs-11 font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50 disabled:opacity-40"
                 >
                   <Sparkles size={12} /> Aggiorna anche la scheda
                 </button>
@@ -156,7 +156,7 @@ export default function IndexedDocumentRow({ document }) {
             </CardSection>
           )}
 
-          <p className="rounded-lg bg-brand-50/60 px-2.5 py-2 text-[11px] leading-snug text-slate-soft">
+          <p className="rounded-lg bg-brand-50/60 px-2.5 py-2 text-fs-11 leading-snug text-slate-soft">
             Questa è la <span className="font-semibold text-ink">scheda</span> che Gemini ha scritto leggendo
             il documento. L’assistente la legge a ogni domanda per capire se il documento è pertinente, e solo
             in quel caso apre il file completo per rispondere.
@@ -164,7 +164,7 @@ export default function IndexedDocumentRow({ document }) {
 
           {card.summary && (
             <CardSection title="Di cosa parla">
-              <p className="text-[12px] leading-relaxed text-ink">{card.summary}</p>
+              <p className="text-fs-12 leading-relaxed text-ink">{card.summary}</p>
             </CardSection>
           )}
 
@@ -174,7 +174,7 @@ export default function IndexedDocumentRow({ document }) {
                 {card.banks.map(bank => (
                   <li
                     key={bank}
-                    className="rounded-pill bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600"
+                    className="rounded-pill bg-brand-50 px-2 py-0.5 text-fs-11 font-medium text-brand-600"
                   >
                     {bank}
                   </li>
@@ -189,7 +189,7 @@ export default function IndexedDocumentRow({ document }) {
                 {card.products.map(product => (
                   <li
                     key={product}
-                    className="rounded-pill bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600"
+                    className="rounded-pill bg-brand-50 px-2 py-0.5 text-fs-11 font-medium text-brand-600"
                   >
                     {product}
                   </li>
@@ -204,7 +204,7 @@ export default function IndexedDocumentRow({ document }) {
                 {card.topics.map(topic => (
                   <li
                     key={topic}
-                    className="rounded-pill bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-600"
+                    className="rounded-pill bg-brand-50 px-2 py-0.5 text-fs-11 font-medium text-brand-600"
                   >
                     {topic}
                   </li>
@@ -219,7 +219,7 @@ export default function IndexedDocumentRow({ document }) {
                 {card.keywords.map(keyword => (
                   <li
                     key={keyword}
-                    className="rounded-md border border-line px-1.5 py-0.5 text-[10px] text-slate-soft"
+                    className="rounded-md border border-line px-1.5 py-0.5 text-fs-10 text-slate-soft"
                   >
                     {keyword}
                   </li>

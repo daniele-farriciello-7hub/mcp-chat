@@ -93,7 +93,7 @@ export default function PreviewImage({
           {...(caption ? {} : { role: 'img', 'aria-label': UNAVAILABLE })}
         >
           <ImageOff size={iconSize} />
-          {caption && <span className="px-2 text-center text-[11px] leading-snug">{UNAVAILABLE}</span>}
+          {caption && <span className="px-2 text-center text-fs-11 leading-snug">{UNAVAILABLE}</span>}
         </span>
       ) : (
         // fades out as the picture fades in; once invisible it is no longer painted

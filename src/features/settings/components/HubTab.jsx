@@ -19,11 +19,13 @@ function ToolRow({ tool, config, onChange }) {
   // an empty override means "the default": saved as '' (never deleted, Firestore merges nested fields)
   const custom = config.description || '';
   return (
-    <li className={`rounded-xl border border-line p-3 transition ${enabled ? 'bg-white' : 'bg-surface opacity-70'}`}>
+    <li
+      className={`rounded-xl border border-line p-3 transition ${enabled ? 'bg-panel' : 'bg-surface opacity-70'}`}
+    >
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold text-ink">{tool.label || tool.name}</div>
-          <div className="mt-0.5 flex flex-wrap gap-x-2 text-[10.5px] text-slate-soft">
+          <div className="text-fs-13 font-semibold text-ink">{tool.label || tool.name}</div>
+          <div className="mt-0.5 flex flex-wrap gap-x-2 text-[length:calc(10.5px*var(--fs-scale,1))] text-slate-soft">
             <code>{tool.name}</code>
             <span aria-hidden="true">→</span>
             <span>
@@ -47,8 +49,8 @@ function ToolRow({ tool, config, onChange }) {
         </button>
       </div>
 
-      {tool.how && <p className="mt-2 text-[12px] leading-snug text-ink">{tool.how}</p>}
-      <div className="mt-1.5 text-[11px] leading-snug text-slate-soft">
+      {tool.how && <p className="mt-2 text-fs-12 leading-snug text-ink">{tool.how}</p>}
+      <div className="mt-1.5 text-fs-11 leading-snug text-slate-soft">
         <span className="font-semibold">API: </span>
         {tool.apis?.length ? (
           tool.apis.map(api => (
@@ -62,13 +64,13 @@ function ToolRow({ tool, config, onChange }) {
       </div>
 
       <label className="mt-2.5 block">
-        <span className="flex items-center justify-between text-[11px] font-semibold text-slate-soft">
+        <span className="flex items-center justify-between text-fs-11 font-semibold text-slate-soft">
           Testo per il modello
           {custom && (
             <button
               type="button"
               onClick={() => onChange({ description: '' })}
-              className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-brand-600 hover:bg-brand-50"
+              className="rounded-md px-1.5 py-0.5 text-fs-11 font-semibold text-brand-600 hover:bg-brand-50"
             >
               Ripristina
             </button>
@@ -78,8 +80,10 @@ function ToolRow({ tool, config, onChange }) {
           rows={3}
           disabled={!enabled}
           value={custom || plain(tool.description)}
-          onChange={e => onChange({ description: e.target.value === plain(tool.description) ? '' : e.target.value })}
-          className={`${INPUT_CLASS} mt-1 resize-y text-[12px] leading-snug`}
+          onChange={e =>
+            onChange({ description: e.target.value === plain(tool.description) ? '' : e.target.value })
+          }
+          className={`${INPUT_CLASS} mt-1 resize-y text-fs-12 leading-snug`}
         />
       </label>
     </li>
@@ -115,7 +119,7 @@ export default function HubTab({ settings, onChange }) {
             type="button"
             disabled={isDefault}
             onClick={() => onChange('hostToolsInstructions', DEFAULT_SETTINGS.hostToolsInstructions)}
-            className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold text-brand-600 transition hover:bg-brand-50 disabled:cursor-default disabled:text-slate-soft disabled:hover:bg-transparent"
+            className="shrink-0 rounded-lg px-2 py-1 text-fs-11 font-semibold text-brand-600 transition hover:bg-brand-50 disabled:cursor-default disabled:text-slate-soft disabled:hover:bg-transparent"
           >
             Ripristina testo
           </button>
@@ -132,7 +136,9 @@ export default function HubTab({ settings, onChange }) {
               key={tool.name}
               tool={tool}
               config={config[tool.name] || {}}
-              onChange={next => onChange('hostToolsConfig', { ...config, [tool.name]: { ...config[tool.name], ...next } })}
+              onChange={next =>
+                onChange('hostToolsConfig', { ...config, [tool.name]: { ...config[tool.name], ...next } })
+              }
             />
           ))}
         </ul>

@@ -12,21 +12,28 @@ import IconPicker from '@/features/settings/components/IconPicker';
 import ShortcutIcon from '@/features/settings/components/ShortcutIcon';
 import { INPUT_CLASS } from '@/shared/ui/formStyles';
 import { SkeletonCards } from '@/shared/ui/Skeleton';
-import { loadOwnShortcuts, saveOwnShortcuts } from './personalShortcuts';
+import { useNoAiCommands } from '@/features/chat/commands/useNoAiCommands';
+import CommandChoice from './CommandChoice';
+import { loadOwnShortcuts, saveOwnShortcuts, shortcutSummary, shortcutText } from './personalShortcuts';
 
 const EMPTY = { icon: 'question', title: '', description: '', prompt: '' };
 
-function ShortcutForm({ initial, onSave, onCancel, saving, error }) {
+function ShortcutForm({ initial, commands, onSave, onCancel, saving, error }) {
   const [draft, setDraft] = useState(initial);
   const set = (key, value) => setDraft(d => ({ ...d, [key]: value }));
-  const canSave = draft.title.trim() && draft.prompt.trim();
+  const canSave = draft.title.trim() && (draft.command || draft.prompt.trim());
   return (
     <form
       onSubmit={e => {
         e.preventDefault();
-        if (canSave) onSave(draft);
+        if (!canSave) return;
+        // a command shortcut keeps the command's word as its question: what the chat shows, and what the
+        // model gets if the command is switched off or deleted later
+        onSave(
+          draft.command && !draft.prompt.trim() ? { ...draft, prompt: shortcutText(draft, commands) } : draft
+        );
       }}
-      className="flex flex-col gap-2.5 rounded-xl border border-brand-200 bg-white p-3 shadow-soft"
+      className="flex flex-col gap-2.5 rounded-xl border border-brand-200 bg-panel p-3 shadow-soft"
     >
       <input
         autoFocus
@@ -37,15 +44,23 @@ function ShortcutForm({ initial, onSave, onCancel, saving, error }) {
         className={INPUT_CLASS}
         aria-label="Titolo"
       />
-      <textarea
-        value={draft.prompt}
-        onChange={e => set('prompt', e.target.value)}
-        placeholder="La domanda da fare, es. Quali mie pratiche sono in istruttoria da più di 30 giorni?"
-        rows={2}
-        maxLength={1000}
-        className={`${INPUT_CLASS} resize-y`}
-        aria-label="Domanda"
-      />
+      <CommandChoice commands={commands} value={draft.command} onChange={value => set('command', value)} />
+      {draft.command ? (
+        <p className="text-fs-11 leading-snug text-slate-soft">
+          Parte da solo, senza il modello: in chat compare «{shortcutText(draft, commands)}» e la risposta
+          arriva in pochi secondi.
+        </p>
+      ) : (
+        <textarea
+          value={draft.prompt}
+          onChange={e => set('prompt', e.target.value)}
+          placeholder="La domanda da fare, es. Quali mie pratiche sono in istruttoria da più di 30 giorni?"
+          rows={2}
+          maxLength={1000}
+          className={`${INPUT_CLASS} resize-y`}
+          aria-label="Domanda"
+        />
+      )}
       <input
         value={draft.description}
         onChange={e => set('description', e.target.value)}
@@ -55,19 +70,19 @@ function ShortcutForm({ initial, onSave, onCancel, saving, error }) {
         aria-label="Riga sotto il titolo"
       />
       <IconPicker value={draft.icon} onChange={value => set('icon', value)} />
-      {error && <p className="text-[12px] text-danger">{error}</p>}
+      {error && <p className="text-fs-12 text-danger">{error}</p>}
       <div className="flex justify-end gap-2">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-slate-soft hover:bg-surface"
+          className="rounded-lg px-3 py-1.5 text-fs-12 font-semibold text-slate-soft hover:bg-surface"
         >
           Annulla
         </button>
         <button
           type="submit"
           disabled={!canSave || saving}
-          className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-brand-600 disabled:opacity-40"
+          className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-fs-12 font-semibold text-on-brand transition hover:bg-brand-hover disabled:opacity-40"
         >
           {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Salva
         </button>
@@ -84,6 +99,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [limit, setLimit] = useState(null); // set by the admin; null = no limit
+  const commands = useNoAiCommands(); // the commands without AI a shortcut may run
 
   useEffect(() => {
     loadOwnShortcuts({ uid, isAdmin })
@@ -120,17 +136,17 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
   return (
     <div className={inPanel ? '' : 'relative z-10 mt-5 px-4'}>
       {inPanel ? (
-        <p className="mb-3 text-[11px] leading-snug text-slate-soft">
+        <p className="mb-3 text-fs-11 leading-snug text-slate-soft">
           Le domande che fai spesso, a portata di un tocco nella schermata iniziale della chat. Le vedi solo
           tu.{limit !== null && ` Puoi averne fino a ${limit}.`}
         </p>
       ) : (
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-soft">
+        <div className="mb-2 text-fs-11 font-semibold uppercase tracking-[0.12em] text-slate-soft">
           Le tue scorciatoie
         </div>
       )}
       {inPanel && !shortcuts.length && editing !== 'new' && (
-        <p className="mb-2 rounded-xl bg-surface px-3 py-3 text-center text-[12px] text-slate-soft">
+        <p className="mb-2 rounded-xl bg-surface px-3 py-3 text-center text-fs-12 text-slate-soft">
           Non hai ancora scorciatoie personali.
         </p>
       )}
@@ -140,6 +156,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
             <ShortcutForm
               key={i}
               initial={shortcut}
+              commands={commands}
               saving={saving}
               error={error}
               onCancel={() => setEditing(null)}
@@ -148,20 +165,24 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
           ) : (
             <div
               key={i}
-              className="group flex items-center gap-1 rounded-xl border border-line bg-white pr-1.5 transition hover:border-brand-300"
+              className="group flex items-center gap-1 rounded-xl border border-line bg-panel pr-1.5 transition hover:border-brand-300"
             >
               <button
                 type="button"
-                onClick={() => (inPanel ? setEditing(i) : onAsk(shortcut.prompt))}
+                onClick={() =>
+                  inPanel
+                    ? setEditing(i)
+                    : onAsk(shortcutText(shortcut, commands), { command: shortcut.command })
+                }
                 className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3 text-left"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-500">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-fg">
                   <ShortcutIcon id={shortcut.icon} size={18} strokeWidth={2.25} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-[14px] font-semibold text-ink">{shortcut.title}</span>
-                  <span className="block truncate text-[12px] leading-snug text-slate-soft">
-                    {shortcut.description || shortcut.prompt}
+                  <span className="block truncate text-fs-14 font-semibold text-ink">{shortcut.title}</span>
+                  <span className="block truncate text-fs-12 leading-snug text-slate-soft">
+                    {shortcut.description || shortcutSummary(shortcut, commands)}
                   </span>
                 </span>
               </button>
@@ -170,7 +191,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
                   <button
                     type="button"
                     onClick={() => persist(shortcuts.filter((_, j) => j !== i))}
-                    className="rounded-lg px-2 py-1.5 text-[12px] font-semibold text-danger hover:bg-danger-soft"
+                    className="rounded-lg px-2 py-1.5 text-fs-12 font-semibold text-danger hover:bg-danger-soft"
                   >
                     Elimina
                   </button>
@@ -213,6 +234,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
         {editing === 'new' ? (
           <ShortcutForm
             initial={EMPTY}
+            commands={commands}
             saving={saving}
             error={error}
             onCancel={() => setEditing(null)}
@@ -220,7 +242,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
           />
         ) : full ? (
           inPanel && (
-            <p className="rounded-xl bg-surface px-3 py-2.5 text-center text-[12px] text-slate-soft">
+            <p className="rounded-xl bg-surface px-3 py-2.5 text-center text-fs-12 text-slate-soft">
               Hai raggiunto il massimo di {limit} scorciatoie: per aggiungerne una, eliminane un’altra.
             </p>
           )
@@ -231,7 +253,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
               setError(null);
               setEditing('new');
             }}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-line py-2.5 text-[13px] font-medium text-brand-600 transition hover:border-brand-300 hover:bg-brand-50/50"
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-line py-2.5 text-fs-13 font-medium text-brand-600 transition hover:border-brand-300 hover:bg-brand-50/50"
           >
             <Plus size={15} /> Aggiungi una scorciatoia
           </button>

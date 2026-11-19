@@ -35,7 +35,7 @@ function renderInline(text, keyPrefix) {
       }
       if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
         return (
-          <code key={key} className="rounded bg-surface px-1 py-0.5 text-[12px]">
+          <code key={key} className="rounded bg-surface px-1 py-0.5 text-fs-12">
             {part.slice(1, -1)}
           </code>
         );
@@ -169,7 +169,7 @@ function Table({ header, rows, keyPrefix }) {
   // the panel is ~420px wide: a table with more than two columns has to scroll sideways
   return (
     <div className="my-1.5 overflow-x-auto rounded-lg border border-line">
-      <table className="w-full border-collapse text-[12px]">
+      <table className="w-full border-collapse text-fs-12">
         <thead>
           <tr className="bg-surface">
             {header.map((cell, i) => (
@@ -216,12 +216,12 @@ function Blockquote({ lines, keyPrefix, trailing }) {
 // h1 down to h6, shrinking toward the body text size so a pasted README doesn't tower over a
 // panel that is otherwise entirely 11-13px
 const HEADING_CLASS = {
-  1: 'text-[16px] font-bold',
-  2: 'text-[14px] font-bold',
-  3: 'text-[13px] font-bold',
-  4: 'text-[12px] font-bold',
-  5: 'text-[12px] font-bold',
-  6: 'text-[12px] font-bold'
+  1: 'text-fs-16 font-bold',
+  2: 'text-fs-14 font-bold',
+  3: 'text-fs-13 font-bold',
+  4: 'text-fs-12 font-bold',
+  5: 'text-fs-12 font-bold',
+  6: 'text-fs-12 font-bold'
 };
 
 function Heading({ level, text, keyPrefix, trailing }) {
@@ -236,7 +236,7 @@ function Heading({ level, text, keyPrefix, trailing }) {
 /** Fenced code is literal: no bold/italic/inline-code parsing inside it, same as any real markdown engine. */
 function CodeBlock({ lines, trailing }) {
   return (
-    <pre className="my-1.5 overflow-x-auto rounded-lg bg-surface px-2.5 py-2 text-[12px] leading-relaxed">
+    <pre className="my-1.5 overflow-x-auto rounded-lg bg-surface px-2.5 py-2 text-fs-12 leading-relaxed">
       <code>
         {lines.join('\n')}
         {trailing}

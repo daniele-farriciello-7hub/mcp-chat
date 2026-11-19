@@ -11,6 +11,8 @@ import {
 } from '@/features/history/historyApi';
 import { romeDay } from '@/features/history/romeDay';
 import { streamAgentReply } from './agent';
+import { commandFor } from './commands/matchCommand';
+import { streamCommandReply } from './commands/streamCommandReply';
 
 let turnCounter = 0;
 // activity ids are only unique within a page load (`t1:read-0-0`); stored, they must not collide
@@ -53,6 +55,10 @@ function markInterrupted(messages) {
  * the `history` function (`historyApi.js`), never straight to Firestore. A new one starts only on
  * "Nuova conversazione" or when the day changes in Rome. Off, nothing is read or written. Saving
  * never delays the reply: the calls run alongside it and a failure only logs a warning.
+ *
+ * A message that is exactly a trigger word of a command without AI (commands/, `settings.noAiCommands`), or
+ * a shortcut that names the command, is answered without the model: same flow, same history,
+ * `streamCommandReply` in place of `streamAgentReply`.
  */
 export function useConversation({ uid, context, isAdmin = false }) {
   const [messages, setMessages] = useState([]);
@@ -108,7 +114,8 @@ export function useConversation({ uid, context, isAdmin = false }) {
   }, []);
 
   const send = useCallback(
-    async text => {
+    // `command`: a shortcut that runs a command without AI names its id here; a typed message is matched below
+    async (text, { command: requestedCommand = null } = {}) => {
       if (status !== 'idle') return;
       sentRef.current = true;
       const questionId = newMessageId();
@@ -118,6 +125,10 @@ export function useConversation({ uid, context, isAdmin = false }) {
 
       const settings = settingsRef.current || (await getSettings());
       const logging = Boolean(uid && settings.historyEnabled);
+      // null = the model answers. The settings are read again (cached, and updated when an admin saves):
+      // `settingsRef` is from the mount, and an admin who just switched a command on has not reloaded
+      const commandSettings = await getSettings();
+      const command = commandFor(text, commandSettings.noAiCommands, requestedCommand);
 
       let history = messages;
       // resolves to the stored conversation ({id, day, isNew}) or null; the turn's write waits on it
@@ -163,7 +174,11 @@ export function useConversation({ uid, context, isAdmin = false }) {
       let replyId = null;
       let replyText = '';
 
-      await streamAgentReply({
+      // a command without AI answers on its own, with these same callbacks; the extra fields are for it only
+      const streamReply = command ? streamCommandReply : streamAgentReply;
+      await streamReply({
+        command,
+        settings: commandSettings,
         text,
         context,
         history,
@@ -229,7 +244,8 @@ export function useConversation({ uid, context, isAdmin = false }) {
           firstTokenMs,
           error,
           errorDetail,
-          fallbackFrom
+          fallbackFrom,
+          command: commandName
         } = {}) => {
           if (card || suggestions) updateLastReply(m => ({ ...m, card, suggestions }));
           setStatus('idle');
@@ -247,7 +263,9 @@ export function useConversation({ uid, context, isAdmin = false }) {
                   firstTokenMs,
                   error,
                   errorDetail,
-                  fallbackFrom
+                  fallbackFrom,
+                  // the name of the command that answered, when one did (`model` is then 'comando')
+                  command: commandName
                 })
             )
             .catch(warn('saving the reply'));

@@ -1,5 +1,7 @@
 /** Root layout. Deliberately bare: the app is built to be embedded in 7hub, so no header or navigation. */
 import { Plus_Jakarta_Sans } from 'next/font/google';
+import AppearanceBoot from '@/shared/appearance/AppearanceBoot';
+import { EARLY_THEME_SCRIPT } from '@/shared/appearance/earlyScript';
 import './globals.css';
 
 const jakarta = Plus_Jakarta_Sans({
@@ -21,8 +23,15 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="it" className={`${jakarta.variable} h-full antialiased`}>
-      <body className="h-full">{children}</body>
+    // suppressHydrationWarning: the inline script sets data-theme (and color-scheme) on <html> before React runs
+    <html lang="it" className={`${jakarta.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: EARLY_THEME_SCRIPT }} />
+      </head>
+      <body className="h-full">
+        <AppearanceBoot />
+        {children}
+      </body>
     </html>
   );
 }

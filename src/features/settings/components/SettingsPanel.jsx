@@ -43,7 +43,7 @@ export default function SettingsPanel({ onClose }) {
 
   if (!settings) {
     return (
-      <div className="flex h-full flex-col bg-white">
+      <div className="flex h-full flex-col bg-panel">
         <SettingsHeader onClose={onClose} />
         <SettingsSkeleton />
       </div>
@@ -79,7 +79,7 @@ export default function SettingsPanel({ onClose }) {
   const savesItself = activeTab === 'documents';
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="flex h-full flex-col bg-panel">
       <SettingsHeader onClose={onClose} hasUnsavedChanges={hasUnsavedChanges} />
       <SettingsTabs activeTab={activeTab} onChange={openTab} />
 
@@ -88,13 +88,16 @@ export default function SettingsPanel({ onClose }) {
         {activeTab === 'shortcuts' && (
           <ShortcutsTab
             shortcuts={settings.shortcuts}
+            commands={settings.noAiCommands}
             onChange={value => update('shortcuts', value)}
             personalLimit={settings.personalShortcutsLimit}
             onPersonalLimitChange={value => update('personalShortcutsLimit', value)}
           />
         )}
         {activeTab === 'documents' && <DocumentsTab />}
-        {activeTab === 'database' && <DatabaseTab settings={settings} onChange={update} />}
+        {activeTab === 'database' && (
+          <DatabaseTab settings={settings} onChange={update} hasUnsavedChanges={hasUnsavedChanges} />
+        )}
         {activeTab === 'history' && <HistoryTab settings={settings} onChange={update} />}
         {activeTab === 'hub' && <HubTab settings={settings} onChange={update} />}
 

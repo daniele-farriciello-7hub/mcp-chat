@@ -5,7 +5,9 @@
  *
  * `test`, `save`, `delete`, `scan`, `sample` are admin-only (they touch credentials or schema
  * configuration). `query` runs for any operator who may use the app: it is what the chat calls, the
- * same way `tools` runs on behalf of the signed-in operator rather than only an admin.
+ * same way `tools` runs on behalf of the signed-in operator rather than only an admin. So do `command`,
+ * which runs a command without the model, and the other actions that run a query for the chat. The
+ * presets of the commands (`commandPresets`) are admin-only: they carry the SQL of a ready-made command.
  */
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { appId, appRoot } from '../appContext.js';
@@ -25,6 +27,8 @@ import { sampleTableRows } from '../db/sampleRows.js';
 import { InvalidQueryError, checkSelect, timeBoxed, validateSelect } from '../db/validateSelect.js';
 import { buildXlsx } from '../db/xlsx.js';
 import { serializeRows } from '../db/serializeRows.js';
+import { COMMAND_FORMATS, COMMAND_PRESETS, isKnownFormat, missingColumns } from '../db/commandFormats.js';
+import { commandById } from '../db/commandSettings.js';
 
 const connectionsCollection = () => getFirestore().collection(`${appRoot()}/dbConnections`);
 const connectionDocRef = id => getFirestore().doc(`${appRoot()}/dbConnections/${id}`);
@@ -53,11 +57,12 @@ class HttpError extends Error {
  * what the handler logs, because the browser only ever sees the reason, not which query it was for.
  */
 class QueryError extends HttpError {
-  constructor(message, { connectionId, sql, code }) {
+  constructor(message, { connectionId, sql, code, commandId }) {
     super(400, message);
     this.connectionId = connectionId;
     this.sql = sql;
     this.code = code;
+    this.commandId = commandId;
   }
 }
 
@@ -77,6 +82,8 @@ function logQueryFailure(action, user, error) {
     uid: user.uid,
     error: error.message.slice(0, LOGGED_ERROR_CHARS),
     ...(error.code ? { code: error.code } : {}),
+    // the command (not the model) that ran the query, for the actions that run one
+    ...(error.commandId ? { commandId: error.commandId } : {}),
     sql: error.sql.slice(0, LOGGED_SQL_CHARS)
   });
 }
@@ -86,6 +93,12 @@ function requireString(body, field) {
   if (typeof value !== 'string' || !value.trim()) throw new HttpError(400, `missing "${field}"`);
   return value.trim();
 }
+
+/** The connection and the SQL a caller asks to run: for the actions where the browser (the model) writes the query. */
+const queryFromBody = body => ({
+  connectionId: requireString(body, 'connectionId'),
+  sql: requireString(body, 'sql')
+});
 
 // ── actions ──────────────────────────────────────────────────────────────────
 
@@ -215,11 +228,12 @@ async function actionSample(_user, body) {
 /**
  * What every query action needs before running SQL: the enabled connection, its enabled tables (the
  * allowlist), and a runner that applies the per-user filter when the connection is user-scoped.
+ *
+ * The caller names the connection and the SQL: `queryFromBody(body)` for the actions that run what the
+ * browser sends, or the server's own (`command` reads them from the stored settings, so no request can
+ * choose them, and adds the `commandId` its failures are logged with).
  */
-async function queryContext(user, body) {
-  const connectionId = requireString(body, 'connectionId');
-  const sql = requireString(body, 'sql');
-
+async function queryContext(user, { connectionId, sql, commandId }) {
   const connection = await connectionDocRef(connectionId).get();
   if (!connection.exists || !connection.data().enabled) {
     throw new HttpError(404, 'unknown or disabled database connection');
@@ -249,7 +263,8 @@ async function queryContext(user, body) {
       throw new QueryError(error?.sqlMessage || error?.message || 'query failed', {
         connectionId,
         sql,
-        code: error?.code
+        code: error?.code,
+        commandId
       });
     }
   };
@@ -260,12 +275,14 @@ async function queryContext(user, body) {
     try {
       return fn();
     } catch (error) {
-      if (error instanceof InvalidQueryError) throw new QueryError(error.message, { connectionId, sql });
+      if (error instanceof InvalidQueryError) {
+        throw new QueryError(error.message, { connectionId, sql, commandId });
+      }
       throw error;
     }
   };
 
-  return { connectionId, sql, enabledTables, run, validate };
+  return { connectionId, sql, commandId, enabledTables, run, validate };
 }
 
 /**
@@ -277,7 +294,7 @@ async function queryContext(user, body) {
 const QUERY_MAX_SECONDS = 600;
 
 async function actionQuery(user, body) {
-  const { sql, enabledTables, run, validate } = await queryContext(user, body);
+  const { sql, enabledTables, run, validate } = await queryContext(user, queryFromBody(body));
 
   // both configurable from the admin panel (settings.maxQueryRows / settings.queryTimeoutSeconds);
   // the ceiling on timeoutSeconds is enforced here regardless of what the client sends — it must
@@ -291,6 +308,108 @@ async function actionQuery(user, body) {
   const started = Date.now();
   const rows = await run(statement);
   return { ...serializeRows(rows, { maxRows }), tookMs: Date.now() - started };
+}
+
+// ── commands without AI: a fixed query run for the chat, without the model ──
+
+/**
+ * Budget for the rows of a command's answer, in serialized characters. The rows go to the browser, not
+ * to the model, so the 60k default of `serializeRows` (about 200 rows) would cut a normal result; 16 MB
+ * is far above the 50k rows the admin can allow and well inside the response limit (32 MB).
+ */
+const COMMAND_MAX_CHARS = 16_000_000;
+
+const COMMANDS_WHERE = 'Configurazione → Database → Comandi senza AI';
+
+/**
+ * A command without AI, by id (`{ commandId }`: the browser sends nothing else that matters). The command
+ * is read here from the stored settings, so the connection, the SQL (or its format's default one), the row
+ * cap and the timeout are the admin's and no request can pick the query. The rest is as strict as `query`:
+ * the connection must be enabled, the tables the SQL reads must be enabled for it, `validateSelect` gates
+ * it, and on a user-scoped connection it runs with the verified email of the token, so everyone sees only
+ * what the views show them.
+ *
+ * Two ways the answer would be wrong are errors rather than partial results: the rows hit the cap (the
+ * totals would be short) and the query does not return the columns its format reads. Both are checked
+ * here so that the admin's "Prova ora" reports them too. The answer carries the `format`: the browser
+ * writes the markdown from the rows with the composer of that format.
+ */
+async function actionCommand(user, body) {
+  const commandId = requireString(body, 'commandId');
+  const command = await commandById(commandId);
+  if (!command) throw new HttpError(404, 'Comando non trovato: è stato eliminato o non esiste.');
+
+  const label = `«${command.name}»`;
+  if (!command.enabled) {
+    throw new HttpError(400, `Il comando ${label} non è attivo: si attiva da ${COMMANDS_WHERE}.`);
+  }
+  if (!command.connectionId) {
+    throw new HttpError(
+      400,
+      `Il comando ${label} non ha una connessione al database: scegline una da ${COMMANDS_WHERE}.`
+    );
+  }
+  if (!command.sql.trim()) {
+    throw new HttpError(400, `Il comando ${label} non ha una query SQL: scrivila da ${COMMANDS_WHERE}.`);
+  }
+  if (!isKnownFormat(command.format)) {
+    throw new HttpError(
+      400,
+      `Il comando ${label} ha un formato che non conosco («${command.format}»): sceglilo da ${COMMANDS_WHERE}.`
+    );
+  }
+
+  const { connectionId, sql, enabledTables, run, validate } = await queryContext(user, {
+    connectionId: command.connectionId,
+    sql: command.sql,
+    commandId
+  });
+  const { maxRows } = command;
+  const timeoutSeconds = Math.min(command.timeoutSeconds, QUERY_MAX_SECONDS);
+
+  // one row more than the cap: reaching the cap exactly is fine, going over it is what truncates
+  const statement = validate(() =>
+    validateSelect(sql, { enabledTables, maxRows: maxRows + 1, timeoutSeconds })
+  );
+  const started = Date.now();
+  const rows = await run(statement);
+  const tookMs = Date.now() - started;
+
+  if (rows.length > maxRows) {
+    throw new QueryError(
+      `Il risultato ha più di ${maxRows.toLocaleString('it-IT')} righe e il comando ${label} darebbe una risposta parziale: alza «Righe massime» in ${COMMANDS_WHERE} o restringi la query.`,
+      { connectionId, sql, commandId }
+    );
+  }
+  // with no rows there are no columns to look at: the composer of the format answers "nessun risultato"
+  const missing = rows.length ? missingColumns(command.format, Object.keys(rows[0])) : [];
+  if (missing.length) {
+    throw new QueryError(
+      `La query non restituisce ${missing.length === 1 ? 'la colonna' : 'le colonne'} ${missing.join(', ')}. Servono tutte: ${COMMAND_FORMATS[command.format].columns.join(', ')}.`,
+      { connectionId, sql, commandId }
+    );
+  }
+
+  const result = serializeRows(rows, { maxRows: maxRows + 1, maxChars: COMMAND_MAX_CHARS });
+  if (result.truncated) {
+    throw new QueryError('Il risultato è troppo grande per essere inviato: restringi la query.', {
+      connectionId,
+      sql,
+      commandId
+    });
+  }
+  return {
+    format: command.format,
+    columns: result.columns,
+    rows: result.rows,
+    rowCount: result.rowCount,
+    tookMs
+  };
+}
+
+/** Admin only: the ready-made commands ("Da modello") with their SQL, to start a new command from. */
+async function actionCommandPresets() {
+  return { presets: COMMAND_PRESETS };
 }
 
 // ── large exports: the rows go straight from the database into a file, never through the model ──
@@ -346,7 +465,7 @@ const wrapped = (checked, outer) => `SELECT ${outer} FROM (${checked}) AS export
 
 /** For the model: how many rows the file would hold, the columns, a few rows to describe it. */
 async function actionExportPreview(user, body) {
-  const { sql, enabledTables, run, validate } = await queryContext(user, body);
+  const { sql, enabledTables, run, validate } = await queryContext(user, queryFromBody(body));
   const checked = validate(() => checkSelect(sql, { enabledTables }));
   const { maxRows, timeoutSeconds } = await exportLimits();
   const started = Date.now();
@@ -390,7 +509,7 @@ async function actionExportPreview(user, body) {
 
 /** The .xlsx itself, generated when the operator clicks: the data are those of that moment. */
 async function actionExportFile(user, body) {
-  const { sql, enabledTables, run, validate } = await queryContext(user, body);
+  const { sql, enabledTables, run, validate } = await queryContext(user, queryFromBody(body));
   const checked = validate(() => checkSelect(sql, { enabledTables }));
   const { maxRows, timeoutSeconds } = await exportLimits();
   const started = Date.now();
@@ -453,7 +572,8 @@ const ADMIN_ACTIONS = {
   save: actionSave,
   delete: actionDelete,
   scan: actionScan,
-  sample: actionSample
+  sample: actionSample,
+  commandPresets: actionCommandPresets
 };
 // ── charts: the model writes an aggregating query, the chat draws the result ──
 
@@ -469,7 +589,7 @@ const CHART_MAX_POINTS = 2000;
  * summarised, to the model. One row more than the cap is fetched to tell "too many" apart.
  */
 async function actionChartData(user, body) {
-  const { sql, enabledTables, run, validate } = await queryContext(user, body);
+  const { sql, enabledTables, run, validate } = await queryContext(user, queryFromBody(body));
   const requestedTimeout = Number(body.timeoutSeconds) > 0 ? Number(body.timeoutSeconds) : 15;
   const statement = validate(() =>
     validateSelect(sql, {
@@ -487,6 +607,7 @@ async function actionChartData(user, body) {
 
 const OPERATOR_ACTIONS = {
   query: actionQuery,
+  command: actionCommand,
   chartData: actionChartData,
   exportPreview: actionExportPreview,
   exportFile: actionExportFile

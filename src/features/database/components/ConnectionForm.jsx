@@ -170,12 +170,12 @@ export default function ConnectionForm({ connection, onSaved, onCancel }) {
           Prova connessione
         </Button>
         {testState === 'ok' && (
-          <span className="flex items-center gap-1 text-[12px] font-medium text-ok">
+          <span className="flex items-center gap-1 text-fs-12 font-medium text-ok">
             <CheckCircle2 size={14} /> Connesso
           </span>
         )}
         {testState?.error && (
-          <span className="flex items-center gap-1 text-[12px] font-medium text-danger">
+          <span className="flex items-center gap-1 text-fs-12 font-medium text-danger">
             <XCircle size={14} /> {testState.error}
           </span>
         )}
@@ -188,7 +188,7 @@ export default function ConnectionForm({ connection, onSaved, onCancel }) {
         <Button onClick={onCancel} disabled={saving}>
           Annulla
         </Button>
-        {saveError && <span className="text-[12px] text-danger">{saveError}</span>}
+        {saveError && <span className="text-fs-12 text-danger">{saveError}</span>}
       </div>
     </div>
   );

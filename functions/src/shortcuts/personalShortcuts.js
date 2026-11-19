@@ -19,6 +19,14 @@ async function adminLimit() {
 }
 const LIMITS = { icon: 30, title: 60, description: 120, prompt: 1000 };
 
+// A shortcut may run a command without AI instead of asking the model (src/features/chat/commands): its
+// `command` is the id of one of the commands in the settings (`settings.noAiCommands`). The server cannot
+// know which exist (an operator's shortcut is saved without reading the settings, and the admin may add or
+// delete commands later), so it checks the shape only: the id charset the app generates, nothing that could
+// be anything else. A command that is gone or off is the browser's business: the shortcut then asks the
+// model. The question stays on the shortcut too, as the text the chat shows and the model gets in that case.
+const COMMAND_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
 const docOf = uid => getFirestore().doc(`${appRoot()}/chatUsers/${uid}/private/shortcuts`);
 
 export class ShortcutsError extends Error {
@@ -50,12 +58,16 @@ export async function saveShortcuts(user, body) {
   if (body.shortcuts.length > limit && body.shortcuts.length > current) {
     throw new ShortcutsError(`Puoi avere al massimo ${limit} scorciatoie personali.`);
   }
-  const items = body.shortcuts.map(s => ({
-    icon: clean(s?.icon, LIMITS.icon) || 'question',
-    title: clean(s?.title, LIMITS.title),
-    description: clean(s?.description, LIMITS.description),
-    prompt: clean(s?.prompt, LIMITS.prompt)
-  }));
+  const items = body.shortcuts.map(s => {
+    const command = typeof s?.command === 'string' && COMMAND_ID.test(s.command) ? s.command : null;
+    return {
+      icon: clean(s?.icon, LIMITS.icon) || 'question',
+      title: clean(s?.title, LIMITS.title),
+      description: clean(s?.description, LIMITS.description),
+      prompt: clean(s?.prompt, LIMITS.prompt) || command || '',
+      ...(command ? { command } : {})
+    };
+  });
   if (items.some(s => !s.title || !s.prompt))
     throw new ShortcutsError('every shortcut needs a title and a question');
   await docOf(user.uid).set({ items, updatedAt: FieldValue.serverTimestamp() });

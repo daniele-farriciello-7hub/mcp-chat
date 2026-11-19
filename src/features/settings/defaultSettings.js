@@ -140,6 +140,13 @@ export const DEFAULT_SETTINGS = {
   exportMaxRows: 50000,
   // charts drawn in the chat (show_chart): readability limits, not costs — see features/charts
   chartLimits: { bar: 60, line: 400, donut: 8, series: 4 },
+  // The commands without AI (features/chat/commands): each answers an exact message by running one fixed
+  // query on the server, and the browser writes the answer from its rows. None until the admin adds one
+  // (Database tab, "Comandi senza AI"); the shape of a command is in features/chat/commands/commandSettings.js.
+  // The server reads the commands itself from the stored settings (functions/src/db/commandSettings.js) —
+  // the browser sends neither the SQL nor the connection. Settings saved with the old single `erogatoCommand`
+  // are read as one command, see `normalizeCommands` (called by settingsStore.js).
+  noAiCommands: [],
   exportTimeoutSeconds: 45,
   temperature: 0.4,
   maxOutputTokens: 1200,

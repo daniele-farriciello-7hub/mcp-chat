@@ -20,11 +20,11 @@ export default function SettingsHeader({
         </button>
       </Tooltip>
       <div className="min-w-0 flex-1">
-        <div className="text-[15px] font-bold leading-tight text-ink">{title}</div>
-        <div className="text-[11px] text-slate-soft">{subtitle}</div>
+        <div className="text-fs-15 font-bold leading-tight text-ink">{title}</div>
+        <div className="text-fs-11 text-slate-soft">{subtitle}</div>
       </div>
       {hasUnsavedChanges && (
-        <span className="flex shrink-0 items-center gap-1.5 rounded-pill bg-accent-soft px-2 py-1 text-[10px] font-semibold text-warn">
+        <span className="flex shrink-0 items-center gap-1.5 rounded-pill bg-accent-soft px-2 py-1 text-fs-10 font-semibold text-warn">
           <span className="h-1.5 w-1.5 rounded-pill bg-accent" />
           Non salvato
         </span>

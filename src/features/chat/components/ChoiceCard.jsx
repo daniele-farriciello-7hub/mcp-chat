@@ -23,12 +23,12 @@ export default function ChoiceCard({ activity, answered, onSelect, onAsk, onOthe
 
   return (
     <div
-      className="overflow-hidden rounded-card border border-line bg-white shadow-soft"
+      className="overflow-hidden rounded-card border border-line bg-panel shadow-soft"
       style={{ animation: 'var(--animate-fade-up)' }}
       role="group"
       aria-label={label}
     >
-      <div className="border-b border-line bg-surface px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-soft">
+      <div className="border-b border-line bg-surface px-3 py-1.5 text-fs-11 font-semibold uppercase tracking-[0.08em] text-slate-soft">
         {label}
       </div>
       {choices.map(choice => {
@@ -44,7 +44,7 @@ export default function ChoiceCard({ activity, answered, onSelect, onAsk, onOthe
               chosen ? 'bg-ok-soft' : answered ? 'opacity-55' : 'hover:bg-surface'
             } disabled:cursor-default`}
           >
-            <span className="min-w-0 flex-1 text-[13px] font-semibold text-ink">{choice}</span>
+            <span className="min-w-0 flex-1 text-fs-13 font-semibold text-ink">{choice}</span>
             {chosen ? (
               <Check size={14} className="shrink-0 text-ok" aria-label="Scelta" />
             ) : (
@@ -68,7 +68,7 @@ export default function ChoiceCard({ activity, answered, onSelect, onAsk, onOthe
             answered ? 'opacity-55' : 'hover:bg-surface hover:text-ink'
           } disabled:cursor-default`}
         >
-          <span className="min-w-0 flex-1 text-[13px]">Altro…</span>
+          <span className="min-w-0 flex-1 text-fs-13">Altro…</span>
           {!answered && <Pencil size={13} className="shrink-0" aria-hidden="true" />}
         </button>
       )}

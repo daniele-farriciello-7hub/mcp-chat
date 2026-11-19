@@ -13,19 +13,19 @@ export default function IndexingProgress({ queue }) {
     <div className="bg-brand-50/40 rounded-xl px-3 py-2.5">
       <div className="flex items-center gap-2">
         {running ? (
-          <Loader2 size={14} className="shrink-0 animate-spin text-brand-500" />
+          <Loader2 size={14} className="shrink-0 animate-spin text-brand-fg" />
         ) : (
           <Check size={14} strokeWidth={3} className="shrink-0 text-ok" />
         )}
-        <span className="min-w-0 flex-1 text-[12px] font-semibold text-ink">
+        <span className="min-w-0 flex-1 text-fs-12 font-semibold text-ink">
           {running ? `Indicizzazione ${queue.done + 1} di ${queue.total}` : 'Indicizzazione completata'}
         </span>
         {queue.failed > 0 && (
-          <span className="shrink-0 text-[11px] text-danger">{queue.failed} con errore</span>
+          <span className="shrink-0 text-fs-11 text-danger">{queue.failed} con errore</span>
         )}
       </div>
       {running && current && (
-        <p className="mt-1 truncate text-[11px] text-slate-soft" title={current.document.name}>
+        <p className="mt-1 truncate text-fs-11 text-slate-soft" title={current.document.name}>
           {PHASE_LABELS[current.phase]}: <span className="text-ink">{current.document.name}</span>
         </p>
       )}
@@ -33,7 +33,7 @@ export default function IndexingProgress({ queue }) {
         <ProgressBar value={queue.done} total={queue.total} tone={running ? 'brand' : 'ok'} />
       </div>
       {running && (
-        <p className="mt-1.5 text-[10px] text-slate-soft">
+        <p className="mt-1.5 text-fs-10 text-slate-soft">
           Può richiedere qualche minuto per documento. Puoi chiudere il pannello: continua da solo.
         </p>
       )}

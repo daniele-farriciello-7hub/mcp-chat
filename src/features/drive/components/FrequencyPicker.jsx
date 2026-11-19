@@ -33,7 +33,7 @@ export default function FrequencyPicker({
       </div>
       {usesHour(frequency) && (
         <>
-          <span className="shrink-0 text-[12px] text-slate-soft">
+          <span className="shrink-0 text-fs-12 text-slate-soft">
             {frequency === 'weekly' ? 'lunedì alle' : 'alle'}
           </span>
           <div className="w-[88px] shrink-0">

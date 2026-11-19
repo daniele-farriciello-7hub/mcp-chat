@@ -34,18 +34,18 @@ export default function SelectionBar({
   };
 
   return (
-    <div className="sticky bottom-0 rounded-b-xl border-t border-line bg-white/95 px-3 py-2 shadow-lift backdrop-blur">
+    <div className="sticky bottom-0 rounded-b-xl border-t border-line bg-panel/95 px-3 py-2 shadow-lift backdrop-blur">
       {!confirmingDelete && skippedNote && (
-        <p className="mb-1.5 text-[11px] leading-snug text-warn">{skippedNote}</p>
+        <p className="mb-1.5 text-fs-11 leading-snug text-warn">{skippedNote}</p>
       )}
       <div className="flex items-center gap-2">
         {confirmingDelete ? (
           <>
-            <span className="flex-1 text-[12px] font-medium text-ink">
+            <span className="flex-1 text-fs-12 font-medium text-ink">
               Eliminare {deletableCount === 1 ? 'il documento selezionato' : `${deletableCount} documenti`}?
               Non si può annullare.
               {driveCount > 0 && (
-                <span className="block text-[11px] font-normal text-warn">
+                <span className="block text-fs-11 font-normal text-warn">
                   {driveCount === 1
                     ? '1 documento di Google Drive resta'
                     : `${driveCount} documenti di Google Drive restano`}
@@ -57,7 +57,7 @@ export default function SelectionBar({
               type="button"
               onClick={() => setConfirmingDelete(false)}
               disabled={deleting}
-              className="rounded-lg px-2 py-1.5 text-[12px] text-slate-soft transition hover:text-ink"
+              className="rounded-lg px-2 py-1.5 text-fs-12 text-slate-soft transition hover:text-ink"
             >
               Annulla
             </button>
@@ -65,18 +65,18 @@ export default function SelectionBar({
               type="button"
               onClick={confirmDelete}
               disabled={deleting}
-              className="flex items-center gap-1.5 rounded-xl bg-danger px-3 py-2 text-[12px] font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-xl bg-danger px-3 py-2 text-fs-12 font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Elimina
             </button>
           </>
         ) : (
           <>
-            <span className="flex-1 text-[12px] font-medium text-ink">{count} selezionati</span>
+            <span className="flex-1 text-fs-12 font-medium text-ink">{count} selezionati</span>
             <button
               type="button"
               onClick={onClear}
-              className="rounded-lg px-2 py-1.5 text-[12px] text-slate-soft transition hover:text-ink"
+              className="rounded-lg px-2 py-1.5 text-fs-12 text-slate-soft transition hover:text-ink"
             >
               Deseleziona
             </button>
@@ -93,7 +93,7 @@ export default function SelectionBar({
                 onClick={() => setConfirmingDelete(true)}
                 disabled={deletableCount === 0}
                 aria-label="Elimina i selezionati"
-                className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-[12px] font-semibold text-danger transition hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-fs-12 font-semibold text-danger transition hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
               >
                 <Trash2 size={14} /> Elimina
               </button>

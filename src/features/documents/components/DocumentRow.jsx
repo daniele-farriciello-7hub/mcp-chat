@@ -18,14 +18,14 @@ const PHASE_LABELS = { reading: 'Gemini sta leggendo…' };
 function StatusLine({ document, phase, blocker }) {
   if (phase) {
     return (
-      <span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-brand-600">
+      <span className="mt-1 flex items-center gap-1 text-fs-11 font-medium text-brand-600">
         <Loader2 size={11} className="animate-spin" /> {PHASE_LABELS[phase]}
       </span>
     );
   }
   if (blocker) {
     return (
-      <span className="mt-1 block text-[11px] leading-snug text-slate-soft">
+      <span className="mt-1 block text-fs-11 leading-snug text-slate-soft">
         <span className="font-semibold text-ink">{blocker.label}.</span> {blocker.reason}
       </span>
     );
@@ -33,7 +33,7 @@ function StatusLine({ document, phase, blocker }) {
   if (document.indexingStatus === INDEXING_STATUS.failed) {
     return (
       <span
-        className="mt-1 flex items-start gap-1 text-[11px] leading-snug text-danger"
+        className="mt-1 flex items-start gap-1 text-fs-11 leading-snug text-danger"
         title={document.error}
       >
         <AlertTriangle size={11} className="mt-0.5 shrink-0" />
@@ -83,16 +83,16 @@ export default function DocumentRow({ document, selected, onToggle, phase, onDes
         <FileTypeIcon
           mimeType={document.mimeType}
           size={15}
-          className={`mt-0.5 shrink-0 ${blocker ? 'text-slate-soft' : 'text-brand-500'}`}
+          className={`mt-0.5 shrink-0 ${blocker ? 'text-slate-soft' : 'text-brand-fg'}`}
         />
       )}
       <div className="min-w-0 flex-1">
         <Tooltip label={document.name} align="left" className="block w-full">
-          <div className={`truncate text-[13px] font-medium ${blocker ? 'text-slate-soft' : 'text-ink'}`}>
+          <div className={`truncate text-fs-13 font-medium ${blocker ? 'text-slate-soft' : 'text-ink'}`}>
             {document.name}
           </div>
         </Tooltip>
-        <div className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-soft">
+        <div className="mt-0.5 flex items-center gap-1 text-fs-10 text-slate-soft">
           {fromDrive ? <Cloud size={10} /> : <Upload size={10} />}
           <span className="truncate">{meta}</span>
         </div>

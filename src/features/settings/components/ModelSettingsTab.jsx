@@ -157,13 +157,13 @@ export default function ModelSettingsTab({ settings, onChange }) {
           {CLARIFICATION_FREQUENCIES.find(f => f.id === settings.clarificationFrequency)?.description}
         </p>
         <label className="block">
-          <span className="text-[12px] font-semibold text-ink">Ambiguità tipiche della vostra azienda</span>
+          <span className="text-fs-12 font-semibold text-ink">Ambiguità tipiche della vostra azienda</span>
           <textarea
             rows={4}
             value={settings.clarificationInstructions}
             onChange={e => onChange('clarificationInstructions', e.target.value)}
             placeholder="«Lead» può voler dire creati, lavorati o chiusi: chiedi quale."
-            className={`${INPUT_CLASS} mt-1 resize-y text-[12px] leading-snug`}
+            className={`${INPUT_CLASS} mt-1 resize-y text-fs-12 leading-snug`}
           />
         </label>
         <p className={HELP_TEXT_CLASS}>
@@ -237,7 +237,7 @@ export default function ModelSettingsTab({ settings, onChange }) {
           rangeLabels={['Una alla volta', 'Più confronti']}
           onChange={value => setLimit('series', value)}
         />
-        <p className="rounded-xl bg-surface px-3 py-2.5 text-[11px] leading-snug text-slate-soft">
+        <p className="rounded-xl bg-surface px-3 py-2.5 text-fs-11 leading-snug text-slate-soft">
           <span className="font-semibold text-ink">Sono limiti di leggibilità, non di costo.</span> I grafici
           li disegna l’app con i numeri esatti, non l’intelligenza artificiale: un grafico più grande non
           aumenta il consumo AI, perché al modello torna sempre solo un breve riepilogo. Alzarli permette
@@ -270,7 +270,7 @@ export default function ModelSettingsTab({ settings, onChange }) {
             aria-label="Quanti"
           />
         </div>
-        <p className="rounded-xl bg-surface px-3 py-2 text-[11px] leading-snug text-slate-soft">
+        <p className="rounded-xl bg-surface px-3 py-2 text-fs-11 leading-snug text-slate-soft">
           {historyLimit.unit === 'messages'
             ? `Il modello vedrà gli ultimi ${historyLimit.value} messaggi. Il resto è dimenticato.`
             : `Il modello vedrà al massimo ${historyLimit.value} token di conversazione, partendo dai più recenti.`}

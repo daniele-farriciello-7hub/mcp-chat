@@ -14,7 +14,7 @@ import ProgressBar from './ProgressBar';
 
 const STATUS_ICONS = {
   queued: <Circle size={12} className="text-line" />,
-  uploading: <Loader2 size={12} className="animate-spin text-brand-500" />,
+  uploading: <Loader2 size={12} className="animate-spin text-brand-fg" />,
   done: <Check size={12} strokeWidth={3} className="text-ok" />,
   failed: <AlertTriangle size={12} className="text-danger" />,
   duplicate: <FileWarning size={12} className="text-warn" />
@@ -82,15 +82,13 @@ export default function UploadProgressPanel({
     <div className="rounded-xl border border-line">
       <div className="flex items-center gap-2 px-3 py-2.5">
         {summary.running ? (
-          <Loader2 size={14} className="shrink-0 animate-spin text-brand-500" />
+          <Loader2 size={14} className="shrink-0 animate-spin text-brand-fg" />
         ) : summary.failed ? (
           <AlertTriangle size={14} className="shrink-0 text-warn" />
         ) : (
           <Check size={14} strokeWidth={3} className="shrink-0 text-ok" />
         )}
-        <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-ink">
-          {headline(summary)}
-        </span>
+        <span className="min-w-0 flex-1 truncate text-fs-12 font-semibold text-ink">{headline(summary)}</span>
         <Tooltip label={expanded ? 'Nascondi l’elenco' : 'Mostra i file'} align="right">
           <button
             type="button"
@@ -124,11 +122,11 @@ export default function UploadProgressPanel({
 
       {expanded && !summary.running && summary.duplicates > 1 && (
         <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2">
-          <span className="text-[11px] text-slate-soft">{summary.duplicates} file già presenti.</span>
+          <span className="text-fs-11 text-slate-soft">{summary.duplicates} file già presenti.</span>
           <button
             type="button"
             onClick={onReplaceAll}
-            className="shrink-0 rounded-lg border border-line px-2 py-0.5 text-[11px] font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50"
+            className="shrink-0 rounded-lg border border-line px-2 py-0.5 text-fs-11 font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50"
           >
             Sostituisci tutti
           </button>
@@ -138,7 +136,7 @@ export default function UploadProgressPanel({
       {expanded && (
         <ul className="max-h-48 overflow-y-auto border-t border-line px-3 py-2">
           {uploads.map((upload, index) => (
-            <li key={index} className="flex items-start gap-2 py-1 text-[11px]">
+            <li key={index} className="flex items-start gap-2 py-1 text-fs-11">
               <span className="mt-0.5 shrink-0">{STATUS_ICONS[upload.status]}</span>
               <span className="min-w-0 flex-1">
                 <Tooltip label={upload.name} align="left" className="block w-full">
@@ -155,7 +153,7 @@ export default function UploadProgressPanel({
                     <button
                       type="button"
                       onClick={() => onReplace(index)}
-                      className="rounded-lg border border-line px-2 py-0.5 text-[11px] font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50"
+                      className="rounded-lg border border-line px-2 py-0.5 text-fs-11 font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50"
                     >
                       Sostituisci
                     </button>
@@ -169,7 +167,7 @@ export default function UploadProgressPanel({
 
       {canIndex && (
         <div className="flex items-center gap-2 border-t border-line bg-brand-50/50 px-3 py-2.5">
-          <p className="min-w-0 flex-1 text-[11px] leading-snug text-slate-soft">
+          <p className="min-w-0 flex-1 text-fs-11 leading-snug text-slate-soft">
             {missingDescriptions > 0 ? (
               <button
                 type="button"
