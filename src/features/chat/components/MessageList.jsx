@@ -124,7 +124,7 @@ export default function MessageList({
 
           if (message.role === 'notice') {
             return (
-              <p key={message.id} className="text-center text-[11px] italic text-slate-soft">
+              <p key={message.id} className="text-center text-fs-11 italic text-slate-soft">
                 {message.text}
               </p>
             );

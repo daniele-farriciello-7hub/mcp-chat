@@ -106,3 +106,42 @@ test('a reason that is not text is dropped, and rows never come along', async ()
 
   assert.deepEqual(storedActivity('q1'), { kind: 'data', outcome: 'failed' });
 });
+
+// ── the reply of a command without AI ─────────────────────────────────────────
+
+const storedReply = () => world.writes.find(w => w.id === 'r1').data;
+const replyOf = extra =>
+  recordTurn(USER, {
+    conversationId: 'c1',
+    activities: [],
+    reply: { id: 'r1', text: 'Ecco.', clientAt: 1000 },
+    ...extra
+  });
+
+test('a reply written by a command keeps the command’s name next to the marker model', async () => {
+  await replyOf({ model: 'comando', command: '  Erogato  ', usage: { input: 0, output: 0, thinking: 0 } });
+
+  const reply = storedReply();
+  assert.equal(reply.model, 'comando');
+  assert.equal(reply.command, 'Erogato');
+  assert.deepEqual(reply.usage, { input: 0, output: 0, thinking: 0 });
+});
+
+test('the command’s name is bounded text, and only a command’s reply has one', async () => {
+  await replyOf({ model: 'comando', command: 'n'.repeat(300) });
+  assert.equal(storedReply().command, 'n'.repeat(100));
+
+  reset();
+  await replyOf({ model: 'comando', command: { name: 'x' } });
+  assert.equal('command' in storedReply(), false);
+
+  // a model's reply never carries one, even if the browser sends the field
+  reset();
+  await replyOf({ model: 'gemini-2.5-flash', command: 'Erogato' });
+  assert.equal(storedReply().model, 'gemini-2.5-flash');
+  assert.equal('command' in storedReply(), false);
+
+  reset();
+  await replyOf({ model: 'comando' });
+  assert.equal('command' in storedReply(), false);
+});

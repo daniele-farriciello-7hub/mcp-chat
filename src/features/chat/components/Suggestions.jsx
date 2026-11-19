@@ -8,7 +8,7 @@ export default function Suggestions({ items, onPick }) {
           key={item}
           type="button"
           onClick={() => onPick(item)}
-          className="rounded-lg border border-line bg-white px-3 py-1.5 text-[12px] font-medium text-ink transition hover:border-brand-300 hover:bg-brand-50/70"
+          className="rounded-lg border border-line bg-panel px-3 py-1.5 text-fs-12 font-medium text-ink transition hover:border-brand-300 hover:bg-brand-50/70"
           style={{ animation: 'var(--animate-fade-up)', animationDelay: `${i * 60}ms` }}
         >
           {item}

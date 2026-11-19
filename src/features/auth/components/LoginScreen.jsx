@@ -8,11 +8,12 @@ import { useState } from 'react';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import AgentMark from '@/features/chat/components/AgentMark';
 import { describeAuthError } from '@/features/auth/authErrors';
+import AppearanceMenu from '@/shared/appearance/AppearanceMenu';
 import Tooltip from '@/shared/ui/Tooltip';
 import GoogleLogo from './GoogleLogo';
 
 const INPUT_CLASS =
-  'w-full rounded-xl border border-line bg-white py-3 pl-11 pr-4 text-[14px] text-ink placeholder:text-slate-soft/70 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100';
+  'w-full rounded-xl border border-line bg-panel py-3 pl-11 pr-4 text-fs-14 text-ink placeholder:text-slate-soft/70 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-100';
 
 export default function LoginScreen({ onSignIn, onSignInWithGoogle, onResetPassword }) {
   const [email, setEmail] = useState('');
@@ -57,13 +58,19 @@ export default function LoginScreen({ onSignIn, onSignInWithGoogle, onResetPassw
   const passwordToggleLabel = showPassword ? 'Nascondi la password' : 'Mostra la password';
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-surface px-5 py-10">
+    <div className="relative flex min-h-dvh flex-col items-center justify-center bg-surface px-5 py-10">
+      {/* standalone only: it renders nothing inside 7hub */}
+      <div className="absolute right-3 top-3">
+        <AppearanceMenu />
+      </div>
       <AgentMark size={38} filled />
 
-      <h1 className="mt-5 text-[27px] font-bold tracking-tight text-ink">Assistente 7hub</h1>
-      <p className="mt-1 text-[14px] text-slate-soft">Accedi al tuo account</p>
+      <h1 className="mt-5 text-[length:calc(27px*var(--fs-scale,1))] font-bold tracking-tight text-ink">
+        Assistente 7hub
+      </h1>
+      <p className="mt-1 text-fs-14 text-slate-soft">Accedi al tuo account</p>
 
-      <div className="mt-7 w-full max-w-[400px] rounded-2xl border border-line bg-white p-6 shadow-soft">
+      <div className="mt-7 w-full max-w-[400px] rounded-2xl border border-line bg-panel p-6 shadow-soft">
         <form onSubmit={submit} className="flex flex-col gap-3">
           <div className="relative">
             <Mail
@@ -116,22 +123,22 @@ export default function LoginScreen({ onSignIn, onSignInWithGoogle, onResetPassw
           <button
             type="button"
             onClick={requestPasswordReset}
-            className="self-end text-[13px] font-medium text-brand-600 transition hover:text-brand-700"
+            className="self-end text-fs-13 font-medium text-brand-600 transition hover:text-brand-700"
           >
             Password dimenticata?
           </button>
 
           {error && (
-            <p role="alert" className="text-[13px] text-danger">
+            <p role="alert" className="text-fs-13 text-danger">
               {error}
             </p>
           )}
-          {notice && <p className="text-[13px] text-ok">{notice}</p>}
+          {notice && <p className="text-fs-13 text-ok">{notice}</p>}
 
           <button
             type="submit"
             disabled={Boolean(pendingMethod)}
-            className="mt-1 w-full rounded-xl bg-brand-500 py-3 text-[15px] font-semibold text-white transition hover:bg-brand-600 disabled:opacity-60"
+            className="mt-1 w-full rounded-xl bg-brand-500 py-3 text-fs-15 font-semibold text-on-brand transition hover:bg-brand-hover disabled:opacity-60"
           >
             {pendingMethod === 'email' ? 'Accedo…' : 'Accedi'}
           </button>
@@ -139,7 +146,7 @@ export default function LoginScreen({ onSignIn, onSignInWithGoogle, onResetPassw
 
         <div className="my-5 flex items-center gap-3">
           <span className="h-px flex-1 bg-line" />
-          <span className="text-[13px] text-slate-soft">oppure</span>
+          <span className="text-fs-13 text-slate-soft">oppure</span>
           <span className="h-px flex-1 bg-line" />
         </div>
 
@@ -147,14 +154,14 @@ export default function LoginScreen({ onSignIn, onSignInWithGoogle, onResetPassw
           type="button"
           onClick={() => run('google', onSignInWithGoogle)}
           disabled={Boolean(pendingMethod)}
-          className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-line bg-white py-3 text-[15px] font-medium text-ink transition hover:bg-surface disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-line bg-panel py-3 text-fs-15 font-medium text-ink transition hover:bg-surface disabled:opacity-60"
         >
           <GoogleLogo />
           {pendingMethod === 'google' ? 'Attendo Google…' : 'Continua con Google'}
         </button>
       </div>
 
-      <p className="mt-6 text-center text-[13px] text-slate-soft">
+      <p className="mt-6 text-center text-fs-13 text-slate-soft">
         Accesso riservato ai collaboratori autorizzati.
       </p>
     </div>

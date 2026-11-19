@@ -21,11 +21,11 @@ export default function Button({
       onClick={onClick}
       disabled={disabled}
       aria-disabled={softDisabled || undefined}
-      className={`flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-fs-12 font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
         softDisabled ? 'cursor-not-allowed opacity-40' : ''
       } ${
         primary
-          ? 'bg-brand-500 text-white hover:bg-brand-600'
+          ? 'bg-brand-500 text-on-brand hover:bg-brand-hover'
           : 'border border-line text-ink hover:bg-surface'
       } ${className}`}
     >

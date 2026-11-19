@@ -8,7 +8,13 @@ import { loadAppUsers } from '@/features/history/appUsers';
 
 const EMPTY_SHORTCUT = { icon: 'question', title: '', description: '', prompt: '' };
 
-export default function ShortcutsTab({ shortcuts, onChange, personalLimit = 0, onPersonalLimitChange }) {
+export default function ShortcutsTab({
+  shortcuts,
+  commands,
+  onChange,
+  personalLimit = 0,
+  onPersonalLimitChange
+}) {
   const [expandedIndex, setExpandedIndex] = useState(null);
   const [users, setUsers] = useState([]);
 
@@ -43,7 +49,7 @@ export default function ShortcutsTab({ shortcuts, onChange, personalLimit = 0, o
 
   return (
     <div className="flex flex-col gap-2.5">
-      <p className="text-[11px] leading-snug text-slate-soft">
+      <p className="text-fs-11 leading-snug text-slate-soft">
         I riquadri che l’operatore vede aprendo la chat, nell’ordine in cui compaiono. Toccarne uno equivale a
         scrivere la domanda. Ognuno può essere per tutti o solo per alcuni utenti; in più, ogni operatore può
         crearsi le sue scorciatoie personali dalla schermata iniziale.
@@ -53,6 +59,7 @@ export default function ShortcutsTab({ shortcuts, onChange, personalLimit = 0, o
         <ShortcutEditor
           key={index}
           shortcut={shortcut}
+          commands={commands}
           users={users}
           index={index}
           count={shortcuts.length}
@@ -67,17 +74,17 @@ export default function ShortcutsTab({ shortcuts, onChange, personalLimit = 0, o
       <button
         type="button"
         onClick={add}
-        className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-line py-2.5 text-[13px] font-medium text-brand-600 transition hover:border-brand-300 hover:bg-brand-50/50"
+        className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-line py-2.5 text-fs-13 font-medium text-brand-600 transition hover:border-brand-300 hover:bg-brand-50/50"
       >
         <Plus size={15} /> Aggiungi un riquadro
       </button>
 
       <div className="mt-6 flex flex-col gap-3 border-t border-line pt-4">
         <div>
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">
+          <h3 className="text-fs-11 font-bold uppercase tracking-[0.12em] text-brand-600">
             Scorciatoie personali
           </h3>
-          <p className="mt-1 text-[11px] leading-snug text-slate-soft">
+          <p className="mt-1 text-fs-11 leading-snug text-slate-soft">
             Ogni operatore non admin può crearsi le sue dall’ingranaggio o dalla schermata iniziale. Le vede
             solo lui; qui sotto le vedi tutte. Le tue, da admin, sono quelle qui sopra con «Per chi» uguale a
             te: le puoi creare anche dalla schermata iniziale.
@@ -90,7 +97,7 @@ export default function ShortcutsTab({ shortcuts, onChange, personalLimit = 0, o
           description={personalLimit > 0 ? `Al massimo ${personalLimit} a testa.` : 'Nessun limite.'}
         />
         {personalLimit > 0 && (
-          <label className="flex items-center gap-2 text-[12px] text-ink">
+          <label className="flex items-center gap-2 text-fs-12 text-ink">
             Massimo
             <input
               type="number"

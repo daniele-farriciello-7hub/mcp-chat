@@ -4,7 +4,7 @@ export default function IndexedDocumentList({ documents, filtersActive }) {
   return (
     <div className="rounded-xl border border-line">
       {documents.length === 0 ? (
-        <p className="px-3 py-6 text-center text-[12px] text-slate-soft">
+        <p className="px-3 py-6 text-center text-fs-12 text-slate-soft">
           {filtersActive
             ? 'Nessun documento indicizzato corrisponde.'
             : 'Nessun documento indicizzato finora.'}

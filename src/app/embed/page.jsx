@@ -11,6 +11,7 @@ import LoginScreen from '@/features/auth/components/LoginScreen';
 import { useSession } from '@/features/auth/useSession';
 import AgentMark from '@/features/chat/components/AgentMark';
 import ChatPanel from '@/features/chat/components/ChatPanel';
+import { receiveHostAppearance } from '@/shared/appearance/appearanceStore';
 import { announceReady, isEmbedded, listenToHost, postToHost } from '@/shared/embed/hostBridge';
 import { useClientValue } from '@/shared/useClientValue';
 
@@ -48,14 +49,19 @@ export default function EmbedPage() {
   useEffect(() => {
     const unsubscribe = listenToHost(
       (context, origin) => {
-        setHostContext(context);
+        // the host's look (mode, colours, font size) goes to the appearance store; the rest is the chat's context
+        const { appearance, ...rest } = context;
+        receiveHostAppearance(appearance, context.theme);
+        setHostContext(rest);
         setHostOrigin(origin);
       },
       data => {
         if (data.type === 'sign_out') return signOutRef.current?.();
         if (panel.current) runCommand(data);
         else waiting.current.push(data);
-      }
+      },
+      // live changes of the host's settings
+      appearance => receiveHostAppearance(appearance)
     );
     // the host answers with the context
     announceReady();

@@ -8,7 +8,7 @@ export default function NameFilterInput({ value, onChange }) {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder="Cerca per nome del file"
-        className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-slate-soft"
+        className="w-full bg-transparent text-fs-13 text-ink outline-none placeholder:text-slate-soft"
       />
     </label>
   );

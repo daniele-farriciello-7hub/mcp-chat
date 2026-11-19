@@ -54,13 +54,13 @@ function FileOption({ file, chosen, dimmed, disabled, onPick }) {
       disabled={disabled || gone}
       aria-label={`Scegli ${name || 'il file'}`}
       aria-pressed={chosen}
-      className={`flex min-w-0 flex-col overflow-hidden rounded-xl border bg-white text-left transition disabled:cursor-default ${
+      className={`flex min-w-0 flex-col overflow-hidden rounded-xl border bg-panel text-left transition disabled:cursor-default ${
         chosen ? 'border-brand-500 ring-2 ring-brand-500/20' : 'border-line'
       } ${dimmed || gone ? 'opacity-50' : ''} ${disabled || gone ? '' : 'hover:border-brand-300 hover:shadow-soft'}`}
     >
       <span
         className={`relative flex h-24 w-full items-center justify-center ${
-          isPicture && !gone ? 'thumb-checker p-2' : 'bg-surface text-brand-500'
+          isPicture && !gone ? 'thumb-checker p-2' : 'bg-surface text-brand-fg'
         }`}
       >
         {gone ? (
@@ -72,16 +72,16 @@ function FileOption({ file, chosen, dimmed, disabled, onPick }) {
           <FileTypeIcon mimeType={found?.mimeType} size={28} />
         )}
         {chosen && (
-          <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-white">
+          <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-on-brand">
             <Check size={12} strokeWidth={3} />
           </span>
         )}
       </span>
       <span className="border-t border-line px-2 py-1.5">
-        <span className="block truncate text-[12px] font-semibold text-ink" title={name}>
+        <span className="block truncate text-fs-12 font-semibold text-ink" title={name}>
           {name}
         </span>
-        {gone && <span className="block text-[11px] text-slate-soft">Non più nell’archivio</span>}
+        {gone && <span className="block text-fs-11 text-slate-soft">Non più nell’archivio</span>}
       </span>
     </button>
   );
@@ -95,7 +95,7 @@ export default function FileChoiceCard({ activity, answered, onPickFile, onAsk }
 
   return (
     <div
-      className="overflow-hidden rounded-card border border-line bg-white shadow-soft"
+      className="overflow-hidden rounded-card border border-line bg-panel shadow-soft"
       style={{ animation: 'var(--animate-fade-up)' }}
       role="group"
       aria-label={label}
@@ -103,8 +103,8 @@ export default function FileChoiceCard({ activity, answered, onPickFile, onAsk }
       <div
         className={`border-b border-line bg-surface px-3 py-1.5 ${
           noExactMatch
-            ? 'text-[12px] font-semibold leading-snug text-ink'
-            : 'text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-soft'
+            ? 'text-fs-12 font-semibold leading-snug text-ink'
+            : 'text-fs-11 font-semibold uppercase tracking-[0.08em] text-slate-soft'
         }`}
       >
         {noExactMatch ? NO_EXACT_MATCH : label}
@@ -127,7 +127,7 @@ export default function FileChoiceCard({ activity, answered, onPickFile, onAsk }
             type="button"
             onClick={() => onAsk(NONE_OF_THESE)}
             disabled={decided}
-            className="text-[12px] font-semibold text-brand-600 transition hover:text-brand-700 disabled:cursor-default disabled:text-slate-soft/60"
+            className="text-fs-12 font-semibold text-brand-600 transition hover:text-brand-700 disabled:cursor-default disabled:text-slate-soft/60"
           >
             {NONE_OF_THESE}
           </button>

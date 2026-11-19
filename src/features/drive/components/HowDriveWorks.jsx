@@ -29,7 +29,7 @@ export default function HowDriveWorks({ defaultOpen }) {
         type="button"
         onClick={() => setOpen(v => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between text-[11px] font-semibold text-brand-600 transition hover:text-brand-700"
+        className="flex w-full items-center justify-between text-fs-11 font-semibold text-brand-600 transition hover:text-brand-700"
       >
         Come funziona
         <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -38,14 +38,14 @@ export default function HowDriveWorks({ defaultOpen }) {
         <ol className="mt-2.5 flex flex-col gap-2.5">
           {STEPS.map(({ icon: Icon, title, text }, index) => (
             <li key={title} className="flex items-start gap-2.5">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-pill bg-brand-50 text-brand-500">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-pill bg-brand-50 text-brand-fg">
                 <Icon size={13} strokeWidth={2.25} />
               </span>
               <span className="min-w-0">
-                <span className="block text-[12px] font-semibold text-ink">
+                <span className="block text-fs-12 font-semibold text-ink">
                   {index + 1}. {title}
                 </span>
-                <span className="block text-[11px] leading-snug text-slate-soft">{text}</span>
+                <span className="block text-fs-11 leading-snug text-slate-soft">{text}</span>
               </span>
             </li>
           ))}

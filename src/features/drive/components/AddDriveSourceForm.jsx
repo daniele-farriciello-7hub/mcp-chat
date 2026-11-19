@@ -45,10 +45,10 @@ export default function AddDriveSourceForm({ onAdded }) {
         />
       </Field>
       <div>
-        <span className="mb-1.5 block text-[12px] font-semibold text-ink">Ogni quanto sincronizzare</span>
+        <span className="mb-1.5 block text-fs-12 font-semibold text-ink">Ogni quanto sincronizzare</span>
         <FrequencyPicker {...schedule} onChange={setSchedule} />
       </div>
-      {error && <p className="rounded-lg bg-danger-soft px-2.5 py-2 text-[11px] text-danger">{error}</p>}
+      {error && <p className="rounded-lg bg-danger-soft px-2.5 py-2 text-fs-11 text-danger">{error}</p>}
       <div className="flex justify-end">
         <Button primary type="submit" disabled={adding || !link.trim()}>
           {adding ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />} Collega

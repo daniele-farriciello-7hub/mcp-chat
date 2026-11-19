@@ -115,7 +115,7 @@ export default function MarkdownTextarea({ value, onChange, rows = 6, ariaLabel,
         <button
           type="button"
           onClick={() => setPreviewing(v => !v)}
-          className="flex items-center gap-1 text-[11px] font-medium text-brand-600 transition hover:text-brand-700"
+          className="flex items-center gap-1 text-fs-11 font-medium text-brand-600 transition hover:text-brand-700"
         >
           {previewing ? (
             <>
@@ -127,7 +127,7 @@ export default function MarkdownTextarea({ value, onChange, rows = 6, ariaLabel,
             </>
           )}
         </button>
-        <span className="text-[10px] text-slate-soft">{value.length} caratteri</span>
+        <span className="text-fs-10 text-slate-soft">{value.length} caratteri</span>
       </div>
 
       {previewing ? (
@@ -136,7 +136,7 @@ export default function MarkdownTextarea({ value, onChange, rows = 6, ariaLabel,
         // README, the production instructions) scrolls inside the box instead of stretching the
         // whole settings panel
         <div
-          className={`${INPUT_CLASS} overflow-y-auto text-[12px] leading-relaxed`}
+          className={`${INPUT_CLASS} overflow-y-auto text-fs-12 leading-relaxed`}
           style={{ minHeight: `${rows * 1.6}em`, maxHeight: 320 }}
         >
           {value.trim() ? (
@@ -155,12 +155,12 @@ export default function MarkdownTextarea({ value, onChange, rows = 6, ariaLabel,
             onKeyDown={handleKeyDown}
             onBlur={closeMention}
             aria-label={ariaLabel}
-            className={`${INPUT_CLASS} resize-y font-mono text-[12px] leading-relaxed`}
+            className={`${INPUT_CLASS} resize-y font-mono text-fs-12 leading-relaxed`}
           />
 
           {mentionQuery !== null && matches.length > 0 && caretPos && (
             <div
-              className="absolute z-20 max-h-40 w-56 overflow-y-auto rounded-xl border border-line bg-white py-1 shadow-lift"
+              className="absolute z-20 max-h-40 w-56 overflow-y-auto rounded-xl border border-line bg-panel py-1 shadow-lift"
               style={{ top: caretPos.top + caretPos.height + 2, left: caretPos.left }}
             >
               {matches.map((name, i) => (
@@ -170,11 +170,11 @@ export default function MarkdownTextarea({ value, onChange, rows = 6, ariaLabel,
                   // keeps the textarea focused (no blur) so the caret position survives the click
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => insertMention(name)}
-                  className={`flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left text-[12px] ${
+                  className={`flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left text-fs-12 ${
                     i === activeIndex ? 'bg-brand-50 text-brand-700' : 'text-ink hover:bg-surface'
                   }`}
                 >
-                  <FileText size={12} className="shrink-0 text-brand-500" />
+                  <FileText size={12} className="shrink-0 text-brand-fg" />
                   <span className="truncate">{name}</span>
                 </button>
               ))}

@@ -24,14 +24,14 @@ export default function ModelPicker({ value, onChange, inherit }) {
           >
             <span
               className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-pill border transition ${
-                selected ? 'border-brand-500 bg-brand-500 text-white' : 'border-line bg-white'
+                selected ? 'border-brand-500 bg-brand-500 text-on-brand' : 'border-line bg-panel'
               }`}
             >
               {selected && <Check size={11} strokeWidth={3} />}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-ink">{model.name}</span>
-              <span className="mt-0.5 block text-[11px] leading-snug text-slate-soft">
+              <span className="block text-fs-13 font-semibold text-ink">{model.name}</span>
+              <span className="mt-0.5 block text-fs-11 leading-snug text-slate-soft">
                 {model.description}
               </span>
             </span>

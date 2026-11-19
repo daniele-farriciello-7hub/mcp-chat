@@ -19,18 +19,18 @@ export default function ResultCard({ card, onNavigate }) {
 
   return (
     <div
-      className="mt-2 overflow-hidden rounded-card border border-line bg-white shadow-soft"
+      className="mt-2 overflow-hidden rounded-card border border-line bg-panel shadow-soft"
       style={{ animation: 'var(--animate-fade-up)' }}
     >
       <div className="flex items-start gap-2.5 px-3 pt-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-500">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-fg">
           <Icon size={16} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-bold leading-snug text-ink">{card.title}</div>
+          <div className="text-fs-13 font-bold leading-snug text-ink">{card.title}</div>
           {card.status && (
             <span
-              className={`mt-1 inline-block rounded-pill px-2 py-0.5 text-[10px] font-bold tracking-[0.08em] ${
+              className={`mt-1 inline-block rounded-pill px-2 py-0.5 text-fs-10 font-bold tracking-[0.08em] ${
                 TONES[card.status.tone] || TONES.pending
               }`}
             >
@@ -41,7 +41,7 @@ export default function ResultCard({ card, onNavigate }) {
       </div>
 
       {card.rows?.length > 0 && (
-        <dl className="mt-2.5 divide-y divide-line border-t border-line text-[12px]">
+        <dl className="mt-2.5 divide-y divide-line border-t border-line text-fs-12">
           {card.rows.map(row => (
             <div key={row.label} className="flex items-baseline justify-between gap-3 px-3 py-1.5">
               <dt className="shrink-0 text-slate-soft">{row.label}</dt>
@@ -56,7 +56,7 @@ export default function ResultCard({ card, onNavigate }) {
           <button
             type="button"
             onClick={() => onNavigate?.(card.action.url)}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-[12px] font-semibold text-white transition hover:bg-brand-600"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-fs-12 font-semibold text-on-brand transition hover:bg-brand-hover"
           >
             {card.action.label || 'Apri'}
             <ArrowUpRight size={14} />

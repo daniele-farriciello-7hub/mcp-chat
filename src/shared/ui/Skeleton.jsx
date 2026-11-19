@@ -9,7 +9,7 @@ export function SkeletonCards({ count = 3 }) {
   return (
     <div className="flex flex-col gap-2" aria-hidden>
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="flex items-center gap-3 rounded-xl border border-line bg-white px-3.5 py-3">
+        <div key={i} className="flex items-center gap-3 rounded-xl border border-line bg-panel px-3.5 py-3">
           <span className="skeleton h-10 w-10 shrink-0 rounded-full" />
           <span className="flex flex-1 flex-col gap-2">
             <span className={`${block} h-3`} style={{ width: `${55 - i * 8}%` }} />

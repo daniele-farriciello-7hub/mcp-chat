@@ -29,6 +29,9 @@ const MAX_ACTIVITIES = 50;
 const FIRST_QUESTION_CHARS = 140;
 const SETTINGS_TTL_MS = 30_000;
 
+// what a reply stores as `model` when a command without AI wrote it (src/features/chat/commands/matchCommand.js)
+const COMMAND_MODEL = 'comando';
+
 const ACTIVITY_FIELDS = [
   'kind',
   'label',
@@ -353,6 +356,9 @@ export async function recordTurn(user, body) {
   // leave its model, which one: both optional, and the detail is only ever kept for a failure
   const errorDetail = failed ? text(body.errorDetail, MAX_ERROR_DETAIL_CHARS).trim() : '';
   const fallbackFrom = text(body.fallbackFrom, 100).trim();
+  // a command without AI answered, not a model: `model` is the fixed marker 'comando' and `command` the
+  // name the admin gave it when it ran (a rename or a delete later does not rewrite the history)
+  const commandName = body.model === COMMAND_MODEL ? text(body.command, 100).trim() : '';
 
   const batch = db().batch();
   let seq = 1;
@@ -382,6 +388,7 @@ export async function recordTurn(user, body) {
       error: failed,
       ...(errorDetail ? { errorDetail } : {}),
       ...(fallbackFrom ? { fallbackFrom } : {}),
+      ...(commandName ? { command: commandName } : {}),
       createdAt: FieldValue.serverTimestamp(),
       expiresAt
     });

@@ -156,7 +156,7 @@ export default function ActivityRow({ activity }) {
 
   return (
     <div
-      className="flex items-start gap-2.5 rounded-card border border-ok/30 bg-white px-3 py-2 shadow-soft"
+      className="flex items-start gap-2.5 rounded-card border border-ok/30 bg-panel px-3 py-2 shadow-soft"
       style={{ animation: 'var(--animate-fade-up)' }}
     >
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-ok-soft text-ok">
@@ -166,25 +166,25 @@ export default function ActivityRow({ activity }) {
       <div className="min-w-0 flex-1">
         {/* wraps instead of truncating: the message list scrolls, and a floating tooltip inside a
             scrolling container gets clipped at its edge no matter which side it opens on */}
-        <div className="text-[12px] font-medium text-ink">
+        <div className="text-fs-12 font-medium text-ink">
           {label}
           {documentName && (
             <>
               {' '}
-              <FileText size={12} className="inline-block -translate-y-px text-brand-500" />{' '}
+              <FileText size={12} className="inline-block -translate-y-px text-brand-fg" />{' '}
               <span className="font-semibold">{documentName}</span>
             </>
           )}
           {databaseLabel && (
             <>
               {' '}
-              <Database size={12} className="inline-block -translate-y-px text-brand-500" />{' '}
+              <Database size={12} className="inline-block -translate-y-px text-brand-fg" />{' '}
               <span className="font-semibold">{databaseLabel}</span>
             </>
           )}
           {exportQuery && exportTitle && <span className="font-semibold"> {exportTitle}</span>}
         </div>
-        {exportQuery && detail && <div className="mt-0.5 text-[11px] text-slate-soft">{detail}</div>}
+        {exportQuery && detail && <div className="mt-0.5 text-fs-11 text-slate-soft">{detail}</div>}
       </div>
 
       {documentId && <OpenDocumentButton documentId={documentId} documentName={documentName} />}

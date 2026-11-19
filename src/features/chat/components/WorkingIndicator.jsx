@@ -87,7 +87,7 @@ export default function WorkingIndicator({ runningKind, doneKinds = [] }) {
 
   return (
     <div
-      className="flex w-fit max-w-full flex-col gap-2 rounded-card border border-line bg-white py-2 pl-2 pr-4 shadow-soft"
+      className="flex w-fit max-w-full flex-col gap-2 rounded-card border border-line bg-panel py-2 pl-2 pr-4 shadow-soft"
       style={{ animation: 'var(--animate-fade-in)' }}
       role="status"
     >
@@ -104,7 +104,7 @@ export default function WorkingIndicator({ runningKind, doneKinds = [] }) {
           );
         })}
         <span
-          className={`relative flex h-7 w-7 shrink-0 items-center justify-center bg-brand-50 text-brand-500 ${
+          className={`relative flex h-7 w-7 shrink-0 items-center justify-center bg-brand-50 text-brand-fg ${
             hasTrail ? 'step-ring rounded-full' : 'rounded-[9px]'
           }`}
         >
@@ -113,10 +113,10 @@ export default function WorkingIndicator({ runningKind, doneKinds = [] }) {
             <Icon size={16} />
           </span>
         </span>
-        {!hasTrail && <span className="shimmer-text ml-2.5 text-[13px] font-medium">{label}</span>}
+        {!hasTrail && <span className="shimmer-text ml-2.5 text-fs-13 font-medium">{label}</span>}
       </div>
       {hasTrail && (
-        <div className="flex items-center gap-1.5 pl-1 text-[12px]">
+        <div className="flex items-center gap-1.5 pl-1 text-fs-12">
           <Check size={12} className="text-ok" aria-hidden="true" />
           <span className="text-slate-soft">
             {doneKinds.length} {doneKinds.length === 1 ? 'passo completato' : 'passi completati'}

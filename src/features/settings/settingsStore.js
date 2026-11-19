@@ -7,6 +7,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/shared/firebase/app';
 import { FIRESTORE_ROOT } from '@/shared/firebase/paths';
+import { normalizeCommands } from '@/features/chat/commands/commandSettings';
 import { DEFAULT_SETTINGS } from './defaultSettings';
 
 const settingsDoc = () => doc(db, ...FIRESTORE_ROOT, 'config', 'settings');
@@ -34,15 +35,20 @@ function withDefaults(stored) {
   if (!Array.isArray(stored.instructionsAttachments) && stored.instructionsAttachment) {
     attachmentFields.instructionsAttachments = [stored.instructionsAttachment];
   }
-  return {
+  const settings = {
     ...DEFAULT_SETTINGS,
     ...stored,
     historyLimit: { ...DEFAULT_SETTINGS.historyLimit, ...(stored.historyLimit || {}) },
     chartLimits: { ...DEFAULT_SETTINGS.chartLimits, ...(stored.chartLimits || {}) },
+    // the list of commands without AI; settings saved with the old single `erogatoCommand` give one command
+    noAiCommands: normalizeCommands(stored),
     // un array vuoto e' una scelta dell'admin: i default valgono solo se il campo non c'e' proprio
     shortcuts: Array.isArray(stored.shortcuts) ? stored.shortcuts : DEFAULT_SETTINGS.shortcuts,
     ...attachmentFields
   };
+  // the old field was converted above: it does not travel on, so a save never writes it back
+  delete settings.erogatoCommand;
+  return settings;
 }
 
 let cached = null;

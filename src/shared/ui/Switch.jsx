@@ -2,8 +2,8 @@ export default function Switch({ checked, onChange, label, description }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-xl border border-line p-3">
       <span className="min-w-0">
-        <span className="block text-[12px] font-semibold text-ink">{label}</span>
-        <span className="mt-1 block text-[11px] leading-snug text-slate-soft">{description}</span>
+        <span className="block text-fs-12 font-semibold text-ink">{label}</span>
+        <span className="mt-1 block text-fs-11 leading-snug text-slate-soft">{description}</span>
       </span>
       <button
         type="button"

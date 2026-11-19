@@ -30,34 +30,34 @@ const DUE_NOTE = 'al prossimo giro (entro 15 minuti)';
 function StatusPill({ source, working }) {
   if (working) {
     return (
-      <span className="flex shrink-0 items-center gap-1 rounded-pill bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-600">
+      <span className="flex shrink-0 items-center gap-1 rounded-pill bg-brand-50 px-2 py-0.5 text-fs-10 font-semibold text-brand-600">
         <Loader2 size={10} className="animate-spin" /> In corso
       </span>
     );
   }
   if (source.status === 'error') {
     return (
-      <span className="shrink-0 rounded-pill bg-danger-soft px-2 py-0.5 text-[10px] font-semibold text-danger">
+      <span className="shrink-0 rounded-pill bg-danger-soft px-2 py-0.5 text-fs-10 font-semibold text-danger">
         Errore
       </span>
     );
   }
   if (!source.lastRunAt) {
     return (
-      <span className="shrink-0 rounded-pill bg-surface px-2 py-0.5 text-[10px] font-semibold text-slate-soft">
+      <span className="shrink-0 rounded-pill bg-surface px-2 py-0.5 text-fs-10 font-semibold text-slate-soft">
         Da sincronizzare
       </span>
     );
   }
   if (source.lastResult && !source.lastResult.complete) {
     return (
-      <span className="shrink-0 rounded-pill bg-warn-soft px-2 py-0.5 text-[10px] font-semibold text-warn">
+      <span className="shrink-0 rounded-pill bg-warn-soft px-2 py-0.5 text-fs-10 font-semibold text-warn">
         Parziale
       </span>
     );
   }
   return (
-    <span className="shrink-0 rounded-pill bg-ok-soft px-2 py-0.5 text-[10px] font-semibold text-ok">
+    <span className="shrink-0 rounded-pill bg-ok-soft px-2 py-0.5 text-fs-10 font-semibold text-ok">
       Aggiornato
     </span>
   );
@@ -68,7 +68,7 @@ function Progress({ progress }) {
     progress?.phase === 'files' && progress.total > 0
       ? `Controllo i file: ${progress.done} di ${progress.total}`
       : 'Leggo il contenuto su Drive…';
-  return <p className="mt-2 text-[11px] font-medium text-brand-600">{text}</p>;
+  return <p className="mt-2 text-fs-11 font-medium text-brand-600">{text}</p>;
 }
 
 /** What the last run did, as chips: only what is not zero. */
@@ -84,15 +84,15 @@ function ResultChips({ result }) {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
       {chips.length === 0 && (
-        <span className="text-[11px] text-slate-soft">Nessuna novità all’ultimo controllo.</span>
+        <span className="text-fs-11 text-slate-soft">Nessuna novità all’ultimo controllo.</span>
       )}
       {chips.map(([count, one, many, tone]) => (
-        <span key={one} className={`rounded-pill px-2 py-0.5 text-[10px] font-semibold ${tone}`}>
+        <span key={one} className={`rounded-pill px-2 py-0.5 text-fs-10 font-semibold ${tone}`}>
           {plural(count, one, many)}
         </span>
       ))}
       {result.deferred > 0 && (
-        <span className="text-[11px] text-slate-soft">
+        <span className="text-fs-11 text-slate-soft">
           {plural(result.deferred, 'file resta', 'file restano')} per il prossimo giro
         </span>
       )}
@@ -105,7 +105,7 @@ function WebhookLine({ source }) {
   if (source.frequency === 'manual') return null;
   if (webhook.active) {
     return (
-      <p className="mt-1 flex items-start gap-1 text-[11px] leading-snug text-slate-soft">
+      <p className="mt-1 flex items-start gap-1 text-fs-11 leading-snug text-slate-soft">
         <Webhook size={12} className="mt-0.5 shrink-0 text-ok" />
         <span>
           <Tooltip
@@ -121,7 +121,7 @@ function WebhookLine({ source }) {
   }
   return (
     <p
-      className="mt-1 flex items-start gap-1 text-[11px] leading-snug text-slate-soft"
+      className="mt-1 flex items-start gap-1 text-fs-11 leading-snug text-slate-soft"
       title={webhook.error || undefined}
     >
       <Webhook size={12} className="mt-0.5 shrink-0" />
@@ -146,7 +146,7 @@ function IssueList({ errors }) {
         type="button"
         onClick={() => setOpen(v => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1 text-[11px] font-semibold text-brand-600 transition hover:text-brand-700"
+        className="flex items-center gap-1 text-fs-11 font-semibold text-brand-600 transition hover:text-brand-700"
       >
         Dettagli ({errors.length}){' '}
         <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -154,7 +154,7 @@ function IssueList({ errors }) {
       {open && (
         <ul className="mt-1.5 flex flex-col gap-1.5 rounded-lg bg-surface px-2.5 py-2">
           {errors.map((issue, index) => (
-            <li key={index} className="text-[11px] leading-snug">
+            <li key={index} className="text-fs-11 leading-snug">
               <span className="break-words font-medium text-ink">{issue.name}</span>
               <span className={`block ${ISSUE_TONES[issue.kind] || 'text-slate-soft'}`}>{issue.reason}</span>
             </li>
@@ -189,11 +189,11 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
   return (
     <div className="rounded-xl border border-line p-3">
       <div className="flex items-start gap-2.5">
-        <Icon size={16} className="mt-0.5 shrink-0 text-brand-500" />
+        <Icon size={16} className="mt-0.5 shrink-0 text-brand-fg" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <Tooltip label={source.name} align="left" className="block min-w-0">
-              <span className="block truncate text-[13px] font-semibold text-ink">{source.name}</span>
+              <span className="block truncate text-fs-13 font-semibold text-ink">{source.name}</span>
             </Tooltip>
             {source.url && (
               <Tooltip label="Apri su Google Drive" align="left">
@@ -209,7 +209,7 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
               </Tooltip>
             )}
           </div>
-          <div className="mt-0.5 text-[10px] text-slate-soft">
+          <div className="mt-0.5 text-fs-10 text-slate-soft">
             {source.kind === 'folder' ? 'Cartella' : 'File PDF'}
           </div>
         </div>
@@ -218,12 +218,12 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
 
       {working && <Progress progress={source.progress} />}
       {!working && source.runError && (
-        <p className="mt-2 flex items-start gap-1 text-[11px] leading-snug text-danger">
+        <p className="mt-2 flex items-start gap-1 text-fs-11 leading-snug text-danger">
           <AlertTriangle size={12} className="mt-0.5 shrink-0" /> {source.runError}
         </p>
       )}
       {message && (
-        <p className="mt-2 rounded-lg bg-danger-soft px-2.5 py-2 text-[11px] text-danger">{message}</p>
+        <p className="mt-2 rounded-lg bg-danger-soft px-2.5 py-2 text-fs-11 text-danger">{message}</p>
       )}
 
       <div className="mt-3">
@@ -236,7 +236,7 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
         />
       </div>
 
-      <div className="mt-2.5 text-[11px] leading-snug text-slate-soft">
+      <div className="mt-2.5 text-fs-11 leading-snug text-slate-soft">
         <p>
           Ultima sincronizzazione:{' '}
           <span className="text-ink">
@@ -259,12 +259,12 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
 
       {result && <ResultChips result={result} />}
       {result?.ignored > 0 && (
-        <p className="mt-1 text-[11px] text-slate-soft">
+        <p className="mt-1 text-fs-11 text-slate-soft">
           {plural(result.ignored, 'file non PDF ignorato', 'file non PDF ignorati')}.
         </p>
       )}
       {source.reindexPending && !working && (
-        <p className="mt-1 text-[11px] text-warn">
+        <p className="mt-1 text-fs-11 text-warn">
           Reindicizzazione da completare: continua al prossimo giro.
         </p>
       )}
@@ -272,7 +272,7 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
 
       {confirming ? (
         <div className="mt-3 rounded-lg bg-surface px-2.5 py-2">
-          <p className="text-[12px] leading-snug text-ink">
+          <p className="text-fs-12 leading-snug text-ink">
             {confirming === 'remove'
               ? `Rimuovere «${source.name}»? I suoi ${plural(documentCount, 'documento esce', 'documenti escono')} dall’archivio e l’assistente non li vede più; quelli che arrivano anche da un’altra sorgente restano. Su Drive non cambia nulla.`
               : 'Riscrivo la scheda di tutti i file di questa sorgente? Costa una chiamata a Gemini per ogni file e può richiedere un po’.'}
@@ -281,8 +281,8 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
             <button
               type="button"
               onClick={() => confirmAction(confirming)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold text-white transition hover:opacity-90 ${
-                confirming === 'remove' ? 'bg-danger' : 'bg-brand-500'
+              className={`rounded-lg px-2.5 py-1 text-fs-11 font-semibold transition hover:opacity-90 ${
+                confirming === 'remove' ? 'bg-danger text-white' : 'bg-brand-500 text-on-brand'
               }`}
             >
               {confirming === 'remove' ? 'Rimuovi' : 'Reindicizza'}
@@ -290,7 +290,7 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
             <button
               type="button"
               onClick={() => setConfirming(null)}
-              className="rounded-lg px-1.5 py-1 text-[11px] text-slate-soft transition hover:text-ink"
+              className="rounded-lg px-1.5 py-1 text-fs-11 text-slate-soft transition hover:text-ink"
             >
               Annulla
             </button>
@@ -326,7 +326,7 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
               Rimuovi
             </Button>
           </div>
-          <p className="mt-2 text-[11px] leading-snug text-slate-soft">
+          <p className="mt-2 text-fs-11 leading-snug text-slate-soft">
             <span className="font-semibold text-ink">Sincronizza ora</span> scarica da Drive i PDF nuovi o
             modificati, li indicizza subito e toglie dall’archivio quelli spariti da Drive.{' '}
             <span className="font-semibold text-ink">Reindicizza tutto</span> rifà la scheda di ogni file,
@@ -341,7 +341,7 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
             type="button"
             onClick={() => setFilesOpen(v => !v)}
             aria-expanded={filesOpen}
-            className="flex w-full items-center justify-between text-[11px] font-semibold text-brand-600 transition hover:text-brand-700"
+            className="flex w-full items-center justify-between text-fs-11 font-semibold text-brand-600 transition hover:text-brand-700"
           >
             <span className="flex min-w-0 items-center gap-1.5">
               <Folder size={13} className="shrink-0" />
@@ -361,7 +361,7 @@ export default function DriveSourceRow({ source, documents, busy, message, onSch
             />
           </button>
         ) : (
-          <p className="text-[11px] text-slate-soft">
+          <p className="text-fs-11 text-slate-soft">
             {working ? 'I file compaiono qui man mano che arrivano.' : 'Nessun file in archivio.'}
           </p>
         )}

@@ -96,8 +96,8 @@ export default function DriveView({ documents }) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 rounded-xl border border-line p-3">
         <div>
-          <h3 className="text-[13px] font-bold text-ink">Google Drive</h3>
-          <p className="mt-0.5 text-[11px] leading-snug text-slate-soft">
+          <h3 className="text-fs-13 font-bold text-ink">Google Drive</h3>
+          <p className="mt-0.5 text-fs-11 leading-snug text-slate-soft">
             Collega una cartella o un PDF: l’archivio si aggiorna da solo. Un file tolto da Drive, o che non
             sta più in nessuna cartella collegata, esce anche dall’archivio.
           </p>
@@ -109,12 +109,12 @@ export default function DriveView({ documents }) {
       <AddDriveSourceForm onAdded={added} />
 
       {error && !data && (
-        <div className="rounded-xl bg-danger-soft p-3 text-[12px] text-danger">{describeError(error)}</div>
+        <div className="rounded-xl bg-danger-soft p-3 text-fs-12 text-danger">{describeError(error)}</div>
       )}
       {!data && !error && <LoadingSkeleton />}
 
       {data?.sources.length === 0 && (
-        <p className="rounded-xl bg-surface px-3 py-4 text-center text-[12px] text-slate-soft">
+        <p className="rounded-xl bg-surface px-3 py-4 text-center text-fs-12 text-slate-soft">
           Nessuna cartella collegata ancora.
         </p>
       )}
@@ -135,7 +135,7 @@ export default function DriveView({ documents }) {
       </div>
 
       {error && data && (
-        <p className="text-[11px] text-warn">Non riesco ad aggiornare lo stato: riprovo tra poco.</p>
+        <p className="text-fs-11 text-warn">Non riesco ad aggiornare lo stato: riprovo tra poco.</p>
       )}
     </div>
   );

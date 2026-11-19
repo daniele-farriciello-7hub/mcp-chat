@@ -114,7 +114,7 @@ export default function DocumentsTab() {
       )}
 
       {catalog.loadError && (
-        <div className="rounded-xl bg-danger-soft p-3 text-[12px] text-danger">{catalog.loadError}</div>
+        <div className="rounded-xl bg-danger-soft p-3 text-fs-12 text-danger">{catalog.loadError}</div>
       )}
 
       <DocumentViewTabs activeView={view} onChange={setView} totals={catalog.totals} />

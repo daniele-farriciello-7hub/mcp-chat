@@ -128,7 +128,7 @@ function HistorySettings({ settings, onChange }) {
                 className={`${INPUT_CLASS} resize-y`}
                 aria-label="Testo dell’avviso"
               />
-              <p className="rounded-xl bg-surface px-3 py-2 text-[11px] leading-snug text-slate-soft">
+              <p className="rounded-xl bg-surface px-3 py-2 text-fs-11 leading-snug text-slate-soft">
                 <span className="font-semibold text-ink">Gli operatori vedranno: </span>
                 {historyNotice(settings.historyNoticeText, settings.historyRetentionDays)}
               </p>
@@ -147,11 +147,11 @@ function HistorySettings({ settings, onChange }) {
 /** A chart in its own bordered card, title inside, so each one reads as a unit on the page. */
 function ChartCard({ title, description, action, children }) {
   return (
-    <section className="rounded-xl border border-line bg-white p-3.5 shadow-soft">
+    <section className="rounded-xl border border-line bg-panel p-3.5 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-600">{title}</h3>
-          {description && <p className="mt-0.5 text-[11px] text-slate-soft">{description}</p>}
+          <h3 className="text-fs-11 font-bold uppercase tracking-[0.12em] text-brand-600">{title}</h3>
+          {description && <p className="mt-0.5 text-fs-11 text-slate-soft">{description}</p>}
         </div>
         {action}
       </div>
@@ -163,9 +163,9 @@ function ChartCard({ title, description, action, children }) {
 function Kpi({ value, label, hint }) {
   return (
     <div className="rounded-xl bg-surface px-3 py-2.5" title={hint}>
-      <div className="text-[11px] text-slate-soft">{label}</div>
-      <div className="text-[18px] font-bold tabular-nums text-ink">{value}</div>
-      {hint && <div className="mt-0.5 text-[10px] leading-snug text-slate-soft">{hint}</div>}
+      <div className="text-fs-11 text-slate-soft">{label}</div>
+      <div className="text-fs-18 font-bold tabular-nums text-ink">{value}</div>
+      {hint && <div className="mt-0.5 text-fs-10 leading-snug text-slate-soft">{hint}</div>}
     </div>
   );
 }
@@ -175,8 +175,8 @@ function ConversationTable({ conversations, today, onOpen }) {
     return (
       <div className="flex flex-col items-center gap-1.5 rounded-xl bg-surface px-4 py-8 text-center">
         <MessagesSquare size={22} className="text-slate-soft" />
-        <p className="text-[13px] font-semibold text-ink">Nessuna conversazione nel periodo</p>
-        <p className="max-w-xs text-[11px] text-slate-soft">
+        <p className="text-fs-13 font-semibold text-ink">Nessuna conversazione nel periodo</p>
+        <p className="max-w-xs text-fs-11 text-slate-soft">
           Prova un periodo più lungo o un altro utente. Le conversazioni compaiono qui solo con il salvataggio
           attivo.
         </p>
@@ -185,8 +185,8 @@ function ConversationTable({ conversations, today, onOpen }) {
   }
   return (
     <div className="overflow-x-auto rounded-xl border border-line">
-      <table className="w-full text-left text-[12px]">
-        <thead className="bg-surface text-[11px] text-slate-soft">
+      <table className="w-full text-left text-fs-12">
+        <thead className="bg-surface text-fs-11 text-slate-soft">
           <tr>
             <th className="px-3 py-2 font-semibold">Inizio</th>
             <th className="px-3 py-2 font-semibold">Utente</th>
@@ -220,9 +220,7 @@ function ConversationTable({ conversations, today, onOpen }) {
                   {minutes ? `${minutes} min` : '—'}
                 </td>
                 <td className="px-3 py-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATE_CLASS[state]}`}
-                  >
+                  <span className={`rounded-full px-2 py-0.5 text-fs-10 font-semibold ${STATE_CLASS[state]}`}>
                     {STATE_LABEL[state]}
                   </span>
                 </td>
@@ -330,7 +328,7 @@ export default function HistoryTab({ settings, onChange }) {
         </div>
 
         {error && (
-          <p className="rounded-xl bg-danger-soft px-3 py-2 text-[12px] text-danger">
+          <p className="rounded-xl bg-danger-soft px-3 py-2 text-fs-12 text-danger">
             Non riesco a leggere lo storico. Se le regole di sicurezza per lo storico non sono ancora attive,
             è normale.
           </p>
@@ -380,7 +378,7 @@ export default function HistoryTab({ settings, onChange }) {
                   <button
                     type="button"
                     onClick={exportList}
-                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-[12px] font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50"
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-fs-12 font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50"
                   >
                     <Download size={13} /> Scarica Excel
                   </button>
@@ -393,7 +391,7 @@ export default function HistoryTab({ settings, onChange }) {
                   type="button"
                   onClick={loadMore}
                   disabled={loading}
-                  className="mx-auto mt-3 block text-[12px] font-semibold text-brand-600 hover:underline disabled:opacity-40"
+                  className="mx-auto mt-3 block text-fs-12 font-semibold text-brand-600 hover:underline disabled:opacity-40"
                 >
                   {loading ? 'Carico…' : 'Carica altre conversazioni'}
                 </button>

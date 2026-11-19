@@ -1,24 +1,35 @@
 @import 'tailwindcss';
 
 /*
- * Global tokens and styles. Colours come from the 7hub dashboard so the embedded chat does not
- * look foreign:
- *   · brand  → the product blue (#3E97FF): buttons, icons, the user's messages.
+ * Global tokens and styles. Colours started from the 7hub dashboard so the embedded chat does not look
+ * foreign, and now follow it:
+ *   · brand  → the accent: the host's primary colour when embedded, the operator's pick (or the product blue
+ *              #3E97FF) standalone. Buttons, icons, the user's messages, links, focus rings. Set by
+ *              shared/appearance/apply.js through the --accent* variables below.
  *   · navy   → sidebar and heading ink.
  *   · ai     → violet appears in one place only, the tile of the button that opens the chat.
  *   · accent → the weunit.it logo orange: only the mark's node and "look here" badges.
+ *
+ * Dark mode: `<html data-theme="dark">` (apply.js) swaps the neutral and outcome tokens in the block after
+ * :root below. Components only use the tokens (bg-panel, bg-surface, text-ink, border-line, brand-*, …), never a
+ * fixed white or hex, so they need no `dark:` variants.
  */
 
 @theme {
-  /* ── Brand: product colour ───────────────────────────────────── */
-  --color-brand-50: #f0f7ff;
-  --color-brand-100: #d4ebff;
-  --color-brand-200: #b6dcff;
-  --color-brand-300: #7ec0ff;
-  --color-brand-400: #5aacff;
-  --color-brand-500: #3e97ff;
-  --color-brand-600: #2b6ab2;
-  --color-brand-700: #1d4777;
+  /* ── Brand: the accent and its tints (mixed into the panel colour, so they work in both modes) ── */
+  --color-brand-50: color-mix(in srgb, var(--accent) 8%, var(--color-panel));
+  --color-brand-100: color-mix(in srgb, var(--accent) 20%, var(--color-panel));
+  --color-brand-200: color-mix(in srgb, var(--accent) 36%, var(--color-panel));
+  --color-brand-300: color-mix(in srgb, var(--accent) 64%, var(--color-panel));
+  --color-brand-400: color-mix(in srgb, var(--accent) 82%, var(--color-panel));
+  --color-brand-500: var(--accent);
+  /* text and strong accents: the dark shade on light surfaces, the light shade on dark ones */
+  --color-brand-600: var(--accent-strong);
+  --color-brand-700: var(--accent-stronger);
+  /* the accent as an icon / small shape colour on the panel; hover of a filled accent; text on a filled accent */
+  --color-brand-fg: var(--accent-fg);
+  --color-brand-hover: var(--accent-hover);
+  --color-on-brand: var(--accent-contrast);
 
   /* ── AI: only the assistant button tile ──────────────────────── */
   --color-ai: #6f3ce0;
@@ -31,6 +42,8 @@
   --color-navy: #101d33;
   --color-ink: #16233f;
   --color-slate-soft: #51607a;
+  /* cards, header, composer: what was a fixed white */
+  --color-panel: #ffffff;
   --color-surface: #f4f6fa;
   --color-line: #e3e8f0;
 
@@ -50,21 +63,107 @@
   /* ── Shadows ─────────────────────────────────────────────────── */
   --shadow-soft: 0 1px 2px rgb(16 29 51 / 0.05), 0 2px 8px rgb(16 29 51 / 0.07);
   --shadow-lift: 0 4px 12px rgb(16 29 51 / 0.09), 0 16px 40px -12px rgb(16 29 51 / 0.16);
-  --shadow-ai: 0 6px 22px -6px rgb(62 151 255 / 0.34), 0 2px 6px rgb(62 151 255 / 0.16);
+  --shadow-ai:
+    0 6px 22px -6px color-mix(in srgb, var(--accent) 34%, transparent),
+    0 2px 6px color-mix(in srgb, var(--accent) 16%, transparent);
+
+  /* ── Type scale: the sizes the UI uses, multiplied by the host's font size (--fs-scale, 1 = the 13px base) ── */
+  --text-fs-9: calc(9px * var(--fs-scale, 1));
+  --text-fs-10: calc(10px * var(--fs-scale, 1));
+  --text-fs-11: calc(11px * var(--fs-scale, 1));
+  --text-fs-12: calc(12px * var(--fs-scale, 1));
+  --text-fs-13: calc(13px * var(--fs-scale, 1));
+  --text-fs-14: calc(14px * var(--fs-scale, 1));
+  --text-fs-15: calc(15px * var(--fs-scale, 1));
+  --text-fs-16: calc(16px * var(--fs-scale, 1));
+  --text-fs-18: calc(18px * var(--fs-scale, 1));
 
   /* ── Animations ─────────────────────────────────────────────── */
   --animate-fade-up: fade-up 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-fade-in: fade-in 0.25s ease-out both;
 }
 
-/* Gradient of the floating button that opens the chat. */
+/*
+ * The accent, as shade variables. apply.js overrides --accent, --accent-light, --accent-dark and
+ * --accent-contrast on <html> (the host's primary colour or the operator's pick); these are the product blue it
+ * has always been when nothing overrides them. --accent-end ends the gradient of the assistant's tile (violet by
+ * default, the dark shade of a chosen accent).
+ */
 :root {
-  --gradient-ai: linear-gradient(135deg, #3e97ff 0%, #6f3ce0 100%);
+  --accent: #3e97ff;
+  --accent-light: #7ec0ff;
+  --accent-dark: #2b6ab2;
+  --accent-contrast: #ffffff;
+  --accent-end: #6f3ce0;
+  --accent-strong: var(--accent-dark);
+  --accent-stronger: color-mix(in srgb, var(--accent-dark) 65%, black);
+  --accent-fg: var(--accent);
+  --accent-hover: var(--accent-dark);
+  --gradient-ai: linear-gradient(135deg, var(--accent) 0%, var(--accent-end) 100%);
+
+  /* the host's coordinated menu theme: a thin strip across the top of the panel (data-accent-strip), see below */
+  --accent-strip: transparent;
+  --accent-glow: var(--accent);
+
+  /* chart colours (ChatChart.jsx): text, grid, axis and the ring around points. The PNG export swaps them for the light ones. */
+  --chart-ink: #16233f;
+  --chart-muted: #51607a;
+  --chart-grid: #e3e8f0;
+  --chart-axis: #c9d2df;
+  --chart-halo: #ffffff;
+  --chart-tip-bg: #16233f;
+  --chart-tip-fg: #ffffff;
+}
+
+/* Dark mode: the same names, dark values. Harmonised with the host's dark theme (paper #1C252E, page #141A21). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-ink: #eef2f7;
+  --color-slate-soft: #9aa6b5;
+  --color-panel: #1c252e;
+  --color-surface: #141a21;
+  --color-line: #2f3a46;
+  --color-accent-soft: #3a2f17;
+
+  --color-ok: #3cc47d;
+  --color-ok-soft: #12332a;
+  --color-warn: #f0b04a;
+  --color-warn-soft: #3a2f16;
+  --color-danger: #ee5b50;
+  --color-danger-soft: #3d2023;
+
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.28), 0 2px 8px rgb(0 0 0 / 0.32);
+  --shadow-lift: 0 4px 12px rgb(0 0 0 / 0.34), 0 16px 40px -12px rgb(0 0 0 / 0.5);
+
+  /* on a dark surface the light shade is the readable one, and hover lightens instead of darkening */
+  --accent-strong: var(--accent-light);
+  --accent-stronger: color-mix(in srgb, var(--accent-light) 70%, white);
+  --accent-fg: var(--accent-light);
+  --accent-hover: color-mix(in srgb, var(--accent) 86%, white);
+
+  --chart-ink: #eef2f7;
+  --chart-muted: #9aa6b5;
+  --chart-grid: #2f3a46;
+  --chart-axis: #455261;
+  --chart-halo: #1c252e;
+  --chart-tip-bg: #eef2f7;
+  --chart-tip-fg: #16233f;
 }
 
 html,
 body {
   height: 100%;
+}
+
+html {
+  /* native checkboxes, radios and range inputs follow the accent */
+  accent-color: var(--color-brand-500);
+}
+
+/* Keyboard focus ring in the accent (controls with their own focus style, like the composer, keep it) */
+:focus-visible {
+  outline-color: var(--color-brand-500);
 }
 
 body {
@@ -79,9 +178,43 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--color-panel);
   position: relative;
   isolation: isolate;
+}
+
+/*
+ * The host's coordinated menu theme (data-accent-strip, set by apply.js): a thin strip across the top of the panel,
+ * the same colours as the host's table headers. A gradient theme can also move a soft highlight along it
+ * (data-accent-animated, the host's "bagliore animato"); stopped with reduced motion.
+ */
+html[data-accent-strip] .panel-root::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  z-index: 30;
+  pointer-events: none;
+  background: var(--accent-strip);
+}
+html[data-accent-animated] .panel-root::before {
+  background:
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-glow) 75%, white), transparent) 0 0 /
+      35% 100% no-repeat,
+    var(--accent-strip);
+  animation: strip-sheen 5s ease-in-out infinite;
+}
+@keyframes strip-sheen {
+  from {
+    background-position:
+      -40% 0,
+      0 0;
+  }
+  to {
+    background-position:
+      140% 0,
+      0 0;
+  }
 }
 
 /* Soft glow behind the welcome screen. */
@@ -92,8 +225,16 @@ body {
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(ellipse at 50% 0%, rgb(62 151 255 / 0.12) 0%, transparent 66%),
-    radial-gradient(ellipse at 92% 40%, rgb(62 151 255 / 0.06) 0%, transparent 55%);
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in srgb, var(--accent-glow) 12%, transparent) 0%,
+      transparent 66%
+    ),
+    radial-gradient(
+      ellipse at 92% 40%,
+      color-mix(in srgb, var(--accent-glow) 6%, transparent) 0%,
+      transparent 55%
+    );
 }
 
 /*
@@ -158,7 +299,8 @@ body {
     transition: none;
   }
   .cursor-blink,
-  [style*='fade-up'] {
+  [style*='fade-up'],
+  html[data-accent-animated] .panel-root::before {
     animation: none !important;
   }
 }
@@ -223,7 +365,7 @@ input[type='range']::-webkit-slider-thumb {
   margin-top: -6px;
   border-radius: var(--radius-pill);
   background: var(--color-brand-500);
-  border: 2px solid #fff;
+  border: 2px solid var(--color-panel);
   box-shadow: var(--shadow-soft);
 }
 
@@ -242,7 +384,7 @@ input[type='range']::-moz-range-progress {
 input[type='range']::-moz-range-thumb {
   height: 16px;
   width: 16px;
-  border: 2px solid #fff;
+  border: 2px solid var(--color-panel);
   border-radius: var(--radius-pill);
   background: var(--color-brand-500);
   box-shadow: var(--shadow-soft);
@@ -300,7 +442,7 @@ input[type='range']::-moz-range-thumb {
   background: linear-gradient(
     100deg,
     var(--color-line) 30%,
-    color-mix(in srgb, var(--color-line) 35%, white) 50%,
+    color-mix(in srgb, var(--color-line) 35%, var(--color-panel)) 50%,
     var(--color-line) 70%
   );
   background-size: 200% 100%;
@@ -314,10 +456,10 @@ input[type='range']::-moz-range-thumb {
 
 /* Checkerboard behind image previews, so a transparent (or white) logo is visible against it. */
 .thumb-checker {
-  background-color: #f1f3f8;
+  background-color: color-mix(in srgb, var(--color-line) 45%, var(--color-panel));
   background-image:
-    linear-gradient(45deg, #dfe4ec 25%, transparent 25%, transparent 75%, #dfe4ec 75%),
-    linear-gradient(45deg, #dfe4ec 25%, transparent 25%, transparent 75%, #dfe4ec 75%);
+    linear-gradient(45deg, var(--color-line) 25%, transparent 25%, transparent 75%, var(--color-line) 75%),
+    linear-gradient(45deg, var(--color-line) 25%, transparent 25%, transparent 75%, var(--color-line) 75%);
   background-size: 12px 12px;
   background-position:
     0 0,

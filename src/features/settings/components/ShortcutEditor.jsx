@@ -1,26 +1,28 @@
 import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import Field from '@/shared/ui/Field';
-import { INPUT_CLASS } from '@/shared/ui/formStyles';
+import { HELP_TEXT_CLASS, INPUT_CLASS } from '@/shared/ui/formStyles';
 import Tooltip from '@/shared/ui/Tooltip';
 import IconPicker from './IconPicker';
 import ShortcutIcon from './ShortcutIcon';
 import UserMultiSelect from '@/features/history/components/UserMultiSelect';
+import CommandChoice from '@/features/shortcuts/CommandChoice';
+import { shortcutText } from '@/features/shortcuts/personalShortcuts';
 
 /** How the shortcut looks in the welcome screen; also the row you tap to expand the editor. */
 function ShortcutPreview({ icon, title, description, uids }) {
   return (
     <span className="flex min-w-0 flex-1 items-center gap-2.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-brand-50 text-brand-500">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-brand-50 text-brand-fg">
         <ShortcutIcon id={icon} size={15} strokeWidth={2.25} />
       </span>
       <span className="min-w-0 text-left">
-        <span className="block truncate text-[13px] font-semibold text-ink">
+        <span className="block truncate text-fs-13 font-semibold text-ink">
           {title || 'Riquadro senza titolo'}
         </span>
-        <span className="block truncate text-[11px] text-slate-soft">
+        <span className="block truncate text-fs-11 text-slate-soft">
           {description || 'Una riga che spiega a cosa serve'}
         </span>
-        <span className="block text-[10px] font-medium text-brand-600">
+        <span className="block text-fs-10 font-medium text-brand-600">
           {uids?.length ? `Solo per ${uids.length} ${uids.length === 1 ? 'utente' : 'utenti'}` : 'Per tutti'}
         </span>
       </span>
@@ -34,6 +36,7 @@ const ICON_BUTTON_CLASS =
 export default function ShortcutEditor({
   shortcut,
   users,
+  commands,
   index,
   count,
   expanded,
@@ -78,16 +81,33 @@ export default function ShortcutEditor({
               className={INPUT_CLASS}
             />
           </Field>
-          <Field
-            label="Domanda"
-            help="Quello che viene scritto in chat quando l’operatore tocca il riquadro."
-          >
-            <input
-              value={shortcut.prompt}
-              onChange={e => onChange('prompt', e.target.value)}
-              className={INPUT_CLASS}
+          <div>
+            <span className="mb-1.5 block text-fs-12 font-semibold text-ink">Cosa fa</span>
+            <CommandChoice
+              commands={commands}
+              value={shortcut.command}
+              onChange={value => onChange('command', value)}
             />
-          </Field>
+          </div>
+          {shortcut.command ? (
+            <p className={`${HELP_TEXT_CLASS} -mt-1.5`}>
+              Il comando parte da solo, senza passare dal modello: in chat compare «
+              {shortcutText(shortcut, commands)}» e la risposta arriva in pochi secondi. I comandi si
+              impostano in Database → Comandi senza AI; se quello scelto è spento o eliminato, la parola va al
+              modello come una domanda qualsiasi.
+            </p>
+          ) : (
+            <Field
+              label="Domanda"
+              help="Quello che viene scritto in chat quando l’operatore tocca il riquadro."
+            >
+              <input
+                value={shortcut.prompt}
+                onChange={e => onChange('prompt', e.target.value)}
+                className={INPUT_CLASS}
+              />
+            </Field>
+          )}
 
           <Field
             label="Per chi"
@@ -126,7 +146,7 @@ export default function ShortcutEditor({
             <button
               type="button"
               onClick={onRemove}
-              className="ml-auto flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12px] font-medium text-slate-soft transition hover:bg-danger-soft hover:text-danger"
+              className="ml-auto flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-fs-12 font-medium text-slate-soft transition hover:bg-danger-soft hover:text-danger"
             >
               <Trash2 size={14} /> Elimina
             </button>
