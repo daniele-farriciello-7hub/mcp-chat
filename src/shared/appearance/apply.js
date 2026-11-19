@@ -19,7 +19,7 @@ function setVar(root, name, value) {
 
 /**
  * @param {{ mode: 'light'|'dark', primary: object, accent?: object|null, fontSize?: number|null }} appearance
- *   already validated (a host's through sanitizeAppearance, the standalone's from palettes.js)
+ *   already validated (a host's through sanitizeAppearance, the standalone's through settingsConfig.js#resolveSettings)
  */
 export function applyAppearance({ mode, primary, accent = null, fontSize = null }) {
   const root = document.documentElement;

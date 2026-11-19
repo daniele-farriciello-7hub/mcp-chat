@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import AgentMark from '@/features/chat/components/AgentMark';
 import { describeAuthError } from '@/features/auth/authErrors';
-import AppearanceMenu from '@/shared/appearance/AppearanceMenu';
+import AppearanceSettings from '@/shared/appearance/AppearanceSettings';
 import Tooltip from '@/shared/ui/Tooltip';
 import GoogleLogo from './GoogleLogo';
 
@@ -60,8 +60,8 @@ export default function LoginScreen({ onSignIn, onSignInWithGoogle, onResetPassw
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center bg-surface px-5 py-10">
       {/* standalone only: it renders nothing inside 7hub */}
-      <div className="absolute right-3 top-3">
-        <AppearanceMenu />
+      <div className="absolute right-3 top-3 flex">
+        <AppearanceSettings />
       </div>
       <AgentMark size={38} filled />
 

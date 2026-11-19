@@ -3,8 +3,9 @@
  *
  *  · Embedded in 7hub: the host's settings win (its mode, primary colour, menu theme, font size). Until the host
  *    has spoken the chat uses the mode it last received (so a reload has no flash) and its original blue.
- *  · Standalone: the operator's own choice from the appearance menu (Chiaro / Scuro / Sistema + an accent),
- *    kept in localStorage; "Sistema" follows the operating system and reacts when it changes.
+ *  · Standalone: the operator's own choice from the settings drawer (mode Chiaro / Scuro / Sistema, primary colour,
+ *    menu theme + animated glow, font size: 7hub's own options and ids, settingsConfig.js), kept in localStorage;
+ *    "Sistema" follows the operating system and reacts when it changes.
  *
  * Every change is written to the document root by apply.js, so the whole UI (CSS variables and a `data-theme`
  * attribute, see globals.css) follows live, with no reload and no React state in the components.
@@ -14,17 +15,16 @@
 import { useSyncExternalStore } from 'react';
 import { isEmbedded } from '@/shared/embed/hostBridge';
 import { HOST_MODE_STORAGE_KEY, PREFS_STORAGE_KEY, applyAppearance } from './apply';
-import { DEFAULT_ACCENT_ID, LEGACY_PRIMARY, paletteById } from './palettes';
+import { LEGACY_PRIMARY } from './palettes';
+import { DEFAULT_SETTINGS, resolveSettings, sanitizeSettings } from './settingsConfig';
 import { sanitizeAppearance, sanitizeMode } from './validate';
-
-const DEFAULT_PREFS = { mode: 'system', accent: DEFAULT_ACCENT_ID };
 
 let started = false;
 let embedded = false;
 let systemDark = false;
 let hostAppearance = null;
 let rememberedHostMode = null;
-let prefs = DEFAULT_PREFS;
+let prefs = DEFAULT_SETTINGS;
 // null until startAppearance() has read the browser: until then (and while hydrating) the server snapshot is used
 let snapshot = null;
 const listeners = new Set();
@@ -47,13 +47,9 @@ function writeStorage(key, value) {
 
 function readPrefs() {
   try {
-    const stored = JSON.parse(readStorage(PREFS_STORAGE_KEY) || 'null');
-    return {
-      mode: ['light', 'dark', 'system'].includes(stored?.mode) ? stored.mode : DEFAULT_PREFS.mode,
-      accent: paletteById(stored?.accent).id
-    };
+    return sanitizeSettings(JSON.parse(readStorage(PREFS_STORAGE_KEY) || 'null'));
   } catch {
-    return DEFAULT_PREFS;
+    return DEFAULT_SETTINGS;
   }
 }
 
@@ -68,12 +64,7 @@ function resolve() {
       fontSize: host.fontSize ?? null
     };
   }
-  return {
-    mode: prefs.mode === 'system' ? (systemDark ? 'dark' : 'light') : prefs.mode,
-    primary: paletteById(prefs.accent),
-    accent: null,
-    fontSize: null
-  };
+  return resolveSettings(prefs, systemDark);
 }
 
 function commit() {
@@ -113,15 +104,20 @@ export function receiveHostAppearance(raw, legacyTheme) {
   commit();
 }
 
-/** The standalone chat's own choice (appearance menu). Ignored when embedded: the host decides there. */
+/**
+ * The standalone chat's own choice (settings drawer): a patch of `{ mode, primaryColor, navColor, navAnimated, fontSize }`,
+ * validated here, so an unknown id never gets in. Ignored when embedded: the host decides there.
+ */
 export function setAppearancePrefs(patch) {
   startAppearance();
-  prefs = {
-    mode: ['light', 'dark', 'system'].includes(patch.mode) ? patch.mode : prefs.mode,
-    accent: patch.accent ? paletteById(patch.accent).id : prefs.accent
-  };
+  prefs = sanitizeSettings({ ...prefs, ...patch });
   writeStorage(PREFS_STORAGE_KEY, JSON.stringify(prefs));
   commit();
+}
+
+/** Back to the defaults of every option ("Ripristina tutto"). */
+export function resetAppearancePrefs() {
+  setAppearancePrefs(DEFAULT_SETTINGS);
 }
 
 const subscribe = listener => {
@@ -129,10 +125,10 @@ const subscribe = listener => {
   return () => listeners.delete(listener);
 };
 
-// embedded: true, so the menu never shows in the static HTML nor in a frame before the host is known
-const serverSnapshot = { prefs: DEFAULT_PREFS, embedded: true };
+// embedded: true, so the drawer's button never shows in the static HTML nor in a frame before the host is known
+const serverSnapshot = { prefs: DEFAULT_SETTINGS, embedded: true };
 
-/** `{ prefs: { mode, accent }, embedded }`: the menu is only for the standalone chat (`embedded` false). */
+/** `{ prefs: { mode, primaryColor, navColor, navAnimated, fontSize }, embedded }`: the drawer is only for the standalone chat. */
 export function useAppearanceState() {
   return useSyncExternalStore(
     subscribe,

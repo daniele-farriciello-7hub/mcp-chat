@@ -15,10 +15,15 @@
  *                                           accent: { start, stops: [{ color, at }], glow, glowAt: 'top'|'bottom',
  *                                                     animated } | null,   // the coordinated menu theme (+ tableHeader)
  *                                           fontSize: 10…24                 // px, the host's base is 13
+ *                                           // or, instead of the resolved colours, the ids of 7hub's settings drawer
+ *                                           // (the same ones the standalone chat stores): primaryColor: 'default' |
+ *                                           // 'preset1'…'preset11', navColor: 'default' | a "Temi coordinati" id (viola,
+ *                                           // magenta, ciano, giallo, aurora, notte, rosa, corallo, smeraldo, oceano,
+ *                                           // lavanda, ambra, grafite, bosco), navAnimated: boolean ("Sfondo animato")
  *                                         }
  *                                         Every key is optional and validated here (shared/appearance/validate.js):
- *                                         hex colours and known keys only, CSS strings are never used. `theme` stays
- *                                         for hosts that only know the old field.
+ *                                         hex colours and known ids only, CSS strings are never used; resolved
+ *                                         colours win over an id. `theme` stays for hosts that only know the old field.
  *   { type: 'tool_result', id, ok: true, result } | { type: 'tool_result', id, ok: false, error }
  *   { type: 'ask', text }                 the operator asked from the host (home box, search bar): send it
  *   { type: 'reset' } | { type: 'open_settings' } | { type: 'sign_out' }   the host's header buttons
