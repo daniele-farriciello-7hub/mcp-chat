@@ -2,12 +2,16 @@
  * "Storico", admin only: how the assistant is used, by whom and at what cost, down to each
  * conversation. The settings block at the top belongs to the shared settings object (same "Salva"
  * bar as the other tabs); everything below reads `chatConversations` directly.
+ *
+ * `subsection` (settingsSections.js): panoramica (the numbers and charts) · conversazioni (the list, and a conversation read
+ * in full) · salvataggio (the settings block). The period and users filters are drawn above the first two and are the same
+ * state, and the tab stays mounted while the subsection changes. None = all of it, as in /embed.
  */
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { Download, MessagesSquare } from 'lucide-react';
-import Section from '@/shared/ui/Section';
+import Section, { PageTitleContext } from '@/shared/ui/Section';
 import { SkeletonDashboard } from '@/shared/ui/Skeleton';
 import Switch from '@/shared/ui/Switch';
 import { HELP_TEXT_CLASS, INPUT_CLASS } from '@/shared/ui/formStyles';
@@ -28,6 +32,7 @@ import { BarList, DayBars } from './HistoryCharts';
 import ConversationDetail from './ConversationDetail';
 import UserMultiSelect from './UserMultiSelect';
 import { loadAppUsers } from '../appUsers';
+import { inSubsection } from '@/features/settings/settingsSections';
 
 // 0 = never deleted: the server leaves expiresAt empty and the TTL policy skips the conversation
 const RETENTION_OPTIONS = [7, 30, 90, 180, 365, 0];
@@ -146,12 +151,18 @@ function HistorySettings({ settings, onChange }) {
 
 /** A chart in its own bordered card, title inside, so each one reads as a unit on the page. */
 function ChartCard({ title, description, action, children }) {
+  // a card called as the page (the standalone Storico's "Conversazioni") does not say it twice
+  const repeated = title === useContext(PageTitleContext);
   return (
     <section className="rounded-xl border border-line bg-panel p-3.5 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-fs-11 font-bold uppercase tracking-[0.12em] text-brand-600">{title}</h3>
-          {description && <p className="mt-0.5 text-fs-11 text-slate-soft">{description}</p>}
+          {!repeated && (
+            <h3 className="text-fs-11 font-bold uppercase tracking-[0.12em] text-brand-600">{title}</h3>
+          )}
+          {description && (
+            <p className={`${repeated ? '' : 'mt-0.5 '}text-fs-11 text-slate-soft`}>{description}</p>
+          )}
         </div>
         {action}
       </div>
@@ -233,14 +244,17 @@ function ConversationTable({ conversations, today, onOpen }) {
   );
 }
 
-export default function HistoryTab({ settings, onChange }) {
+export default function HistoryTab({ settings, onChange, subsection }) {
   const [rangeDays, setRangeDays] = useState(30);
   const [selectedUsers, setSelectedUsers] = useState(() => new Set());
   const [appUsers, setAppUsers] = useState([]);
   const [open, setOpen] = useState(null);
   // the chart's first day, fixed when the tab opens like the data it shows
   const [openedAt] = useState(() => Date.now());
-  const { conversations: loaded, loading, error, cursor, loadMore } = useHistoryData(rangeDays);
+  const shows = id => inSubsection(subsection, id);
+  const showsUsage = shows('panoramica') || shows('conversazioni');
+  // the settings subsection does not need the conversations: they are read when the first of the others is opened
+  const { conversations: loaded, loading, error, cursor, loadMore } = useHistoryData(rangeDays, showsUsage);
 
   const today = romeDay();
   const fromDay = romeDay(new Date(openedAt - (rangeDays - 1) * 24 * 60 * 60 * 1000));
@@ -267,7 +281,9 @@ export default function HistoryTab({ settings, onChange }) {
   );
   const numbers = useMemo(() => kpis(conversations), [conversations]);
 
-  if (open) return <ConversationDetail conversation={open} onBack={() => setOpen(null)} />;
+  if (open && shows('conversazioni')) {
+    return <ConversationDetail conversation={open} onBack={() => setOpen(null)} />;
+  }
 
   const exportList = () =>
     downloadXlsx(
@@ -304,102 +320,123 @@ export default function HistoryTab({ settings, onChange }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <HistorySettings settings={settings} onChange={onChange} />
+      {shows('salvataggio') && <HistorySettings settings={settings} onChange={onChange} />}
 
-      <div className="flex flex-col gap-4 border-t border-line pt-4">
-        <Section
-          title="Utilizzo"
-          description="Come viene usato l’assistente, da chi e con quali strumenti."
-        />
-        <div className="flex flex-wrap gap-2">
-          <select
-            value={rangeDays}
-            onChange={e => setRangeDays(Number(e.target.value))}
-            className={`${INPUT_CLASS} w-auto`}
-            aria-label="Periodo"
-          >
-            {RANGES.map(r => (
-              <option key={r.days} value={r.days}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-          <UserMultiSelect users={users} selected={selectedUsers} onChange={setSelectedUsers} />
-        </div>
-
-        {error && (
-          <p className="rounded-xl bg-danger-soft px-3 py-2 text-fs-12 text-danger">
-            Non riesco a leggere lo storico. Se le regole di sicurezza per lo storico non sono ancora attive,
-            è normale.
-          </p>
-        )}
-        {loading && !loaded.length && <SkeletonDashboard />}
-
-        {/* first load: the skeleton stands in for tiles and charts, not zeros that look like data */}
-        {!error && !(loading && !loaded.length) && (
-          <>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <Kpi label="Conversazioni" value={formatNumber(numbers.conversations)} />
-              <Kpi label="Domande" value={formatNumber(numbers.questions)} />
-              <Kpi label="Utenti attivi" value={formatNumber(numbers.users)} />
-              <Kpi label="Domande per conversazione" value={numbers.questionsPerConversation.toFixed(1)} />
-              <Kpi label="Risposte con errore" value={`${(numbers.errorRate * 100).toFixed(1)}%`} />
-              <Kpi
-                label="Token usati"
-                value={formatNumber(numbers.tokens.input + numbers.tokens.output + numbers.tokens.thinking)}
-                hint={`${formatNumber(numbers.tokens.input)} letti · ${formatNumber(numbers.tokens.output)} scritti · ${formatNumber(numbers.tokens.thinking)} di ragionamento`}
-              />
-            </div>
-
-            <ChartCard title="Domande per giorno">
-              <DayBars series={questionsPerDay(conversations, fromDay, today)} />
-            </ChartCard>
-            <ChartCard title="Strumenti usati">
-              <BarList items={toolTotals(conversations)} />
-            </ChartCard>
-            {!(filtering && selectedUsers.size === 1) && (
-              <ChartCard title="Utenti più attivi" description="Per numero di domande.">
-                <BarList items={topUsers(conversations)} />
-              </ChartCard>
-            )}
-            <ChartCard title="Documenti più consultati" description="In quante conversazioni è stato aperto.">
-              <BarList items={topDocuments(conversations)} emptyText="Nessun documento aperto nel periodo." />
-            </ChartCard>
-
-            <ChartCard
-              title="Conversazioni"
-              description={
-                conversations.length
-                  ? `${conversations.length} nel periodo · clicca una riga per leggerla`
-                  : undefined
-              }
-              action={
-                conversations.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={exportList}
-                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-fs-12 font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50"
-                  >
-                    <Download size={13} /> Scarica Excel
-                  </button>
-                )
-              }
+      {showsUsage && (
+        <div className={`flex flex-col gap-4 ${subsection ? '' : 'border-t border-line pt-4'}`}>
+          {!subsection && (
+            <Section
+              title="Utilizzo"
+              description="Come viene usato l’assistente, da chi e con quali strumenti."
+            />
+          )}
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={rangeDays}
+              onChange={e => setRangeDays(Number(e.target.value))}
+              className={`${INPUT_CLASS} w-auto`}
+              aria-label="Periodo"
             >
-              <ConversationTable conversations={conversations} today={today} onOpen={setOpen} />
-              {cursor && (
-                <button
-                  type="button"
-                  onClick={loadMore}
-                  disabled={loading}
-                  className="mx-auto mt-3 block text-fs-12 font-semibold text-brand-600 hover:underline disabled:opacity-40"
-                >
-                  {loading ? 'Carico…' : 'Carica altre conversazioni'}
-                </button>
+              {RANGES.map(r => (
+                <option key={r.days} value={r.days}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <UserMultiSelect users={users} selected={selectedUsers} onChange={setSelectedUsers} />
+          </div>
+
+          {error && (
+            <p className="rounded-xl bg-danger-soft px-3 py-2 text-fs-12 text-danger">
+              Non riesco a leggere lo storico. Se le regole di sicurezza per lo storico non sono ancora
+              attive, è normale.
+            </p>
+          )}
+          {loading && !loaded.length && <SkeletonDashboard />}
+
+          {/* first load: the skeleton stands in for tiles and charts, not zeros that look like data */}
+          {!error && !(loading && !loaded.length) && (
+            <>
+              {shows('panoramica') && (
+                <>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <Kpi label="Conversazioni" value={formatNumber(numbers.conversations)} />
+                    <Kpi label="Domande" value={formatNumber(numbers.questions)} />
+                    <Kpi label="Utenti attivi" value={formatNumber(numbers.users)} />
+                    <Kpi
+                      label="Domande per conversazione"
+                      value={numbers.questionsPerConversation.toFixed(1)}
+                    />
+                    <Kpi label="Risposte con errore" value={`${(numbers.errorRate * 100).toFixed(1)}%`} />
+                    <Kpi
+                      label="Token usati"
+                      value={formatNumber(
+                        numbers.tokens.input + numbers.tokens.output + numbers.tokens.thinking
+                      )}
+                      hint={`${formatNumber(numbers.tokens.input)} letti · ${formatNumber(numbers.tokens.output)} scritti · ${formatNumber(numbers.tokens.thinking)} di ragionamento`}
+                    />
+                  </div>
+
+                  <ChartCard title="Domande per giorno">
+                    <DayBars series={questionsPerDay(conversations, fromDay, today)} />
+                  </ChartCard>
+                  <ChartCard title="Strumenti usati">
+                    <BarList items={toolTotals(conversations)} />
+                  </ChartCard>
+                  {!(filtering && selectedUsers.size === 1) && (
+                    <ChartCard title="Utenti più attivi" description="Per numero di domande.">
+                      <BarList items={topUsers(conversations)} />
+                    </ChartCard>
+                  )}
+                  <ChartCard
+                    title="Documenti più consultati"
+                    description="In quante conversazioni è stato aperto."
+                  >
+                    <BarList
+                      items={topDocuments(conversations)}
+                      emptyText="Nessun documento aperto nel periodo."
+                    />
+                  </ChartCard>
+                </>
               )}
-            </ChartCard>
-          </>
-        )}
-      </div>
+
+              {shows('conversazioni') && (
+                <ChartCard
+                  title="Conversazioni"
+                  description={
+                    conversations.length
+                      ? `${conversations.length} nel periodo · clicca una riga per leggerla`
+                      : undefined
+                  }
+                  action={
+                    conversations.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={exportList}
+                        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-fs-12 font-semibold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50"
+                      >
+                        <Download size={13} /> Scarica Excel
+                      </button>
+                    )
+                  }
+                >
+                  <ConversationTable conversations={conversations} today={today} onOpen={setOpen} />
+                  {cursor && (
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      disabled={loading}
+                      className="mx-auto mt-3 block text-fs-12 font-semibold text-brand-600 hover:underline disabled:opacity-40"
+                    >
+                      {loading ? 'Carico…' : 'Carica altre conversazioni'}
+                    </button>
+                  )}
+                </ChartCard>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 /**
  * Writes the appearance on the document root: a `data-theme` attribute (the dark palette in globals.css hangs
- * on it) and a handful of CSS variables that the accent tokens of globals.css read. Everything written here is
- * built from values already validated by validate.js (hex colours, numbers in range, two fixed words).
+ * on it), a `data-nav-style` one (classic or floating sidebar) and a handful of CSS variables that the accent tokens
+ * of globals.css read. Everything written here is built from values already validated by validate.js (hex colours,
+ * numbers in range, fixed words).
  */
 import { HOST_BASE_FONT_SIZE, gradientCss } from './validate';
 import { LEGACY_PRIMARY } from './palettes';
@@ -18,13 +19,14 @@ function setVar(root, name, value) {
 }
 
 /**
- * @param {{ mode: 'light'|'dark', primary: object, accent?: object|null, fontSize?: number|null }} appearance
+ * @param {{ mode: 'light'|'dark', primary: object, accent?: object|null, navStyle?: 'classic'|'floating', fontSize?: number|null }} appearance
  *   already validated (a host's through sanitizeAppearance, the standalone's through settingsConfig.js#resolveSettings)
  */
-export function applyAppearance({ mode, primary, accent = null, fontSize = null }) {
+export function applyAppearance({ mode, primary, accent = null, navStyle = 'classic', fontSize = null }) {
   const root = document.documentElement;
   root.setAttribute('data-theme', mode);
   root.style.colorScheme = mode;
+  root.setAttribute('data-nav-style', navStyle === 'floating' ? 'floating' : 'classic');
 
   const legacy = primary.main === LEGACY_PRIMARY.main;
   setVar(root, '--accent', primary.main);
@@ -43,12 +45,20 @@ export function applyAppearance({ mode, primary, accent = null, fontSize = null 
     // a horizontal strip (the host's table-header orientation); without stops, the flat start colour
     setVar(root, '--accent-strip', accent.stops ? gradientCss(accent.stops, 90) : accent.start);
     setVar(root, '--accent-glow', accent.glow ?? accent.start);
+    // the same theme on the sidebar (features/navigation): vertical, as 7hub's menu, over its start colour; the glow
+    // is flipped when the theme takes its colour at the top
+    setVar(root, '--accent-nav-start', accent.start);
+    setVar(root, '--accent-nav', accent.stops ? gradientCss(accent.stops, 180) : 'none');
+    setVar(root, '--accent-nav-flip', accent.glowAt === 'top' ? 'scaleY(-1)' : 'none');
     root.setAttribute('data-accent-strip', '');
     if (accent.animated && accent.stops) root.setAttribute('data-accent-animated', '');
     else root.removeAttribute('data-accent-animated');
   } else {
     setVar(root, '--accent-strip', null);
     setVar(root, '--accent-glow', null);
+    setVar(root, '--accent-nav-start', null);
+    setVar(root, '--accent-nav', null);
+    setVar(root, '--accent-nav-flip', null);
     root.removeAttribute('data-accent-strip');
     root.removeAttribute('data-accent-animated');
   }

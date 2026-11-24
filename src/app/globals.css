@@ -773,3 +773,775 @@ input.font-range[type='range']:focus-visible::-moz-range-thumb {
     transform: none;
   }
 }
+
+/*
+ * The sidebar of the standalone page (features/navigation: AppShell.jsx for the frame, Sidebar.jsx for what is inside), in the
+ * look of 7hub's menu (7hub-revolution: layouts/dashboard/nav-vertical.tsx, css-vars.ts, components/nav-section). Like the rest it
+ * follows the appearance through the attributes and variables apply.js writes on <html>, with no state in the components:
+ *   · default            the page surface (panel colour, light or dark), a line on its edge; items grey, the current one in the
+ *                        primary colour on a soft tint of it
+ *   · a coordinated theme (data-accent-strip, "Temi coordinati"): its gradient, vertical, over its start colour (--accent-nav,
+ *                        --accent-nav-start), white text and icons, white tints for hover / current, and with "Sfondo animato"
+ *                        (data-accent-animated) the two drifting reflections of the theme's colour (.sb-glow)
+ *   · data-nav-style     "Classico": full height, flush with the window edges, a border on the right.
+ *                        "Flottante": a rounded panel with a margin and a shadow (the colour of the theme, with one); only from
+ *                        768px up: on a phone the drawer is always flush, as 7hub's
+ * Below 768px it is an off-canvas drawer (.app-backdrop behind it); from 768px up it is in the layout, 280px wide or a 76px rail
+ * (data-collapsed: only the icons, the labels stay for screen readers). 145 158 171 is 7hub's grey 500.
+ */
+.app-shell {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+:root[data-nav-style='floating'] .app-shell {
+  background: var(--color-surface);
+}
+.app-main {
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 0;
+  outline: none;
+}
+
+.app-sidebar {
+  --sb-bg: var(--color-panel);
+  --sb-bg-image: none;
+  --sb-border: var(--color-line);
+  --sb-divider: var(--color-line);
+  --sb-fg: var(--color-ink);
+  --sb-fg-soft: var(--color-slate-soft);
+  --sb-fg-faint: color-mix(in srgb, var(--color-slate-soft) 70%, transparent);
+  --sb-hover-bg: rgb(145 158 171 / 0.14);
+  --sb-hover-fg: var(--color-ink);
+  --sb-active-fg: var(--accent);
+  --sb-active-bg: color-mix(in srgb, var(--accent) 8%, transparent);
+  --sb-active-hover-bg: color-mix(in srgb, var(--accent) 16%, transparent);
+  --sb-sub-active-bg: rgb(145 158 171 / 0.2);
+  --sb-sub-active-hover-bg: rgb(145 158 171 / 0.28);
+  --sb-line: rgb(145 158 171 / 0.3);
+  --sb-focus: var(--accent);
+  --sb-cta-bg: var(--accent);
+  --sb-cta-fg: var(--accent-contrast);
+  --sb-cta-hover-bg: var(--accent-hover);
+  --sb-cta-border: transparent;
+  --sb-cta-shadow: 0 6px 14px -8px color-mix(in srgb, var(--accent) 70%, transparent);
+  --sb-avatar-bg: var(--gradient-ai);
+  --sb-avatar-fg: var(--accent-contrast);
+  --sb-shadow: 0 12px 32px -12px rgb(145 158 171 / 0.4);
+  --sb-scrollbar: rgb(145 158 171 / 0.4);
+
+  position: relative;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  /* keeps .sb-glow (z-index -1) above the background of the sidebar and under its content */
+  isolation: isolate;
+  background-color: var(--sb-bg);
+  background-image: var(--sb-bg-image);
+  color: var(--sb-fg);
+}
+:root[data-theme='dark'] .app-sidebar {
+  --sb-hover-bg: rgb(145 158 171 / 0.16);
+  --sb-active-fg: var(--accent-light);
+  --sb-active-bg: color-mix(in srgb, var(--accent) 16%, transparent);
+  --sb-active-hover-bg: color-mix(in srgb, var(--accent) 24%, transparent);
+  --sb-sub-active-bg: rgb(145 158 171 / 0.24);
+  --sb-sub-active-hover-bg: rgb(145 158 171 / 0.32);
+  --sb-line: rgb(145 158 171 / 0.28);
+  --sb-shadow: 0 12px 32px -8px rgb(0 0 0 / 0.5);
+}
+/* a coordinated theme: after the dark block above, which has the same weight */
+:root[data-accent-strip] .app-sidebar {
+  --sb-bg: var(--accent-nav-start);
+  --sb-bg-image: var(--accent-nav);
+  --sb-border: transparent;
+  --sb-divider: rgb(255 255 255 / 0.14);
+  --sb-fg: #fff;
+  --sb-fg-soft: rgb(255 255 255 / 0.8);
+  --sb-fg-faint: rgb(255 255 255 / 0.56);
+  --sb-hover-bg: rgb(255 255 255 / 0.13);
+  --sb-hover-fg: #fff;
+  --sb-active-fg: #fff;
+  --sb-active-bg: rgb(255 255 255 / 0.18);
+  --sb-active-hover-bg: rgb(255 255 255 / 0.24);
+  --sb-sub-active-bg: rgb(255 255 255 / 0.18);
+  --sb-sub-active-hover-bg: rgb(255 255 255 / 0.24);
+  --sb-line: rgb(255 255 255 / 0.3);
+  --sb-focus: #fff;
+  --sb-cta-bg: rgb(255 255 255 / 0.16);
+  --sb-cta-fg: #fff;
+  --sb-cta-hover-bg: rgb(255 255 255 / 0.25);
+  --sb-cta-border: rgb(255 255 255 / 0.24);
+  --sb-cta-shadow: none;
+  --sb-avatar-bg: rgb(255 255 255 / 0.2);
+  --sb-avatar-fg: #fff;
+  --sb-shadow: 0 12px 32px -12px color-mix(in srgb, var(--accent-glow) 45%, transparent);
+  --sb-scrollbar: rgb(255 255 255 / 0.4);
+}
+:root[data-accent-strip][data-nav-style='floating'] .app-sidebar {
+  --sb-border: rgb(255 255 255 / 0.14);
+}
+
+@media (min-width: 768px) {
+  .app-sidebar {
+    flex: none;
+    width: 280px;
+    height: 100%;
+    transition: width 160ms ease;
+  }
+  .app-sidebar[data-collapsed] {
+    width: 76px;
+  }
+  :root:not([data-nav-style='floating']) .app-sidebar {
+    border-right: 1px solid var(--sb-border);
+  }
+  :root[data-nav-style='floating'] .app-sidebar {
+    margin: 12px;
+    height: calc(100% - 24px);
+    border-radius: 16px;
+    /* the border as an inset ring: a real one would shift the button on the edge */
+    box-shadow:
+      var(--sb-shadow),
+      inset 0 0 0 1px var(--sb-border);
+  }
+}
+
+/* phones: an off-canvas drawer over the page */
+@media (max-width: 767.98px) {
+  .app-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 60;
+    width: min(300px, 86vw);
+    border-right: 1px solid var(--sb-border);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 240ms cubic-bezier(0.32, 0.72, 0, 1),
+      visibility 0s linear 240ms;
+  }
+  .app-sidebar[data-mobile-open] {
+    transform: none;
+    visibility: visible;
+    box-shadow: 16px 0 48px -8px rgb(0 0 0 / 0.35);
+    transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .app-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgb(0 0 0 / 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 240ms ease;
+  }
+  .app-backdrop[data-open] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .sb-head .sb-close {
+    display: grid;
+  }
+}
+
+/* the edge button (collapse / expand), over the sidebar's edge, level with the page header */
+.sb-edge {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-slate-soft);
+  transition:
+    background-color 150ms ease-out,
+    color 150ms ease-out,
+    transform 150ms ease-out;
+}
+.sb-edge:hover,
+.sb-edge:focus-visible {
+  background: color-mix(in srgb, var(--accent) 12%, var(--color-panel));
+  color: var(--accent);
+  transform: scale(1.1);
+}
+.sb-edge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:root[data-theme='dark'] .sb-edge:hover,
+:root[data-theme='dark'] .sb-edge:focus-visible {
+  color: var(--accent-light);
+}
+
+.sb-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+}
+.sb-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 4px 8px;
+}
+.sb-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-fs-15);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sb-fg);
+}
+.sb-close {
+  display: none;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  color: var(--sb-fg-soft);
+  transition:
+    background-color 150ms ease-out,
+    color 150ms ease-out;
+}
+.sb-close:hover {
+  background: var(--sb-hover-bg);
+  color: var(--sb-hover-fg);
+}
+
+/* "Nuova chat" */
+.sb-new {
+  padding: 4px 4px 8px;
+}
+.sb-cta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--sb-cta-border);
+  background: var(--sb-cta-bg);
+  color: var(--sb-cta-fg);
+  box-shadow: var(--sb-cta-shadow);
+  font-size: var(--text-fs-14);
+  font-weight: 600;
+  transition:
+    background-color 150ms ease-out,
+    transform 150ms ease-out,
+    opacity 150ms ease-out;
+}
+.sb-cta:hover:not(:disabled) {
+  background: var(--sb-cta-hover-bg);
+  transform: translateY(-1px);
+}
+.sb-cta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* the entries */
+.sb-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  margin: 0 -8px;
+  padding: 0 8px 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-scrollbar) transparent;
+}
+.sb-group-title {
+  padding: 12px 12px 6px;
+  font-size: var(--text-fs-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--sb-fg-faint);
+}
+.sb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sb-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 42px;
+  padding: 6px 10px 6px 12px;
+  border-radius: 10px;
+  color: var(--sb-fg-soft);
+  font-size: var(--text-fs-14);
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  transition:
+    background-color 150ms ease-out,
+    color 150ms ease-out;
+}
+.sb-item:hover {
+  background-color: var(--sb-hover-bg);
+  color: var(--sb-hover-fg);
+}
+.sb-item[aria-current='page'],
+.sb-item[data-has-current] {
+  background-color: var(--sb-active-bg);
+  color: var(--sb-active-fg);
+  font-weight: 600;
+}
+.sb-item[aria-current='page']:hover,
+.sb-item[data-has-current]:hover {
+  background-color: var(--sb-active-hover-bg);
+  color: var(--sb-active-fg);
+}
+.sb-item-icon {
+  display: inline-flex;
+  flex: none;
+  transition: transform 150ms ease-out;
+}
+.sb-item:hover .sb-item-icon {
+  transform: scale(1.12);
+}
+/* the duotone of the icons: a soft fill of the current colour behind the strokes */
+svg.sb-duo {
+  fill: currentColor;
+  fill-opacity: 0.18;
+}
+.sb-item[aria-current='page'] svg.sb-duo,
+.sb-item[data-has-current] svg.sb-duo {
+  fill-opacity: 0.32;
+}
+
+/* an entry with subsections (NavGroup.jsx): the chevron, the open state (7hub's: the hover fill and the full-strength text, unless
+   the page is inside it, which wins), and the subsections under it, along a line with an elbow to each, as in 7hub's vertical nav.
+   The list opens by animating its height (a grid row from 0fr to 1fr); closed it is also invisible, once the animation is done */
+.sb-chevron {
+  margin-left: auto;
+  flex: none;
+  opacity: 0.7;
+  transition: transform 200ms ease;
+}
+.sb-item[aria-expanded='true'] .sb-chevron {
+  transform: rotate(90deg);
+}
+.sb-item[aria-expanded='true']:not([data-has-current]) {
+  background-color: var(--sb-hover-bg);
+  color: var(--sb-hover-fg);
+}
+.sb-sub-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows 200ms ease,
+    visibility 0s linear 200ms;
+}
+.sb-sub-wrap[data-open] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition: grid-template-rows 200ms ease;
+}
+.sb-sub-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+/* 23px = the entry's left padding (12) + half its icon (11): the line runs under the middle of the icon */
+.sb-sub {
+  --sb-sub-height: 36px;
+  --sb-bullet: 12px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 2px 23px;
+  padding: 0 0 0 var(--sb-bullet);
+  list-style: none;
+}
+.sb-sub::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: calc(var(--sb-sub-height) - 2px - var(--sb-bullet) / 2);
+  left: 0;
+  width: 2px;
+  background: var(--sb-line);
+}
+.sb-sub-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--sb-sub-height);
+  padding: 4px 8px 4px 12px;
+  border-radius: 10px;
+  color: var(--sb-fg-soft);
+  font-size: var(--text-fs-13);
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  transition:
+    background-color 150ms ease-out,
+    color 150ms ease-out;
+}
+/* the elbow: 7hub's bullet, a corner from the line to the entry, mid-height and a little above (so its end meets the text) */
+.sb-sub-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--sb-bullet);
+  height: var(--sb-bullet);
+  background-color: var(--sb-line);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 14 14'%3E%3Cpath d='M1 1v4a8 8 0 0 0 8 8h4' stroke='%23000' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat 50% 50% / 100% auto;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 14 14'%3E%3Cpath d='M1 1v4a8 8 0 0 0 8 8h4' stroke='%23000' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat 50% 50% / 100% auto;
+  transform: translate(calc(var(--sb-bullet) * -1), calc(-50% - var(--sb-bullet) * 0.4));
+}
+.sb-sub-item:hover {
+  background-color: var(--sb-hover-bg);
+  color: var(--sb-hover-fg);
+}
+.sb-sub-item[aria-current='page'] {
+  background-color: var(--sb-sub-active-bg);
+  color: var(--sb-fg);
+  font-weight: 600;
+}
+.sb-sub-item[aria-current='page']:hover {
+  background-color: var(--sb-sub-active-hover-bg);
+}
+
+.sb-item:focus-visible,
+.sb-sub-item:focus-visible,
+.sb-cta:focus-visible,
+.sb-close:focus-visible,
+.sb-account:focus-visible {
+  outline: 2px solid var(--sb-focus);
+  outline-offset: -2px;
+}
+
+/* the operator at the bottom, and its menu */
+.sb-foot {
+  position: relative;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--sb-divider);
+}
+.sb-account {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 12px;
+  color: var(--sb-fg);
+  font-size: var(--text-fs-13);
+  line-height: 1.3;
+  text-align: left;
+  transition: background-color 150ms ease-out;
+}
+.sb-account:hover,
+.sb-account[aria-expanded='true'] {
+  background-color: var(--sb-hover-bg);
+}
+.sb-account-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sb-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: var(--sb-avatar-bg);
+  color: var(--sb-avatar-fg);
+  font-size: var(--text-fs-13);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.sb-muted {
+  color: var(--sb-fg-soft);
+  font-size: var(--text-fs-11);
+}
+.sb-menu {
+  position: absolute;
+  z-index: 5;
+  inset: auto 4px calc(100% + 8px) 4px;
+  padding: 6px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-panel);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-lift);
+  font-size: var(--text-fs-13);
+  animation: fade-in 0.15s ease-out both;
+}
+.sb-menu .sb-muted {
+  color: var(--color-slate-soft);
+}
+.sb-menu-who {
+  margin-bottom: 6px;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--color-line);
+}
+.sb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--color-ink);
+  font-weight: 500;
+  text-align: left;
+}
+.sb-menu-item:hover,
+.sb-menu-item:focus-visible {
+  background: var(--color-surface);
+}
+.sb-menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* the subsections of an entry in the rail (NavGroup.jsx), over the page, beside the sidebar's edge: on the page's colours, not
+   the sidebar's. Its left padding is a strip of hover between the rail and the card */
+.sb-fly {
+  position: fixed;
+  z-index: 90;
+  max-height: 100dvh;
+  padding-left: 10px;
+}
+.sb-fly-card {
+  min-width: 208px;
+  max-width: 280px;
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-panel);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-lift);
+  animation: fade-in 0.15s ease-out both;
+}
+.sb-fly-title {
+  padding: 8px 10px 6px;
+  color: var(--color-slate-soft);
+  font-size: var(--text-fs-11);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.sb-fly-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sb-fly-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--color-ink);
+  font-size: var(--text-fs-13);
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+}
+.sb-fly-item:hover,
+.sb-fly-item:focus-visible {
+  background: var(--color-surface);
+}
+.sb-fly-item[aria-current='page'] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+:root[data-theme='dark'] .sb-fly-item[aria-current='page'] {
+  color: var(--accent-light);
+}
+.sb-fly-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* the rail: icons only, the labels stay for screen readers */
+.app-sidebar[data-collapsed] .sb-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.app-sidebar[data-collapsed] .sb-rail-hide,
+.app-sidebar[data-collapsed] .sb-group-title {
+  display: none;
+}
+.app-sidebar[data-collapsed] .sb-head {
+  justify-content: center;
+  padding-inline: 0;
+}
+.app-sidebar[data-collapsed] .sb-group + .sb-group {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--sb-divider);
+}
+.app-sidebar[data-collapsed] .sb-item,
+.app-sidebar[data-collapsed] .sb-cta {
+  justify-content: center;
+  width: 48px;
+  margin-inline: auto;
+  padding-inline: 0;
+}
+.app-sidebar[data-collapsed] .sb-account {
+  justify-content: center;
+  padding-inline: 0;
+}
+.app-sidebar[data-collapsed] .sb-menu {
+  inset: auto auto 0 calc(100% + 18px);
+  width: 236px;
+}
+
+/* the animated glow of a coordinated theme: 7hub's NavGlow. It has its own box, clipped to the rounded corners, so the edge
+   button can hang over the sidebar; only transform and opacity move. --accent-nav-flip puts it at the top when the theme takes its
+   colour there. The drift is scaled by --glow-k (less in the rail: there is hardly any room) */
+.sb-glow {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: inherit;
+  pointer-events: none;
+  transform: var(--accent-nav-flip, none);
+  --glow-k: 1;
+}
+:root[data-accent-animated] .sb-glow {
+  display: block;
+}
+.app-sidebar[data-collapsed] .sb-glow {
+  --glow-k: 0.35;
+}
+.sb-glow::before,
+.sb-glow::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(28px);
+  will-change: transform, opacity;
+}
+.sb-glow::before {
+  width: 320px;
+  height: 260px;
+  left: -70px;
+  bottom: -80px;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--accent-glow) 70%, transparent),
+    transparent
+  );
+  animation: sb-glow-a 18s ease-in-out infinite alternate;
+}
+.sb-glow::after {
+  width: 240px;
+  height: 220px;
+  right: -80px;
+  bottom: 70px;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--accent-glow) 45%, transparent),
+    transparent
+  );
+  animation: sb-glow-b 22s ease-in-out infinite alternate;
+}
+.app-sidebar[data-collapsed] .sb-glow::before {
+  width: 190px;
+  height: 190px;
+  left: -60px;
+  bottom: -70px;
+  filter: blur(20px);
+}
+.app-sidebar[data-collapsed] .sb-glow::after {
+  width: 130px;
+  height: 150px;
+  right: -50px;
+  bottom: 90px;
+  filter: blur(20px);
+}
+@keyframes sb-glow-a {
+  from {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.75;
+  }
+  to {
+    transform: translate(calc(110px * var(--glow-k, 1)), calc(-70px * var(--glow-k, 1))) scale(1.25);
+    opacity: 1;
+  }
+}
+@keyframes sb-glow-b {
+  from {
+    transform: translate(0, 0) scale(1.1);
+    opacity: 0.5;
+  }
+  to {
+    transform: translate(calc(-100px * var(--glow-k, 1)), calc(110px * var(--glow-k, 1))) scale(0.9);
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar,
+  .app-sidebar[data-mobile-open],
+  .app-backdrop {
+    transition: none;
+  }
+  .sb-glow::before,
+  .sb-glow::after,
+  .sb-menu,
+  .sb-fly-card {
+    animation: none;
+  }
+  .sb-sub-wrap,
+  .sb-sub-wrap[data-open],
+  .sb-chevron {
+    transition: none;
+  }
+  .sb-item:hover .sb-item-icon,
+  .sb-cta:hover:not(:disabled),
+  .sb-edge:hover,
+  .sb-edge:focus-visible {
+    transform: none;
+  }
+}

@@ -2,6 +2,7 @@
  * The chat opened directly, outside 7hub: sign in with suite accounts and the app permission.
  * 7hub loads /embed instead — same full-height layout as that route (no card, no border) so the
  * two don't visually diverge; /embed itself is untouched, it's still what the real iframe loads.
+ * Here, with room to spare, the chat has a sidebar (features/navigation); in the narrow iframe it does not.
  */
 'use client';
 
@@ -42,6 +43,7 @@ export default function StandalonePage() {
         email={session.user.email}
         isAdmin={session.isAdmin}
         onSignOut={session.signOut}
+        sidebar
       />
     </div>
   );

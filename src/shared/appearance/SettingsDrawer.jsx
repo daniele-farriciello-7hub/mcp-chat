@@ -1,9 +1,9 @@
 /**
  * The settings drawer of the standalone chat: a panel on the right with the same sections, labels and options as 7hub's
  * (7hub-revolution: scripts/components/settings/drawer/settings-drawer.tsx) so the two products feel the same: Modalità,
- * Temi coordinati, Colore principale and Font, a reset for each card and "Ripristina tutto" in the header. 7hub's "Stile menu"
- * and "Colore menu" are left out: the chat has no menu. Every choice is applied live and kept in localStorage
- * (appearanceStore.js), with 7hub's own option ids (settingsConfig.js).
+ * Stile menu, Temi coordinati, Colore principale and Font, a reset for each card and "Ripristina tutto" in the header. 7hub's
+ * "Colore menu" (plain colours) is left out: the sidebar takes the coordinated themes only. Every choice is applied live and
+ * kept in localStorage (appearanceStore.js), with 7hub's own option ids (settingsConfig.js).
  *
  * Accessible as a modal dialog: the focus moves in when it opens and cannot leave it (Tab wraps), Escape and a click outside
  * close it, and the focus goes back to the gear that opened it. There is no dark veil, as in 7hub: the page stays visible so
@@ -34,10 +34,21 @@ import {
   PRIMARY_COLOR_LABELS,
   PRIMARY_COLOR_PRESETS
 } from './palettes';
-import { DEFAULT_SETTINGS, FONT_SIZE_SLIDER_RANGE, settingsAreDefault } from './settingsConfig';
+import {
+  DEFAULT_SETTINGS,
+  FONT_SIZE_SLIDER_RANGE,
+  SETTING_NAV_STYLES,
+  settingsAreDefault
+} from './settingsConfig';
 import { gradientCss } from './validate';
 
 const MODE_ICONS = { light: drawerIcons.sun, dark: drawerIcons.moon, system: drawerIcons.system };
+
+const NAV_STYLE_OPTIONS = SETTING_NAV_STYLES.map(id => ({
+  id,
+  label: id === 'floating' ? 'Flottante' : 'Classico',
+  icon: id === 'floating' ? drawerIcons.navStyleFloating : drawerIcons.navStyleClassic
+}));
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 
@@ -188,9 +199,36 @@ export default function SettingsDrawer({ open, onClose }) {
           </LargeBlock>
 
           <LargeBlock
+            title="Stile menu"
+            tooltip="Classico: il menu laterale occupa tutta l'altezza, a filo dei bordi. Flottante: staccato dai bordi, con angoli arrotondati e ombra."
+            canReset={prefs.navStyle !== DEFAULT_SETTINGS.navStyle}
+            onReset={() => setAppearancePrefs({ navStyle: DEFAULT_SETTINGS.navStyle })}
+          >
+            <RadioGroup label="Stile menu" className="grid grid-cols-2 gap-3">
+              {NAV_STYLE_OPTIONS.map((style, index) => {
+                const selected = prefs.navStyle === style.id;
+                return (
+                  <OptionButton
+                    key={style.id}
+                    role="radio"
+                    aria-checked={selected}
+                    selected={selected}
+                    tabbable={isTabStop(selected, true, index)}
+                    onClick={() => setAppearancePrefs({ navStyle: style.id })}
+                    className="flex flex-col items-center justify-center gap-2 py-3"
+                  >
+                    {style.icon}
+                    {style.label}
+                  </OptionButton>
+                );
+              })}
+            </RadioGroup>
+          </LargeBlock>
+
+          <LargeBlock
             title="Temi coordinati"
-            caption="Striscia in cima all'assistente"
-            tooltip="Una sfumatura che colora la striscia in cima all'assistente, come in 7hub cambia insieme menu e intestazioni delle tabelle."
+            caption="Menu laterale e striscia in cima"
+            tooltip="Una sfumatura che colora il menu laterale e la striscia in cima all'assistente, come in 7hub cambia insieme menu e intestazioni delle tabelle."
             canReset={hasTheme || prefs.navAnimated !== DEFAULT_SETTINGS.navAnimated}
             onReset={() =>
               setAppearancePrefs({
@@ -209,7 +247,7 @@ export default function SettingsDrawer({ open, onClose }) {
             {hasTheme && (
               <SwitchOption
                 label="Sfondo animato"
-                tooltip="Un leggero bagliore che si muove sulla striscia. Resta fermo se nel sistema è attivo «riduci movimento»."
+                tooltip="Un leggero bagliore che si muove sul menu laterale e sulla striscia. Resta fermo se nel sistema è attivo «riduci movimento»."
                 selected={prefs.navAnimated}
                 icon={drawerIcons.siderbarDuotone}
                 onChange={() => setAppearancePrefs({ navAnimated: !prefs.navAnimated })}

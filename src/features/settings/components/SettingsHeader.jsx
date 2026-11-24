@@ -1,15 +1,22 @@
 import { ArrowLeft } from 'lucide-react';
+import MenuButton from '@/features/navigation/MenuButton';
+import { useSidebar } from '@/features/navigation/SidebarContext';
 import Tooltip from '@/shared/ui/Tooltip';
 
+/** `eyebrow`: the tab's name above the title, when the title is a subsection of it (the standalone page's sidebar). */
 export default function SettingsHeader({
   onClose,
   hasUnsavedChanges,
+  eyebrow,
   title = 'Configurazione',
   subtitle = 'Vale per tutti, dalla conversazione successiva'
 }) {
+  // beside the sidebar "Chat" is the way back on a wide screen, and the hamburger opens it on a phone
+  const hasSidebar = useSidebar() !== null;
   return (
     <div className="flex items-center gap-2 px-3 pb-2.5 pt-3">
-      <Tooltip label="Torna alla chat" align="left">
+      <MenuButton />
+      <Tooltip label="Torna alla chat" align="left" className={hasSidebar ? 'md:hidden' : ''}>
         <button
           type="button"
           onClick={onClose}
@@ -20,6 +27,11 @@ export default function SettingsHeader({
         </button>
       </Tooltip>
       <div className="min-w-0 flex-1">
+        {eyebrow && (
+          <div className="truncate text-fs-10 font-bold uppercase tracking-[0.12em] text-brand-600">
+            {eyebrow}
+          </div>
+        )}
         <div className="text-fs-15 font-bold leading-tight text-ink">{title}</div>
         <div className="text-fs-11 text-slate-soft">{subtitle}</div>
       </div>

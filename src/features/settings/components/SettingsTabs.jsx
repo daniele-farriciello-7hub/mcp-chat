@@ -1,16 +1,10 @@
-export const SETTINGS_TABS = [
-  { id: 'model', name: 'Modello IA' },
-  { id: 'shortcuts', name: 'Scorciatoie' },
-  { id: 'documents', name: 'Documenti' },
-  { id: 'database', name: 'Database' },
-  { id: 'history', name: 'Storico' },
-  { id: 'hub', name: '7Hub' }
-];
+import { SETTINGS_TABS } from '@/features/settings/settingsSections';
 
-export default function SettingsTabs({ activeTab, onChange }) {
+/** The tab strip of the configuration panel: /embed only (the standalone page has the sidebar, and a selector on phones). */
+export default function SettingsTabs({ activeTab, onChange, className = '' }) {
   return (
     // narrow (the 7AI panel in 7Hub is 400px): two rows of three, so every tab stays in sight
-    <div className="grid grid-cols-3 gap-1 border-b border-line px-3 pb-2.5 sm:flex">
+    <div className={`grid grid-cols-3 gap-1 border-b border-line px-3 pb-2.5 sm:flex ${className}`}>
       {SETTINGS_TABS.map(tab => {
         const active = tab.id === activeTab;
         return (

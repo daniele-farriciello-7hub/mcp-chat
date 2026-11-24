@@ -5,6 +5,11 @@
  * points to), and a progress card for the background indexing queue (which survives closing the panel).
  * The "Drive" view is the other way in: folders and PDFs on Google Drive that the server keeps in step
  * with the archive (features/drive); their documents show up in the same lists.
+ *
+ * The four views (da indicizzare, con errore, indicizzati, Drive) are the subsections of this tab in the standalone page's
+ * sidebar: it passes `view` and `onViewChange`, the strip of views is not drawn (the sidebar is it) and the counters above
+ * still switch view. The tab stays mounted while the view changes, so uploads, filters and the descriptions being typed are
+ * kept. Without them (/embed) the tab keeps the view itself, as it always did.
  */
 'use client';
 
@@ -36,8 +41,22 @@ function LoadingSkeleton() {
   );
 }
 
-export default function DocumentsTab() {
-  const [view, setView] = useState('pending');
+/** The subsections of this tab (settingsSections.js) and the views they show. */
+export const DOCUMENT_VIEW_OF_SUBSECTION = {
+  'da-indicizzare': 'pending',
+  errori: 'failed',
+  indicizzati: 'indexed',
+  drive: 'drive'
+};
+export const SUBSECTION_OF_DOCUMENT_VIEW = Object.fromEntries(
+  Object.entries(DOCUMENT_VIEW_OF_SUBSECTION).map(([subsection, view]) => [view, subsection])
+);
+
+export default function DocumentsTab({ view: controlledView, onViewChange }) {
+  const [ownView, setOwnView] = useState('pending');
+  const controlled = controlledView !== undefined;
+  const view = controlled ? controlledView : ownView;
+  const setView = controlled ? onViewChange : setOwnView;
   const [nameFilter, setNameFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
 
@@ -117,7 +136,7 @@ export default function DocumentsTab() {
         <div className="rounded-xl bg-danger-soft p-3 text-fs-12 text-danger">{catalog.loadError}</div>
       )}
 
-      <DocumentViewTabs activeView={view} onChange={setView} totals={catalog.totals} />
+      {!controlled && <DocumentViewTabs activeView={view} onChange={setView} totals={catalog.totals} />}
 
       {view !== 'drive' && <NameFilterInput value={nameFilter} onChange={setNameFilter} />}
 
