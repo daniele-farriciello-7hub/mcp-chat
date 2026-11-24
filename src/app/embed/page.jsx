@@ -2,6 +2,13 @@
  * /embed — the chat as embedded in 7hub-revolution. Sign-in is required inside the iframe too:
  * the privacy assessment asks for identity verification before using the chatbot. The host sends
  * context (current page) and performs what the iframe cannot: navigating and closing the panel.
+ *
+ * The chat has the same sidebar as the standalone page (features/navigation), adapted to being a guest: a drawer behind a hamburger
+ * (the host draws the header: its own hamburger when it declares the `sidebarButton` capability and sends `toggle_sidebar`, a slim
+ * bar of this page otherwise), docked beside the conversation only when the iframe is 1024px wide or more, its place kept in the
+ * state and never in the URL, and no appearance settings (the host decides the look). Signing out is the iframe's own (its
+ * sign-in is its own), so "Esci" is in the sidebar's account menu. The host is told how the sidebar stands (docked, drawer open,
+ * where the page is: `sidebar` message), which also tells it that this build has one.
  */
 'use client';
 
@@ -12,14 +19,20 @@ import { useSession } from '@/features/auth/useSession';
 import AgentMark from '@/features/chat/components/AgentMark';
 import ChatPanel from '@/features/chat/components/ChatPanel';
 import { receiveHostAppearance } from '@/shared/appearance/appearanceStore';
-import { announceReady, isEmbedded, listenToHost, postToHost } from '@/shared/embed/hostBridge';
+import {
+  announceReady,
+  isEmbedded,
+  listenToHost,
+  postToHost,
+  readHostCapabilities
+} from '@/shared/embed/hostBridge';
 import { useClientValue } from '@/shared/useClientValue';
 
 export default function EmbedPage() {
   const [hostContext, setHostContext] = useState(null);
   const [hostOrigin, setHostOrigin] = useState(null);
-  // the chat's handle (ask / reset / openSettings); commands that arrive before it exists (operator
-  // not signed in yet) wait here and run as soon as the chat mounts
+  // the chat's handle (ask / reset / openSettings / toggleSidebar); commands that arrive before it exists (operator
+  // not signed in yet) wait here and run as soon as the chat mounts (all but toggleSidebar, see the listener)
   const panel = useRef(null);
   const waiting = useRef([]);
   const runCommand = useCallback(data => {
@@ -37,6 +50,7 @@ export default function EmbedPage() {
   // null until known: the first render is static and has no `window`
   const embedded = useClientValue(isEmbedded, null);
   const session = useSession();
+  const hostSidebarButton = !!hostContext?.hostChrome && readHostCapabilities(hostContext).sidebarButton;
 
   // the listener below is registered once: it reads the current sign-out through this ref
   const signOutRef = useRef(session.signOut);
@@ -45,6 +59,12 @@ export default function EmbedPage() {
   }, [session.signOut]);
 
   const reportStatus = useCallback(busy => postToHost({ type: 'status', busy }, hostOrigin), [hostOrigin]);
+  // `state` null: the sidebar is gone (signed out), the host must stop offering its hamburger
+  const reportSidebar = useCallback(
+    state =>
+      postToHost(state ? { type: 'sidebar', ...state } : { type: 'sidebar', available: false }, hostOrigin),
+    [hostOrigin]
+  );
 
   useEffect(() => {
     const unsubscribe = listenToHost(
@@ -57,6 +77,9 @@ export default function EmbedPage() {
       },
       data => {
         if (data.type === 'sign_out') return signOutRef.current?.();
+        // a click on the host's hamburger is about the state of the moment: with no chat on screen (the sign-in) it is dropped,
+        // not kept to open the drawer by surprise after signing in
+        if (data.type === 'toggle_sidebar') return panel.current?.toggleSidebar();
         if (panel.current) runCommand(data);
         else waiting.current.push(data);
       },
@@ -102,6 +125,11 @@ export default function EmbedPage() {
         ref={panelRef}
         // the host draws the header (7Hub's 7AI panel): commands and busy state go through the bridge
         hideHeader={!!hostContext?.hostChrome}
+        sidebar
+        embedded
+        // the host's own hamburger for the drawer (only meaningful when it draws the header): the chat leaves out its own
+        hostSidebarButton={hostSidebarButton}
+        onSidebarChange={reportSidebar}
         onStatus={reportStatus}
         onUserMessage={text => postToHost({ type: 'user_message', text }, hostOrigin)}
       />

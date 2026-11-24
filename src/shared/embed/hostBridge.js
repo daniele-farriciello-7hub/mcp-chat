@@ -5,7 +5,8 @@
  *
  * host → iframe
  *   { type: 'context', user: { firstName, lastName, email }, page: '/dashboard/…', pageTitle,
- *     theme: 'light'|'dark', appearance, tools: ['get_context', 'search_records', 'open_page', 'open_record'] }
+ *     theme: 'light'|'dark', appearance, tools: ['get_context', 'search_records', 'open_page', 'open_record'],
+ *     hostChrome, capabilities: { sidebarButton: true } }
  *   { type: 'appearance', appearance }    the host's appearance changed (mode, colours, font size): applied live.
  *                                         `context.appearance` carries the same object at start-up.
  *                                         appearance = {
@@ -27,12 +28,35 @@
  *   { type: 'tool_result', id, ok: true, result } | { type: 'tool_result', id, ok: false, error }
  *   { type: 'ask', text }                 the operator asked from the host (home box, search bar): send it
  *   { type: 'reset' } | { type: 'open_settings' } | { type: 'sign_out' }   the host's header buttons
+ *   { type: 'toggle_sidebar' }            the host's hamburger: opens the chat's sidebar drawer, or closes it if it is open. Ignored
+ *                                         while the sidebar is docked (nothing to open) and while nobody is signed in; never kept
+ *                                         for later (a click is about the state of the moment). Opened this way the focus goes to
+ *                                         the drawer itself (it has no close button then: the host's hamburger is it); closed this
+ *                                         way it stays where it is (on the host's button, which the chat cannot focus itself),
+ *                                         whereas closed from inside (Escape, backdrop, a choice) it goes to the page.
  *   (context.hostChrome = true: the host draws the header, so this page hides its own)
+ *   (context.capabilities: what the host can do for the chat, every key optional and read strictly (`true` or off).
+ *    `sidebarButton: true` = the host's header has a hamburger that sends `toggle_sidebar` while the sidebar is a drawer. With
+ *    `hostChrome` too, the chat leaves out its own hamburger (the slim bar under the host's header, the one of the settings
+ *    pages): an older host that does not declare it keeps getting them.)
  * iframe → host
  *   { type: 'ready' }                    sent twice: by the inline script in app/embed/layout.jsx and on mount
  *   { type: 'navigate', url: '/dashboard/…' }
  *   { type: 'close' }
  *   { type: 'status', busy }             so the host can show that the assistant is working
+ *   { type: 'sidebar', docked, open, place: { label, chat } }
+ *                                         this build has the chat's own sidebar (menu, sections, account, "Esci"): `docked` true
+ *                                         when it sits beside the conversation (the iframe is 1024px wide or more), false when
+ *                                         it is a drawer (behind the hamburger of the chat's own slim bar, or of the host's header
+ *                                         when it declared `capabilities.sidebarButton`); `open`: the drawer is open (never while
+ *                                         docked); `place`: where the chat is, `label` a short text for the host's header
+ *                                         ("Chat", "Storico › Conversazioni", "Modello IA › Istruzioni") and
+ *                                         `chat` true while it is the conversation itself. Sent at start-up and at every
+ *                                         change. A host that used to offer those entries itself (settings, sign out) can
+ *                                         stop once it has received this; before, it must keep them.
+ *   { type: 'sidebar', available: false } the sidebar is gone (the operator signed out: the sign-in screen has none): the host goes
+ *                                         back to what it did before the first `sidebar` message (its own entries, no hamburger).
+ *                                         The next full `sidebar` message brings it back.
  *   { type: 'user_message', text }       what the operator typed (or picked) in the chat, so the host can offer
  *                                         something next to the reply (7Hub: "Segnala un problema")
  *   { type: 'open_help', tab, description } ask the host to open its help panel ('assistente' | 'segnala'),
@@ -116,11 +140,21 @@ export function postToHost(message, origin) {
 // `listening`: sent once the page listens to the host (the inline pre-hydration `ready` cannot receive commands yet)
 export const announceReady = () => postToHost({ type: 'ready', listening: true });
 
-const HOST_COMMANDS = new Set(['ask', 'reset', 'open_settings', 'sign_out']);
+const HOST_COMMANDS = new Set(['ask', 'reset', 'open_settings', 'sign_out', 'toggle_sidebar']);
+
+/**
+ * What the host says it can do for the chat (`context.capabilities`). Known keys only, and only a literal `true` turns one on:
+ * anything else (a missing object, a string, `1`) is off, so a host that does not know a capability never gets it.
+ */
+export function readHostCapabilities(context) {
+  const declared = context?.capabilities;
+  const capabilities = declared && typeof declared === 'object' && !Array.isArray(declared) ? declared : {};
+  return { sidebarButton: capabilities.sidebarButton === true };
+}
 
 /**
  * Listens to the host. `onContext(context, origin)` for context, `onCommand(command, origin)` for the host's
- * commands (ask, reset, open_settings, sign_out), `onAppearance(appearance, origin)` for its live appearance
+ * commands (ask, reset, open_settings, sign_out, toggle_sidebar), `onAppearance(appearance, origin)` for its live appearance
  * updates (the raw object: the caller validates it). Trusted origins only. Returns cleanup.
  */
 export function listenToHost(onContext, onCommand, onAppearance) {

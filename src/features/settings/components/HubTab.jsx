@@ -8,6 +8,7 @@ import PromptAttachments from '@/shared/ui/PromptAttachments';
 import Section from '@/shared/ui/Section';
 import { HELP_TEXT_CLASS, INPUT_CLASS } from '@/shared/ui/formStyles';
 import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
+import { inSubsection } from '@/features/settings/settingsSections';
 import { HOST_TOOL_CATALOG } from '@/features/chat/tools/hostTools';
 
 // the model's own wording, without the markdown backticks
@@ -90,59 +91,64 @@ function ToolRow({ tool, config, onChange }) {
   );
 }
 
-export default function HubTab({ settings, onChange }) {
+/** `subsection` (settingsSections.js): istruzioni (the text) or strumenti (the list); none = both. */
+export default function HubTab({ settings, onChange, subsection }) {
   const config = settings.hostToolsConfig || {};
   const isDefault = settings.hostToolsInstructions === DEFAULT_SETTINGS.hostToolsInstructions;
   return (
     <div className="flex flex-col gap-6">
-      <Section
-        title="Come usa gli strumenti 7Hub"
-        description="Vale solo quando l’assistente è aperto dentro 7Hub. Va in fondo al prompt, quindi conta più delle istruzioni al modello."
-      >
-        <MarkdownTextarea
-          rows={14}
-          value={settings.hostToolsInstructions}
-          onChange={e => onChange('hostToolsInstructions', e.target.value)}
-          ariaLabel="Come usa gli strumenti 7Hub"
-          mentionables={settings.hostToolsAttachments?.map(a => a.name)}
-        />
-        <PromptAttachments
-          value={settings.hostToolsAttachments}
-          onChange={value => onChange('hostToolsAttachments', value)}
-        />
-        <div className="flex items-start justify-between gap-3">
-          <p className={HELP_TEXT_CLASS}>
-            Lasciato vuoto vale il testo predefinito. Chiama gli strumenti con il loro nome esatto (elenco qui
-            sotto): se lo scrivi diverso il modello non li collega.
-          </p>
-          <button
-            type="button"
-            disabled={isDefault}
-            onClick={() => onChange('hostToolsInstructions', DEFAULT_SETTINGS.hostToolsInstructions)}
-            className="shrink-0 rounded-lg px-2 py-1 text-fs-11 font-semibold text-brand-600 transition hover:bg-brand-50 disabled:cursor-default disabled:text-slate-soft disabled:hover:bg-transparent"
-          >
-            Ripristina testo
-          </button>
-        </div>
-      </Section>
+      {inSubsection(subsection, 'istruzioni') && (
+        <Section
+          title="Come usa gli strumenti 7Hub"
+          description="Vale solo quando l’assistente è aperto dentro 7Hub. Va in fondo al prompt, quindi conta più delle istruzioni al modello."
+        >
+          <MarkdownTextarea
+            rows={14}
+            value={settings.hostToolsInstructions}
+            onChange={e => onChange('hostToolsInstructions', e.target.value)}
+            ariaLabel="Come usa gli strumenti 7Hub"
+            mentionables={settings.hostToolsAttachments?.map(a => a.name)}
+          />
+          <PromptAttachments
+            value={settings.hostToolsAttachments}
+            onChange={value => onChange('hostToolsAttachments', value)}
+          />
+          <div className="flex items-start justify-between gap-3">
+            <p className={HELP_TEXT_CLASS}>
+              Lasciato vuoto vale il testo predefinito. Chiama gli strumenti con il loro nome esatto (elenco{' '}
+              {subsection ? 'in «Strumenti»' : 'qui sotto'}): se lo scrivi diverso il modello non li collega.
+            </p>
+            <button
+              type="button"
+              disabled={isDefault}
+              onClick={() => onChange('hostToolsInstructions', DEFAULT_SETTINGS.hostToolsInstructions)}
+              className="shrink-0 rounded-lg px-2 py-1 text-fs-11 font-semibold text-brand-600 transition hover:bg-brand-50 disabled:cursor-default disabled:text-slate-soft disabled:hover:bg-transparent"
+            >
+              Ripristina testo
+            </button>
+          </div>
+        </Section>
+      )}
 
-      <Section
-        title="Strumenti"
-        description="Li esegue 7Hub con la sessione dell’operatore: solo lettura e navigazione. Puoi spegnerli o riscrivere il testo che il modello legge per sceglierli; nome e funzionamento cambiano solo con un rilascio."
-      >
-        <ul className="flex flex-col gap-2.5">
-          {HOST_TOOL_CATALOG.map(tool => (
-            <ToolRow
-              key={tool.name}
-              tool={tool}
-              config={config[tool.name] || {}}
-              onChange={next =>
-                onChange('hostToolsConfig', { ...config, [tool.name]: { ...config[tool.name], ...next } })
-              }
-            />
-          ))}
-        </ul>
-      </Section>
+      {inSubsection(subsection, 'strumenti') && (
+        <Section
+          title="Strumenti"
+          description="Li esegue 7Hub con la sessione dell’operatore: solo lettura e navigazione. Puoi spegnerli o riscrivere il testo che il modello legge per sceglierli; nome e funzionamento cambiano solo con un rilascio."
+        >
+          <ul className="flex flex-col gap-2.5">
+            {HOST_TOOL_CATALOG.map(tool => (
+              <ToolRow
+                key={tool.name}
+                tool={tool}
+                config={config[tool.name] || {}}
+                onChange={next =>
+                  onChange('hostToolsConfig', { ...config, [tool.name]: { ...config[tool.name], ...next } })
+                }
+              />
+            ))}
+          </ul>
+        </Section>
+      )}
     </div>
   );
 }

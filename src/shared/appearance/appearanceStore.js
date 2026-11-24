@@ -4,7 +4,7 @@
  *  · Embedded in 7hub: the host's settings win (its mode, primary colour, menu theme, font size). Until the host
  *    has spoken the chat uses the mode it last received (so a reload has no flash) and its original blue.
  *  · Standalone: the operator's own choice from the settings drawer (mode Chiaro / Scuro / Sistema, primary colour,
- *    menu theme + animated glow, font size: 7hub's own options and ids, settingsConfig.js), kept in localStorage;
+ *    menu theme + animated glow, menu style, font size: 7hub's own options and ids, settingsConfig.js), kept in localStorage;
  *    "Sistema" follows the operating system and reacts when it changes.
  *
  * Every change is written to the document root by apply.js, so the whole UI (CSS variables and a `data-theme`
@@ -105,7 +105,7 @@ export function receiveHostAppearance(raw, legacyTheme) {
 }
 
 /**
- * The standalone chat's own choice (settings drawer): a patch of `{ mode, primaryColor, navColor, navAnimated, fontSize }`,
+ * The standalone chat's own choice (settings drawer): a patch of `{ mode, primaryColor, navColor, navAnimated, navStyle, fontSize }`,
  * validated here, so an unknown id never gets in. Ignored when embedded: the host decides there.
  */
 export function setAppearancePrefs(patch) {
@@ -128,7 +128,7 @@ const subscribe = listener => {
 // embedded: true, so the drawer's button never shows in the static HTML nor in a frame before the host is known
 const serverSnapshot = { prefs: DEFAULT_SETTINGS, embedded: true };
 
-/** `{ prefs: { mode, primaryColor, navColor, navAnimated, fontSize }, embedded }`: the drawer is only for the standalone chat. */
+/** `{ prefs: { mode, primaryColor, navColor, navAnimated, navStyle, fontSize }, embedded }`: the drawer is only for the standalone chat. */
 export function useAppearanceState() {
   return useSyncExternalStore(
     subscribe,

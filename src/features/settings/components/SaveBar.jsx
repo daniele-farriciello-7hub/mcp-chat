@@ -1,7 +1,10 @@
 import { Check } from 'lucide-react';
 
-/** `saveState` is null | 'saving' | 'saved' | 'failed'. */
-export default function SaveBar({ saveState, hasUnsavedChanges, onSave }) {
+/**
+ * `saveState` is null | 'saving' | 'saved' | 'failed'. `note`: what to say while there is nothing to save (the standalone page's
+ * header no longer carries "Vale per tutti…").
+ */
+export default function SaveBar({ saveState, hasUnsavedChanges, onSave, note }) {
   return (
     <div className="flex items-center gap-3 border-t border-line px-4 py-3">
       <button
@@ -23,6 +26,7 @@ export default function SaveBar({ saveState, hasUnsavedChanges, onSave }) {
       {!saveState && hasUnsavedChanges && (
         <span className="text-fs-12 text-slate-soft">Le modifiche non sono ancora online.</span>
       )}
+      {note && !saveState && !hasUnsavedChanges && <span className="text-fs-12 text-slate-soft">{note}</span>}
     </div>
   );
 }

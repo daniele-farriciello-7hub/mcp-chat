@@ -1,16 +1,18 @@
 /**
  * The conversations started in the chosen period, newest first, in pages of 500, read through the
  * `history` function (admin only on the server). The user filter is applied by the caller.
+ * `enabled` false: nothing is read (the settings subsection of the Storico tab does not show conversations).
  */
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { listConversations } from './historyApi';
 
-export function useHistoryData(rangeDays) {
+export function useHistoryData(rangeDays, enabled = true) {
   const [state, setState] = useState({ conversations: [], loading: true, error: null, nextAfter: null });
 
   useEffect(() => {
+    if (!enabled) return undefined;
     let cancelled = false;
     listConversations(rangeDays)
       .then(page => !cancelled && setState({ ...page, loading: false, error: null }))
@@ -18,7 +20,7 @@ export function useHistoryData(rangeDays) {
     return () => {
       cancelled = true;
     };
-  }, [rangeDays]);
+  }, [rangeDays, enabled]);
 
   const loadMore = useCallback(async () => {
     if (!state.nextAfter) return;
