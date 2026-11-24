@@ -14,7 +14,8 @@ export default function SettingsHeader({
   // beside the docked sidebar "Chat" is the way back, and the hamburger opens the drawer where it is not docked
   const docked = Boolean(useSidebar()?.desktop);
   return (
-    <div className="flex items-center gap-2 px-3 pb-2.5 pt-3">
+    // docked, the title starts 16px in as the page below does, which also keeps it clear of the sidebar's edge button
+    <div className={`flex items-center gap-2 pb-2.5 pt-3 ${docked ? 'px-4' : 'px-3'}`}>
       <MenuButton />
       {!docked && (
         <Tooltip label="Torna alla chat" align="left">

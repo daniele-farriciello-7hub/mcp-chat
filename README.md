@@ -155,15 +155,17 @@ the `place` in `ChatPanel`: `section` is `null` for the chat, otherwise a tab of
 `features/settings/settingsSections.js`; `shortcuts` is also the panel of an operator who is not an admin: their own shortcuts)
 and `sub` its subsection. The entries are buttons that switch it, not links: the app is a single static page.
 
-| Where    | What                                                                                                              |
-| -------- | ----------------------------------------------------------------------------------------------------------------- |
-| Top      | the assistant's mark (it morphs while a reply is written), the name, **Nuova chat** (reset; disabled mid-reply)   |
-| Everyone | **Chat**, **Le mie scorciatoie** (not for admins: their "Scorciatoie" is in Configurazione)                       |
-| Admin    | **Storico**; **Configurazione**: Modello IA, Scorciatoie, Documenti, Database, 7Hub (the tabs of `SettingsPanel`) |
-| Bottom   | avatar, name and email; menu: **Impostazioni** (the appearance drawer below), **Esci**                            |
+| Where    | What                                                                                                                                                              |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Top      | the assistant's mark (it morphs while a reply is written), the name with the status under it (Online, Sto scrivendo…), **Nuova chat** (reset; disabled mid-reply) |
+| Everyone | **Chat**, **Le mie scorciatoie** (not for admins: their "Scorciatoie" is in Configurazione)                                                                       |
+| Admin    | **Storico**; **Configurazione**: Modello IA, Scorciatoie, Documenti, Database, 7Hub (the tabs of `SettingsPanel`)                                                 |
+| Bottom   | avatar, name and email; menu: **Impostazioni** (the appearance drawer below), **Esci**                                                                            |
 
-The header lost what moved here (gear, configuration, logout) and keeps the status line; on a phone it also has the hamburger,
-the mark, the name and the new-conversation arrow. Past conversations are **not** listed: the `history` function only hands an operator today's open conversation back
+The header lost what moved here (gear, configuration, logout) and, on `/` with the sidebar docked, its status line too: the page
+has no header and starts at its top, and the status is in the sidebar's head (the same words as before; in the rail a dot on the mark,
+with the words in its tooltip). On a phone the header stays, with the hamburger, the mark, the name, the status and the
+new-conversation arrow; in `/embed` it also stays (with the status and the host's close button) wherever the host does not draw its own. Past conversations are **not** listed: the `history` function only hands an operator today's open conversation back
 (`restore`); `list` / `transcript` are admin-only and cover everyone's, so a list of "your conversations" needs a new endpoint.
 
 - **Docked** (768px and up on `/`): in the layout, 280px wide, or a 76px icon rail (the arrow on its edge; the choice is kept in

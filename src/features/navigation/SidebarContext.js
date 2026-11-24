@@ -10,6 +10,8 @@ import { createContext, useContext } from 'react';
  *                   drawer, opened by the hamburger of the page headers
  *   rail            collapsed to icons (only ever true when docked)
  *   mobileOpen      the drawer is open (only ever true when not docked)
+ *   statusInSidebar the assistant's status (Online, Sto scrivendo…) is in the docked sidebar's head, so the chat header has no strip
+ *                   for it: the standalone page only (/embed keeps the header: the host's close button is in it)
  *   hostButton      the host draws the hamburger that opens the drawer (/embed with `hostChrome` and the `sidebarButton` capability):
  *                   the page headers leave theirs out (MenuButton, EmbedMenuBar)
  */

@@ -1,7 +1,9 @@
 /**
  * What is inside the sidebar (the frame, the rail and the drawer are AppShell.jsx's):
  *
- *   · top      the assistant's mark (it keeps morphing while a reply is being written) and its name, "Nuova chat" below
+ *   · top      the assistant's mark (it keeps morphing while a reply is being written) and its name, with its status under it (docked
+ *              on the standalone page only, `statusInSidebar`: Online, Sto scrivendo…; the rail has a dot on the mark instead,
+ *              and the words in its tooltip), "Nuova chat" below
  *   · Assistente   Chat, and for an admin Storico; for everyone else "Le mie scorciatoie"
  *   · Configurazione (admin)   the tabs of the configuration panel: Modello IA, Scorciatoie, Documenti, Database, 7Hub
  *   · bottom   the operator (avatar, name, email) with "Impostazioni" (the appearance drawer) and "Esci"; inside 7hub (`embedded`)
@@ -12,8 +14,9 @@
  *
  * `section` and `subsection` say what the page shows: null = the chat, otherwise the id of a settings tab (`SETTINGS_TABS`;
  * 'shortcuts' is also the operators' own panel) and of its subsection. `onSelect(section, subsection)` goes somewhere (the page
- * may ask first: unsaved edits). Everything that used to be a button in the chat's header lives here now, so nothing is lost:
- * the gear (Impostazioni), the sliders (Configurazione / Le mie scorciatoie), the reset arrow (Nuova chat) and Logout.
+ * may ask first: unsaved edits). Everything that used to be a button (or the status line) in the chat's header lives here now, so
+ * nothing is lost: the gear (Impostazioni), the sliders (Configurazione / Le mie scorciatoie), the reset arrow (Nuova chat),
+ * Logout and the status.
  *
  * Past conversations are not listed: the history function only gives an operator today's open conversation back (`restore`);
  * listing and reading others (`list`, `transcript`) is admin-only and covers everyone's, so there is nothing of the operator's
@@ -34,6 +37,7 @@ import {
   Zap
 } from 'lucide-react';
 import AgentMark from '@/features/chat/components/AgentMark';
+import { STATUS_LABELS } from '@/features/chat/statusLabels';
 import { SETTINGS_TABS } from '@/features/settings/settingsSections';
 import AppearanceSettings from '@/shared/appearance/AppearanceSettings';
 import AccountMenu from './AccountMenu';
@@ -67,6 +71,7 @@ export default function Sidebar({
   subsection,
   onSelect,
   isAdmin,
+  status = 'idle',
   busy,
   onNewChat,
   user,
@@ -126,12 +131,33 @@ export default function Sidebar({
     isAdmin ? tabEntry(history) : entry('shortcuts', 'Le mie scorciatoie', Zap)
   ];
   const configuration = isAdmin ? SETTINGS_TABS.filter(tab => tab.group === 'config').map(tabEntry) : [];
+  // the status line of the chat's header, which has no strip beside the docked sidebar of the standalone page
+  const statusLabel = sidebar?.statusInSidebar ? STATUS_LABELS[status] : null;
+  const markTip = statusLabel && sidebar.rail ? `Assistente 7hub · ${statusLabel}` : null;
 
   return (
     <div className="sb-body">
       <div className="sb-head">
-        <AgentMark size={26} filled working={busy} />
-        <span className="sb-label sb-title">Assistente 7hub</span>
+        {/* the rail: the status is a dot on the mark, and its words (kept for screen readers in the text beside it) a tooltip */}
+        <RailTip label={markTip} gap={30}>
+          <span className="sb-mark">
+            <AgentMark size={26} filled working={busy} />
+            {statusLabel && <span aria-hidden className="sb-mark-dot" data-busy={busy || undefined} />}
+          </span>
+        </RailTip>
+        <span className="sb-label sb-head-text">
+          <span className="sb-title">Assistente 7hub</span>
+          {statusLabel && (
+            <span className="sb-status">
+              <span
+                aria-hidden
+                className="sb-status-dot motion-safe:data-[busy]:animate-pulse"
+                data-busy={busy || undefined}
+              />
+              <span className="truncate">{statusLabel}</span>
+            </span>
+          )}
+        </span>
         {/* as a drawer: its own close button (the edge button of the docked sidebar is not there). Not when the host has the
             hamburger: that toggles it (and Escape, the backdrop and choosing an entry close it too), a second button is noise */}
         {!sidebar?.hostButton && (
