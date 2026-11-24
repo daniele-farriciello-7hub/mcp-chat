@@ -836,6 +836,8 @@ input.font-range[type='range']:focus-visible::-moz-range-thumb {
   --sb-avatar-fg: var(--accent-contrast);
   --sb-shadow: 0 12px 32px -12px rgb(145 158 171 / 0.4);
   --sb-scrollbar: rgb(145 158 171 / 0.4);
+  --sb-status-ok: var(--color-ok);
+  --sb-status-busy: var(--accent);
 
   position: relative;
   z-index: 40;
@@ -856,6 +858,7 @@ input.font-range[type='range']:focus-visible::-moz-range-thumb {
   --sb-sub-active-hover-bg: rgb(145 158 171 / 0.32);
   --sb-line: rgb(145 158 171 / 0.28);
   --sb-shadow: 0 12px 32px -8px rgb(0 0 0 / 0.5);
+  --sb-status-busy: var(--accent-light);
 }
 /* a coordinated theme: after the dark block above, which has the same weight */
 :root[data-accent-strip] .app-sidebar {
@@ -884,6 +887,7 @@ input.font-range[type='range']:focus-visible::-moz-range-thumb {
   --sb-avatar-fg: #fff;
   --sb-shadow: 0 12px 32px -12px color-mix(in srgb, var(--accent-glow) 45%, transparent);
   --sb-scrollbar: rgb(255 255 255 / 0.4);
+  --sb-status-busy: #fff;
 }
 :root[data-accent-strip][data-nav-style='floating'] .app-sidebar {
   --sb-border: rgb(255 255 255 / 0.14);
@@ -992,8 +996,15 @@ input.font-range[type='range']:focus-visible::-moz-range-thumb {
   min-height: 56px;
   padding: 4px 8px;
 }
-.sb-title {
+.sb-head-text {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+.sb-title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1001,7 +1012,53 @@ input.font-range[type='range']:focus-visible::-moz-range-thumb {
   font-size: var(--text-fs-15);
   font-weight: 700;
   letter-spacing: -0.01em;
+  line-height: 1.2;
   color: var(--sb-fg);
+}
+/* the assistant's status under its name (the chat header's line, on the standalone page): a dot and a few words. In the rail the
+   whole text is for screen readers only (.sb-label) and the dot moves onto the mark */
+.sb-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-fs-12);
+  line-height: 1.2;
+  color: var(--sb-fg-soft);
+}
+.sb-status-dot,
+.sb-mark-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--sb-status-ok);
+  transition: background-color 150ms ease-out;
+}
+.sb-status-dot[data-busy],
+.sb-mark-dot[data-busy] {
+  background: var(--sb-status-busy);
+}
+.sb-mark {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+/* the rail's status: a dot on the corner of the mark, with a ring of the sidebar's own colour to set it apart */
+.sb-mark-dot {
+  display: none;
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 11px;
+  height: 11px;
+  box-shadow: 0 0 0 2px var(--sb-bg);
+}
+.app-sidebar[data-collapsed] .sb-mark-dot {
+  display: block;
+}
+.app-sidebar[data-collapsed] .sb-mark {
+  margin-inline: auto;
 }
 .sb-close {
   display: none;

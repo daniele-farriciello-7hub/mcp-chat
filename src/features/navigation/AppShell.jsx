@@ -139,11 +139,12 @@ export default function AppShell({ sidebar, embedded = false, hostButton = false
       rail,
       mobileOpen: drawerOpen,
       hostButton,
+      statusInSidebar: desktop && !embedded,
       openMobile,
       closeMobile,
       toggleCollapsed
     }),
-    [scope, desktop, rail, drawerOpen, hostButton, openMobile, closeMobile, toggleCollapsed]
+    [scope, desktop, rail, drawerOpen, hostButton, embedded, openMobile, closeMobile, toggleCollapsed]
   );
 
   return (
@@ -165,12 +166,14 @@ export default function AppShell({ sidebar, embedded = false, hostButton = false
           {/* the animated glow of a coordinated theme (7hub's NavGlow), behind everything */}
           <span aria-hidden className="sb-glow" />
 
-          {/* on the sidebar's edge, level with the header, as 7hub's pin button; only where the sidebar is docked */}
+          {/* on the sidebar's edge, level with the mark and the name at its top (center at 36px: the head's 8px of padding and half
+              of its 56px), as 7hub's pin button; only where the sidebar is docked. It hangs a little less than half over the page
+              (40%, not 50%): the page starts at its top, and the greeting's mark, 16px in, must not be touched by it */}
           {desktop && (
             <Tooltip
               label={rail ? 'Espandi il menu' : 'Riduci il menu'}
               side="right"
-              className="absolute right-0 top-7 z-10 block translate-x-1/2"
+              className="absolute right-0 top-[22px] z-10 block translate-x-[40%]"
             >
               <button
                 type="button"

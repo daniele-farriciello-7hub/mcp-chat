@@ -3,15 +3,8 @@ import MenuButton from '@/features/navigation/MenuButton';
 import { useSidebar } from '@/features/navigation/SidebarContext';
 import AppearanceSettings from '@/shared/appearance/AppearanceSettings';
 import Tooltip from '@/shared/ui/Tooltip';
+import { STATUS_LABELS } from '../statusLabels';
 import AgentMark from './AgentMark';
-
-const STATUS_LABELS = {
-  idle: 'Online',
-  restoring: 'Riprendo la conversazione…',
-  working: 'Sto lavorando…',
-  thinking: 'Sto pensando…',
-  writing: 'Sto scrivendo…'
-};
 
 /**
  * A round 40px header button, as in 7hub (.hdr-btn in globals.css): hover and keyboard focus give a soft tint of the primary
@@ -30,9 +23,12 @@ function HeaderButton({ onClick, label, className = '', children }) {
 /**
  * The mark keeps morphing until the assistant is idle again: alive without writing "please wait".
  *
- * Beside the docked sidebar (the standalone page from 768px, /embed from 1024px) the header is only the status line: the name, the
- * mark and the email are in the sidebar, and so are the appearance, configuration and logout buttons (the page does not pass
- * them). Where the sidebar is a drawer the header has the hamburger, the mark and the name, and keeps the new-conversation arrow.
+ * Beside the docked sidebar on the standalone page (from 768px) there is no header at all: the status line is in the sidebar's
+ * head (`statusInSidebar` of the sidebar context), and the name, the mark, the email and the appearance, configuration, logout
+ * and new-conversation entries are there too, so the page starts at its top. In /embed, docked (from 1024px) the header is only
+ * the status line and the host's close button: the name, the mark and the email are in the sidebar, and so are the appearance,
+ * configuration and logout buttons (the page does not pass them). Where the sidebar is a drawer (a phone, the 400px panel) the
+ * header has the hamburger, the mark and the name, and keeps the new-conversation arrow.
  */
 export default function ChatHeader({
   status,
@@ -45,6 +41,8 @@ export default function ChatHeader({
 }) {
   const busy = status !== 'idle';
   const sidebar = useSidebar();
+  // the sidebar's head says it: nothing left for a strip here (the buttons are the sidebar's too, see above)
+  if (sidebar?.statusInSidebar) return null;
   const hasSidebar = sidebar !== null;
   // what the docked sidebar already shows
   const docked = Boolean(sidebar?.desktop);

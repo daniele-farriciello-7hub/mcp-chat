@@ -2,10 +2,12 @@
  * The whole chat panel: header, conversation and composer. The only visible part inside 7hub.
  *
  * `sidebar` wraps it in the sidebar frame: the entries that the header used to hold (appearance, configuration, new
- * conversation, logout) move into the sidebar, and what the page shows is the `place` — `section` null for the chat, otherwise a
- * tab of the configuration (`SETTINGS_TABS`; 'shortcuts' for an operator who is not an admin, whose only panel is their own
- * shortcuts) and, where the tab has them, its `sub`section. Leaving the configuration for another tab or the chat with edits not
- * saved asks first (UnsavedChangesDialog); the subsections of one tab share the panel's state and never ask.
+ * conversation, logout) move into the sidebar, and so does its status line where the standalone page docks it (the header then
+ * renders nothing, ChatHeader.jsx: the page starts at its top; below 768px it stays, with the status). What the page shows is
+ * the `place` — `section` null for the chat, otherwise a tab of the configuration (`SETTINGS_TABS`; 'shortcuts' for an operator
+ * who is not an admin, whose only panel is their own shortcuts) and, where the tab has them, its `sub`section. Leaving the
+ * configuration for another tab or the chat with edits not saved asks first (UnsavedChangesDialog); the subsections of one tab
+ * share the panel's state and never ask.
  *
  * Two pages use it, told by `embedded` (/embed, the panel inside 7hub):
  *  · the standalone page: the sidebar is docked from 768px; the place is also in the URL hash (features/navigation/placeUrl.js),
@@ -258,6 +260,7 @@ export default function ChatPanel({
           subsection={subsection}
           onSelect={navigate}
           isAdmin={isAdmin}
+          status={status}
           busy={busy}
           onNewChat={startNewChat}
           user={{ name: context?.user?.name?.trim(), email }}

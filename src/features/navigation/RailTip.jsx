@@ -1,14 +1,15 @@
 /**
  * The tooltip of the collapsed sidebar: the name of an icon, to its right. Drawn in the body with a fixed position, because the
  * list of entries scrolls and a tooltip inside it would be cut at the rail's edge. `label` empty (the sidebar is expanded):
- * nothing but the children. Visual only, like shared/ui/Tooltip: the control keeps its own accessible name.
+ * nothing but the children. Visual only, like shared/ui/Tooltip: the control keeps its own accessible name. `gap` is the distance
+ * from the wrapper's right edge: the sidebar's head wants more, to clear the edge button that sits level with it.
  */
 'use client';
 
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-export default function RailTip({ label, children }) {
+export default function RailTip({ label, gap = 10, children }) {
   const wrapper = useRef(null);
   const [at, setAt] = useState(null);
 
@@ -16,7 +17,7 @@ export default function RailTip({ label, children }) {
 
   const show = () => {
     const box = wrapper.current?.getBoundingClientRect();
-    if (box) setAt({ left: box.right + 10, top: box.top + box.height / 2 });
+    if (box) setAt({ left: box.right + gap, top: box.top + box.height / 2 });
   };
   const hide = () => setAt(null);
 
