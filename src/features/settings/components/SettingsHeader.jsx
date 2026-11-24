@@ -3,7 +3,7 @@ import MenuButton from '@/features/navigation/MenuButton';
 import { useSidebar } from '@/features/navigation/SidebarContext';
 import Tooltip from '@/shared/ui/Tooltip';
 
-/** `eyebrow`: the tab's name above the title, when the title is a subsection of it (the standalone page's sidebar). */
+/** `eyebrow`: the tab's name above the title, when the title is a subsection of it (the pages with a sidebar). */
 export default function SettingsHeader({
   onClose,
   hasUnsavedChanges,
@@ -11,21 +11,23 @@ export default function SettingsHeader({
   title = 'Configurazione',
   subtitle = 'Vale per tutti, dalla conversazione successiva'
 }) {
-  // beside the sidebar "Chat" is the way back on a wide screen, and the hamburger opens it on a phone
-  const hasSidebar = useSidebar() !== null;
+  // beside the docked sidebar "Chat" is the way back, and the hamburger opens the drawer where it is not docked
+  const docked = Boolean(useSidebar()?.desktop);
   return (
     <div className="flex items-center gap-2 px-3 pb-2.5 pt-3">
       <MenuButton />
-      <Tooltip label="Torna alla chat" align="left" className={hasSidebar ? 'md:hidden' : ''}>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Torna alla chat"
-          className="rounded-lg p-2 text-slate-soft transition hover:bg-surface hover:text-ink"
-        >
-          <ArrowLeft size={18} />
-        </button>
-      </Tooltip>
+      {!docked && (
+        <Tooltip label="Torna alla chat" align="left">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Torna alla chat"
+            className="rounded-lg p-2 text-slate-soft transition hover:bg-surface hover:text-ink"
+          >
+            <ArrowLeft size={18} />
+          </button>
+        </Tooltip>
+      )}
       <div className="min-w-0 flex-1">
         {eyebrow && (
           <div className="truncate text-fs-10 font-bold uppercase tracking-[0.12em] text-brand-600">

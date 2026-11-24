@@ -27,13 +27,15 @@ npm run dev            # http://localhost:3001, as the development app
 `assistente-7hub-development` permission. `NEXT_PUBLIC_APP_ENV=production npm run dev` runs against production
 data instead — see [DEPLOY.md](DEPLOY.md#running-locally).
 
-| Route    | Purpose                                                                                         |
-| -------- | ----------------------------------------------------------------------------------------------- |
-| `/`      | Standalone chat, with a sidebar: sign in with suite accounts, requires `permessi_app[<app id>]` |
-| `/embed` | **The route 7hub loads** in the iframe (sign-in required too; context comes from the host)      |
+| Route    | Purpose                                                                                                         |
+| -------- | --------------------------------------------------------------------------------------------------------------- |
+| `/`      | Standalone chat, with a sidebar: sign in with suite accounts, requires `permessi_app[<app id>]`                 |
+| `/embed` | **The route 7hub loads** in the iframe (sign-in required too; context comes from the host; sidebar as a drawer) |
 
 To see it inside 7hub, also run the 7hub-revolution frontend (`localhost:3000`). The iframe address is in
-`7hub-revolution/packages/frontend/app/scripts/components/ai-assistant/embed-config.ts`.
+`7hub-revolution/packages/frontend/app/scripts/components/ai-assistant/embed-config.ts`: on `localhost` it is the development twin unless
+`VITE_ASSISTANT_ORIGIN=http://localhost:3001` is set (a git-ignored `7hub-revolution/.env.local`, then restart Vite) or, per browser,
+`localStorage['7hub:assistant-origin']` is `http://localhost:3001`; production hosts always use production.
 
 | Script                 | What it does                                   |
 | ---------------------- | ---------------------------------------------- |
@@ -58,7 +60,7 @@ src/
     charts/                charts drawn in the chat: data helpers and the SVG component
     history/               conversation history client, Storico tab (admin)
     shortcuts/             personal shortcuts and their admin views
-    navigation/            the standalone page's sidebar: frame (rail, phone drawer), entries, account menu — see "Sidebar" below
+    navigation/            the sidebar of both pages: frame (rail, drawer), entries, account menu — see "Sidebar" below
     documents/             archive schema, store, indexing + background queue, chat catalog, Documents tab
     database/              db connections schema/store, schema scan, card drafting, chat schema, Database tab
     drive/                 Google Drive sources: the "Drive" view of the Documents tab, `drive` function client
@@ -133,18 +135,22 @@ function reads and writes them. `driveSources` is handled the same way in code �
 The iframe is on another origin: it can neither read 7hub cookies nor navigate the parent page. Everything
 goes through `postMessage` with verified origins (`src/shared/embed/hostBridge.js`).
 
-| Direction   | Message                                              | Meaning                                                |
-| ----------- | ---------------------------------------------------- | ------------------------------------------------------ |
-| 7hub → chat | `{ type: 'context', user, page, theme, appearance }` | who the user is and where they are, and how 7hub looks |
-| 7hub → chat | `{ type: 'appearance', appearance }`                 | 7hub's look changed: applied live                      |
-| chat → 7hub | `{ type: 'ready', releasedAt }`                      | loaded, send the context                               |
-| chat → 7hub | `{ type: 'navigate', url }`                          | go to this page                                        |
-| chat → 7hub | `{ type: 'close' }`                                  | close the panel                                        |
+| Direction   | Message                                              | Meaning                                                                                                                                                                    |
+| ----------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 7hub → chat | `{ type: 'context', user, page, theme, appearance }` | who the user is and where they are, and how 7hub looks (`hostChrome`, `capabilities`: see below)                                                                           |
+| 7hub → chat | `{ type: 'appearance', appearance }`                 | 7hub's look changed: applied live                                                                                                                                          |
+| 7hub → chat | `{ type: 'toggle_sidebar' }`                         | 7hub's hamburger: open the sidebar drawer, or close it if it is open                                                                                                       |
+| chat → 7hub | `{ type: 'ready', releasedAt }`                      | loaded, send the context                                                                                                                                                   |
+| chat → 7hub | `{ type: 'navigate', url }`                          | go to this page                                                                                                                                                            |
+| chat → 7hub | `{ type: 'close' }`                                  | close the panel                                                                                                                                                            |
+| chat → 7hub | `{ type: 'sidebar', docked, open, place }`           | this build has its own sidebar; `docked`: beside the conversation (iframe ≥ 1024px) or a drawer; `open`: the drawer is open; `place`: `{ label, chat }`, where the chat is |
+| chat → 7hub | `{ type: 'sidebar', available: false }`              | the sidebar is gone (signed out): 7hub drops its hamburger and gets its own menu entries back                                                                              |
 
-## Sidebar (standalone page only)
+## Sidebar
 
-`/` has a left sidebar (`src/features/navigation/`), in the look of 7hub's menu; `/embed` has none (a narrow iframe: the
-header keeps its buttons there, as before). `ChatPanel` takes `sidebar` and wraps itself in `AppShell`; what the page shows is
+Both pages have a left sidebar (`src/features/navigation/`), in the look of 7hub's menu: `/` docks it from 768px up, `/embed` (the
+panel inside 7hub) keeps it as a drawer and docks it only when the iframe is 1024px wide or more (see "Inside 7hub" below).
+`ChatPanel` takes `sidebar` (and `embedded`) and wraps itself in `AppShell`; what the page shows is
 the `place` in `ChatPanel`: `section` is `null` for the chat, otherwise a tab of the configuration (`SETTINGS_TABS` in
 `features/settings/settingsSections.js`; `shortcuts` is also the panel of an operator who is not an admin: their own shortcuts)
 and `sub` its subsection. The entries are buttons that switch it, not links: the app is a single static page.
@@ -160,9 +166,9 @@ The header lost what moved here (gear, configuration, logout) and keeps the stat
 the mark, the name and the new-conversation arrow. Past conversations are **not** listed: the `history` function only hands an operator today's open conversation back
 (`restore`); `list` / `transcript` are admin-only and cover everyone's, so a list of "your conversations" needs a new endpoint.
 
-- **768px and up**: in the layout, 280px wide, or a 76px icon rail (the arrow on its edge; the choice is kept in
+- **Docked** (768px and up on `/`): in the layout, 280px wide, or a 76px icon rail (the arrow on its edge; the choice is kept in
   `localStorage`, `mcp-chat:sidebar`); in the rail the labels stay for screen readers and a tooltip names each icon.
-  **Below 768px**: an off-canvas drawer opened by the hamburger; it closes on Escape, on the backdrop and when an entry is
+  **Otherwise**: an off-canvas drawer opened by the hamburger; it closes on Escape, on the backdrop and when an entry is
   chosen, the page behind is `inert` while it is open and the focus goes back to where it was.
 - **Look** (`.app-sidebar` in `globals.css`, no state in the components): the page surface by default; with a "Temi
   coordinati" theme its gradient, vertical (`--accent-nav`), over the start colour, white text, and with "Sfondo animato"
@@ -176,8 +182,8 @@ the mark, the name and the new-conversation arrow. Past conversations are **not*
 
 A configuration tab that is long, with clearly separate groups, is split into **subsections**: one sidebar entry each, one page
 each, under a title and a line saying what it is. They are listed in `features/settings/settingsSections.js` (id, URL slug,
-name, title, description) and the tab components take `subsection` and draw only that group (`inSubsection`). `/embed` has
-no sidebar: there `subsection` is empty and every tab draws everything, as before.
+name, title, description) and the tab components take `subsection` and draw only that group (`inSubsection`). Without a sidebar
+(nothing today: both pages have it) `subsection` is empty and every tab draws everything, as it always did.
 
 | Tab                               | Subsections                                                                           |
 | --------------------------------- | ------------------------------------------------------------------------------------- |
@@ -197,8 +203,8 @@ no sidebar: there `subsection` is empty and every tab draws everything, as befor
   hand are remembered (`localStorage`, `mcp-chat:sidebar-groups`) until the page goes into a closed one again.
   In the **icon rail** a group is only its icon: hovering or focusing it shows a flyout with the subsections, a click keeps
   it open, Escape or a click outside closes it, arrow keys move through it (the flyout is drawn in the body, so Tab
-  leaves it). In the **phone drawer** the groups open inline; choosing a subsection closes the drawer, opening a group does not.
-- **Phones**: the strip of tabs is gone; a selector under the header (`SectionSelect`) lists every tab as a group and its
+  leaves it). In the **drawer** the groups open inline; choosing a subsection closes the drawer, opening a group does not.
+- **Where it is a drawer** (phones, the 400px panel in 7hub): the strip of tabs is gone; a selector under the header (`SectionSelect`) lists every tab as a group and its
   subsections as options, so everything stays reachable without opening the drawer.
 - **State and saving**: `SettingsPanel` keeps the shared settings object whatever is shown, so what was typed in one subsection
   is still there in the next, and the one "Salva" saves all of it (Documenti saves on its own; Database and Storico mix both,
@@ -211,7 +217,38 @@ no sidebar: there `subsection` is empty and every tab draws everything, as befor
 - **URL** (`placeUrl.js`): the place is in the hash, so a refresh or a shared link comes back to it and the back button walks
   through the places: `#config/modello/istruzioni`, `#config/documenti/drive`, `#storico/conversazioni`,
   `#le-mie-scorciatoie` (non-admins); no hash is the chat. A hash that names nothing (or a tab the operator cannot see) is
-  the chat; a tab without its subsection opens the first. `/embed` never touches the URL.
+  the chat; a tab without its subsection opens the first. `/embed` never touches the URL (its place is state only).
+
+### Inside 7hub (`/embed`)
+
+The same sidebar, as a guest:
+
+- **Hamburger**: 7hub draws the header of the panel (`hostChrome`), so the hamburger is **7hub's own**, at the far left of its header,
+  when the context declares `capabilities: { sidebarButton: true }` (read strictly, `true` only: `readHostCapabilities` in `hostBridge.js`):
+  it sends `{ type: 'toggle_sidebar' }`, the chat opens or closes the drawer and answers with the `sidebar` message (`open`), and the
+  chat leaves out its own (no slim bar, none in the configuration pages' header). A host that does not declare it (an older 7hub)
+  keeps the fallback: while the sidebar is a drawer the chat adds a slim bar under the host's header (`EmbedMenuBar`: hamburger and
+  the place's name), the configuration pages have the hamburger in their own header, and without `hostChrome` it is in the chat
+  header. The drawer behaves as above (Escape, backdrop, a choice close it; the page behind is `inert`). **Focus**: opened by a
+  hamburger of the chat, it goes back to that button on closing; opened by the host's, the focus goes to the drawer's first control
+  (its close button) and, on closing, stays where it is when the host's button closed it (that button is in the host's document, which
+  the chat cannot focus), or goes to the page when it closed from inside (Escape, backdrop, a choice, the close button). The command
+  is ignored while the sidebar is docked and while nobody is signed in (never kept for later).
+- **Docked** when the iframe is **1024px wide or more** (a media query on the iframe's own width, `AppShell`): there is no
+  hamburger bar then, the sidebar sits beside the conversation and can collapse to the rail. The choices are kept apart from the
+  standalone page's (`mcp-chat:embed-sidebar`, `mcp-chat:embed-sidebar-groups`). 7hub's panel is 400px today, so the drawer is
+  what it shows; the docked layout is for a wider panel.
+- **No URL**: the place is state; the hash is never read or written. 7hub's `open_settings`, `reset` and `ask` commands go through
+  the same navigation, so they ask before dropping unsaved configuration edits.
+- **Account**: name and email, and only **Esci** (the iframe has its own sign-in); no **Impostazioni**, because the look is 7hub's: the
+  sidebar takes its colours from the `appearance` it sends (the coordinated menu theme and the primary colour, light or dark) like the rest of
+  the chat. "Stile menu" does not exist there: always Classico.
+- **Host**: the chat sends `{ type: 'sidebar', docked, open, place: { label, chat } }` at start-up and on every change; 7hub uses it to
+  stop offering in its "⋮" menu the entries that now live in the sidebar ("Impostazioni e scorciatoie", "Esci dall'assistente") — an
+  older chat build never sends it, and then they stay — to show its hamburger (while `docked` is false; `aria-expanded` is `open`) and,
+  when the chat is not in the conversation (`place.chat` false), to write `place.label` ("Modello IA › Istruzioni")
+  under the panel's title instead of "Contesto: …". A `{ type: 'sidebar', available: false }` takes it all back (sign-out). Every field is
+  validated by 7hub (booleans strictly, `label` a string of at most 80 characters shown as text).
 
 ## Appearance (light/dark, colours, font size)
 

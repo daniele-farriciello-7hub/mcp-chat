@@ -1,6 +1,6 @@
 import { SETTINGS_TABS } from '@/features/settings/settingsSections';
 
-/** The tab strip of the configuration panel: /embed only (the standalone page has the sidebar, and a selector on phones). */
+/** The tab strip of the configuration panel, for a chat with no sidebar (the standalone page and /embed have it, and a selector where it is a drawer). */
 export default function SettingsTabs({ activeTab, onChange, className = '' }) {
   return (
     // narrow (the 7AI panel in 7Hub is 400px): two rows of three, so every tab stays in sight

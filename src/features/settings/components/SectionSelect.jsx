@@ -1,16 +1,22 @@
 /**
- * The way around the configuration on a phone, where the sidebar is a drawer behind the hamburger: one native selector with
- * every tab as a group and its subsections as the options (a tab without subsections is an option of its own). It replaces
- * the strip of tabs there, which could not also hold the subsections. From 768px up the sidebar does it and this is hidden.
+ * The way around the configuration where the sidebar is a drawer behind the hamburger (a phone, the 400px panel in 7hub): one
+ * native selector with every tab as a group and its subsections as the options (a tab without subsections is an option of its
+ * own). It replaces the strip of tabs there, which could not also hold the subsections. Where the sidebar is docked it does it
+ * and this is not drawn.
  */
+'use client';
+
+import { useSidebar } from '@/features/navigation/SidebarContext';
 import { SETTINGS_TABS } from '@/features/settings/settingsSections';
 import { INPUT_CLASS } from '@/shared/ui/formStyles';
 
 const keyOf = (tab, subsection) => `${tab}/${subsection ?? ''}`;
 
 export default function SectionSelect({ tab, subsection, onChange }) {
+  const docked = Boolean(useSidebar()?.desktop);
+  if (docked) return null;
   return (
-    <div className="border-b border-line px-3 pb-2.5 md:hidden">
+    <div className="border-b border-line px-3 pb-2.5">
       <select
         value={keyOf(tab, subsection)}
         onChange={event => {

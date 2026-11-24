@@ -10,7 +10,7 @@
  *   · rail       only the icon: hovering it or focusing it with the keyboard shows the subsections in a flyout beside it, a click
  *                keeps it open, Escape or a click outside closes it. Arrow keys move through it, Tab leaves it. It is drawn in the
  *                body, like RailTip, because the list of entries scrolls and would cut it.
- *   · phone      the drawer is the expanded sidebar: the list opens inline; choosing a subsection closes the drawer, opening a
+ *   · drawer     the drawer is the expanded sidebar: the list opens inline; choosing a subsection closes the drawer, opening a
  *                group does not.
  */
 'use client';
@@ -31,15 +31,16 @@ export default function NavGroup(props) {
 }
 
 function OpenGroup({ id, label, icon, items, current, onSelect }) {
+  const sidebar = useSidebar();
   const listId = useId();
   const inside = current !== null;
-  const stored = useGroupOpen(id);
+  const stored = useGroupOpen(id, sidebar?.scope);
   // never opened or closed by hand: open while the page is inside it
   const open = stored ?? inside;
 
   // open: it closes; closed: it opens, and takes the page to its first subsection unless the page is already inside it
   const toggle = () => {
-    setGroupOpen(id, !open);
+    setGroupOpen(id, !open, sidebar?.scope);
     if (!open && !inside) onSelect(items[0].id, { keepDrawer: true });
   };
 

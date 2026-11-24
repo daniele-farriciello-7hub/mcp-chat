@@ -1,10 +1,11 @@
 /**
- * What is inside the sidebar (the frame, the rail and the phone drawer are AppShell.jsx's):
+ * What is inside the sidebar (the frame, the rail and the drawer are AppShell.jsx's):
  *
  *   · top      the assistant's mark (it keeps morphing while a reply is being written) and its name, "Nuova chat" below
  *   · Assistente   Chat, and for an admin Storico; for everyone else "Le mie scorciatoie"
  *   · Configurazione (admin)   the tabs of the configuration panel: Modello IA, Scorciatoie, Documenti, Database, 7Hub
- *   · bottom   the operator (avatar, name, email) with "Impostazioni" (the appearance drawer) and "Esci"
+ *   · bottom   the operator (avatar, name, email) with "Impostazioni" (the appearance drawer) and "Esci"; inside 7hub (`embedded`)
+ *              only "Esci": the host decides the look, so there is no appearance drawer
  *
  * A tab that has subsections (settingsSections.js: Modello IA, Documenti, Storico…) is a group (NavGroup.jsx): its subsections
  * open under it, or in a flyout from its icon in the rail. Its group opens by itself when the page goes inside it.
@@ -69,7 +70,8 @@ export default function Sidebar({
   busy,
   onNewChat,
   user,
-  onSignOut
+  onSignOut,
+  embedded = false
 }) {
   const sidebar = useSidebar();
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -86,10 +88,10 @@ export default function Sidebar({
 
   // the page went inside a group (a link, the back button, a first click on it): it is open, even if it was closed by hand before
   useEffect(() => {
-    if (section) followPage(section);
-  }, [section]);
+    if (section) followPage(section, sidebar?.scope);
+  }, [section, sidebar?.scope]);
 
-  // choosing anything closes the phone drawer; opening a group (`keepDrawer`) does not, its subsections are what to choose
+  // choosing anything closes the drawer; opening a group (`keepDrawer`) does not, its subsections are what to choose
   const pick =
     (id, sub = null) =>
     ({ keepDrawer = false } = {}) => {
@@ -130,16 +132,19 @@ export default function Sidebar({
       <div className="sb-head">
         <AgentMark size={26} filled working={busy} />
         <span className="sb-label sb-title">Assistente 7hub</span>
-        {/* phones: the drawer's own close button (the edge button of the desktop is not there) */}
-        <button
-          type="button"
-          onClick={sidebar?.closeMobile}
-          aria-label="Chiudi il menu"
-          data-autofocus
-          className="sb-close"
-        >
-          <X size={20} />
-        </button>
+        {/* as a drawer: its own close button (the edge button of the docked sidebar is not there). Not when the host has the
+            hamburger: that toggles it (and Escape, the backdrop and choosing an entry close it too), a second button is noise */}
+        {!sidebar?.hostButton && (
+          <button
+            type="button"
+            onClick={sidebar?.closeMobile}
+            aria-label="Chiudi il menu"
+            data-autofocus
+            className="sb-close"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       <div className="sb-new">
@@ -170,21 +175,27 @@ export default function Sidebar({
         email={user?.email}
         buttonRef={accountRef}
         onSignOut={onSignOut}
-        onOpenSettings={() => {
-          sidebar?.closeMobile();
-          setAppearanceOpen(true);
-        }}
+        onOpenSettings={
+          embedded
+            ? undefined
+            : () => {
+                sidebar?.closeMobile();
+                setAppearanceOpen(true);
+              }
+        }
       />
 
       {/* the drawer of the account menu's "Impostazioni": no gear of its own here */}
-      <AppearanceSettings
-        hideButton
-        open={appearanceOpen}
-        onOpenChange={(open, viaKeyboard) => {
-          restoreFocus.current = !open && viaKeyboard;
-          setAppearanceOpen(open);
-        }}
-      />
+      {!embedded && (
+        <AppearanceSettings
+          hideButton
+          open={appearanceOpen}
+          onOpenChange={(open, viaKeyboard) => {
+            restoreFocus.current = !open && viaKeyboard;
+            setAppearanceOpen(open);
+          }}
+        />
+      )}
     </div>
   );
 }

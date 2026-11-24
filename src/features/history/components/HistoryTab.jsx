@@ -5,7 +5,7 @@
  *
  * `subsection` (settingsSections.js): panoramica (the numbers and charts) · conversazioni (the list, and a conversation read
  * in full) · salvataggio (the settings block). The period and users filters are drawn above the first two and are the same
- * state, and the tab stays mounted while the subsection changes. None = all of it, as in /embed.
+ * state, and the tab stays mounted while the subsection changes. None = all of it (no sidebar).
  */
 'use client';
 

@@ -5,7 +5,7 @@ import { createContext, useContext } from 'react';
 /**
  * The title of the page the sections are on, when the page already has one: the standalone configuration shows one subsection at
  * a time under its own title (SettingsPanel.jsx), and a section called the same does not say it a second time (its description
- * stays). Null (the default, and /embed) = every section keeps its title.
+ * stays). Null (the default, and a chat with no sidebar) = every section keeps its title.
  */
 export const PageTitleContext = createContext(null);
 

@@ -784,10 +784,12 @@ input.font-range[type='range']:focus-visible::-moz-range-thumb {
  *                        --accent-nav-start), white text and icons, white tints for hover / current, and with "Sfondo animato"
  *                        (data-accent-animated) the two drifting reflections of the theme's colour (.sb-glow)
  *   · data-nav-style     "Classico": full height, flush with the window edges, a border on the right.
- *                        "Flottante": a rounded panel with a margin and a shadow (the colour of the theme, with one); only from
- *                        768px up: on a phone the drawer is always flush, as 7hub's
- * Below 768px it is an off-canvas drawer (.app-backdrop behind it); from 768px up it is in the layout, 280px wide or a 76px rail
- * (data-collapsed: only the icons, the labels stay for screen readers). 145 158 171 is 7hub's grey 500.
+ *                        "Flottante": a rounded panel with a margin and a shadow (the colour of the theme, with one); only while
+ *                        docked: as a drawer it is always flush, as 7hub's (inside 7hub the look is the host's: always "Classico")
+ * Docked (`data-docked` on .app-shell, written by AppShell.jsx: from 768px on the standalone page, from 1024px in /embed) it is in
+ * the layout, 280px wide or a 76px rail (data-collapsed: only the icons, the labels stay for screen readers); otherwise it is an
+ * off-canvas drawer (.app-backdrop behind it). The attribute, not a media query, decides: the two pages dock at different widths and
+ * the headers read the same fact from JS. 145 158 171 is 7hub's grey 500.
  */
 .app-shell {
   display: flex;
@@ -804,6 +806,10 @@ input.font-range[type='range']:focus-visible::-moz-range-thumb {
   outline: none;
 }
 
+/* the drawer takes the focus itself when the host's hamburger opens it (AppShell.jsx): it is not a control, so no ring */
+.app-sidebar:focus {
+  outline: none;
+}
 .app-sidebar {
   --sb-bg: var(--color-panel);
   --sb-bg-image: none;
@@ -883,66 +889,63 @@ input.font-range[type='range']:focus-visible::-moz-range-thumb {
   --sb-border: rgb(255 255 255 / 0.14);
 }
 
-@media (min-width: 768px) {
-  .app-sidebar {
-    flex: none;
-    width: 280px;
-    height: 100%;
-    transition: width 160ms ease;
-  }
-  .app-sidebar[data-collapsed] {
-    width: 76px;
-  }
-  :root:not([data-nav-style='floating']) .app-sidebar {
-    border-right: 1px solid var(--sb-border);
-  }
-  :root[data-nav-style='floating'] .app-sidebar {
-    margin: 12px;
-    height: calc(100% - 24px);
-    border-radius: 16px;
-    /* the border as an inset ring: a real one would shift the button on the edge */
-    box-shadow:
-      var(--sb-shadow),
-      inset 0 0 0 1px var(--sb-border);
-  }
+/* docked: part of the layout */
+.app-shell[data-docked] .app-sidebar {
+  flex: none;
+  width: 280px;
+  height: 100%;
+  transition: width 160ms ease;
+}
+.app-shell[data-docked] .app-sidebar[data-collapsed] {
+  width: 76px;
+}
+:root:not([data-nav-style='floating']) .app-shell[data-docked] .app-sidebar {
+  border-right: 1px solid var(--sb-border);
+}
+:root[data-nav-style='floating'] .app-shell[data-docked] .app-sidebar {
+  margin: 12px;
+  height: calc(100% - 24px);
+  border-radius: 16px;
+  /* the border as an inset ring: a real one would shift the button on the edge */
+  box-shadow:
+    var(--sb-shadow),
+    inset 0 0 0 1px var(--sb-border);
 }
 
-/* phones: an off-canvas drawer over the page */
-@media (max-width: 767.98px) {
-  .app-sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 60;
-    width: min(300px, 86vw);
-    border-right: 1px solid var(--sb-border);
-    transform: translateX(-100%);
-    visibility: hidden;
-    transition:
-      transform 240ms cubic-bezier(0.32, 0.72, 0, 1),
-      visibility 0s linear 240ms;
-  }
-  .app-sidebar[data-mobile-open] {
-    transform: none;
-    visibility: visible;
-    box-shadow: 16px 0 48px -8px rgb(0 0 0 / 0.35);
-    transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  .app-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 55;
-    background: rgb(0 0 0 / 0.45);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 240ms ease;
-  }
-  .app-backdrop[data-open] {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .sb-head .sb-close {
-    display: grid;
-  }
+/* not docked (a phone, the 400px panel in 7hub): an off-canvas drawer over the page */
+.app-shell:not([data-docked]) .app-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 60;
+  width: min(300px, 86vw);
+  border-right: 1px solid var(--sb-border);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition:
+    transform 240ms cubic-bezier(0.32, 0.72, 0, 1),
+    visibility 0s linear 240ms;
+}
+.app-shell:not([data-docked]) .app-sidebar[data-mobile-open] {
+  transform: none;
+  visibility: visible;
+  box-shadow: 16px 0 48px -8px rgb(0 0 0 / 0.35);
+  transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.app-shell:not([data-docked]) .app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgb(0 0 0 / 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease;
+}
+.app-shell:not([data-docked]) .app-backdrop[data-open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+.app-shell:not([data-docked]) .sb-head .sb-close {
+  display: grid;
 }
 
 /* the edge button (collapse / expand), over the sidebar's edge, level with the page header */
@@ -1523,8 +1526,10 @@ svg.sb-duo {
 
 @media (prefers-reduced-motion: reduce) {
   .app-sidebar,
-  .app-sidebar[data-mobile-open],
-  .app-backdrop {
+  .app-shell[data-docked] .app-sidebar,
+  .app-shell:not([data-docked]) .app-sidebar,
+  .app-shell:not([data-docked]) .app-sidebar[data-mobile-open],
+  .app-shell:not([data-docked]) .app-backdrop {
     transition: none;
   }
   .sb-glow::before,

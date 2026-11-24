@@ -1,8 +1,8 @@
 /**
  * The chat opened directly, outside 7hub: sign in with suite accounts and the app permission.
  * 7hub loads /embed instead — same full-height layout as that route (no card, no border) so the
- * two don't visually diverge; /embed itself is untouched, it's still what the real iframe loads.
- * Here, with room to spare, the chat has a sidebar (features/navigation); in the narrow iframe it does not.
+ * two don't visually diverge; /embed is still what the real iframe loads.
+ * Both have the sidebar (features/navigation): here it is docked from 768px up, there it is a drawer and docks only in a wide iframe.
  */
 'use client';
 

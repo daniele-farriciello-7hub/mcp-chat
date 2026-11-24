@@ -9,7 +9,7 @@
  *
  * A place is `{ section, sub }`: `section` is null for the chat or the id of a tab (`SETTINGS_TABS`; 'shortcuts' is also the
  * panel of a non-admin), `sub` the id of its subsection, null where the tab has none. A hash that names nothing (a typo, a tab
- * a non-admin cannot see) is the chat; a tab without its subsection is the tab's first. /embed has no sidebar and no hash.
+ * a non-admin cannot see) is the chat; a tab without its subsection is the tab's first. /embed has the sidebar too but never touches the URL: its place is state only.
  */
 import { SETTINGS_TABS, findSubsection, findTab } from '@/features/settings/settingsSections';
 
@@ -29,6 +29,21 @@ export function normalizePlace(place, isAdmin) {
 }
 
 export const samePlace = (a, b) => a.section === b.section && a.sub === b.sub;
+
+/**
+ * Where the page is, as a short text for the host's header (`sidebar` message, see shared/embed/hostBridge.js): "Chat", "Storico ›
+ * Conversazioni", "Modello IA › Istruzioni", "Le mie scorciatoie". The names are the sidebar's own, and it is short on purpose: the
+ * host shows it under the title of a 400px panel, in about 25 characters, so no group name ("Configurazione") in front. `place` is
+ * expected to be normalized.
+ */
+export function placeLabel(place, isAdmin) {
+  const { section, sub } = place || CHAT_PLACE;
+  if (section === null || section === undefined) return 'Chat';
+  if (!isAdmin) return 'Le mie scorciatoie';
+  const tab = findTab(section);
+  if (!tab) return 'Chat';
+  return [tab.name, findSubsection(tab, sub)?.name].filter(Boolean).join(' › ');
+}
 
 /** `#config/modello/istruzioni`, or '' for the chat. `place` is expected to be normalized. */
 export function hashFromPlace(place, isAdmin) {
@@ -53,7 +68,7 @@ export function placeFromHash(hash, isAdmin) {
   return tab ? normalizePlace({ section: tab.id, sub }, true) : CHAT_PLACE;
 }
 
-/** The place the address bar shows now (the standalone page only: it needs a window). */
+/** The place the address bar shows now (the standalone page only: it needs a window, and /embed has no hash). */
 export function placeFromLocation(isAdmin) {
   if (typeof window === 'undefined') return CHAT_PLACE;
   try {

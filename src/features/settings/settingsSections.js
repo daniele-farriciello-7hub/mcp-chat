@@ -7,8 +7,8 @@
  *   subsections   `id` (also its URL slug), `name` (the sidebar entry), `title` (the page title, `name` when missing) and
  *                 `description` (the line under it)
  *
- * The tab components take `subsection` and draw only that group (`inSubsection`); without one (the narrow /embed panel, which
- * has no sidebar) they draw everything, as they always did. The shared settings object stays in SettingsPanel whatever is shown,
+ * The tab components take `subsection` and draw only that group (`inSubsection`); without one (a chat opened with no sidebar,
+ * which nothing does today: the standalone page and /embed both have it) they draw everything, as they always did. The shared settings object stays in SettingsPanel whatever is shown,
  * so what has been typed in one subsection is still there in the next and a single "Salva" saves all of it.
  */
 export const SETTINGS_TABS = [
@@ -174,5 +174,5 @@ export function findSubsection(tab, id) {
   return subsections.find(sub => sub.id === id) ?? subsections[0];
 }
 
-/** Whether a group of a tab is drawn: `current` is the chosen subsection, none means "all of them" (the /embed panel). */
+/** Whether a group of a tab is drawn: `current` is the chosen subsection, none means "all of them" (no sidebar). */
 export const inSubsection = (current, id) => !current || current === id;

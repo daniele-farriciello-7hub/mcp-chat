@@ -30,9 +30,9 @@ function HeaderButton({ onClick, label, className = '', children }) {
 /**
  * The mark keeps morphing until the assistant is idle again: alive without writing "please wait".
  *
- * Beside the sidebar (the standalone page) the header is only the status line on a wide screen: the name, the mark and the email are in
- * the sidebar, and so are the appearance, configuration and logout buttons (the page does not pass them). On a phone the sidebar
- * is a drawer: there the header has the hamburger, the mark and the name, and keeps the new-conversation arrow.
+ * Beside the docked sidebar (the standalone page from 768px, /embed from 1024px) the header is only the status line: the name, the
+ * mark and the email are in the sidebar, and so are the appearance, configuration and logout buttons (the page does not pass
+ * them). Where the sidebar is a drawer the header has the hamburger, the mark and the name, and keeps the new-conversation arrow.
  */
 export default function ChatHeader({
   status,
@@ -44,24 +44,25 @@ export default function ChatHeader({
   onClose
 }) {
   const busy = status !== 'idle';
-  const hasSidebar = useSidebar() !== null;
-  // what the sidebar already shows on a wide screen
-  const phoneOnly = hasSidebar ? 'md:hidden' : '';
+  const sidebar = useSidebar();
+  const hasSidebar = sidebar !== null;
+  // what the docked sidebar already shows
+  const docked = Boolean(sidebar?.desktop);
   return (
     // z-20, above the z-10 of the welcome cards and the composer: the button tooltips hang below the header over the
     // conversation and must not be painted under them
     <div
       className={`relative z-20 flex items-center gap-3 border-b border-line bg-panel/90 py-2.5 pl-4 pr-2.5 backdrop-blur ${
         // level with the sidebar's own top (the edge button of the sidebar sits on the line between the two)
-        hasSidebar ? 'md:min-h-14' : ''
+        docked ? 'min-h-14' : ''
       }`}
     >
       <MenuButton />
-      <AgentMark size={26} working={busy} filled className={phoneOnly} />
+      {!docked && <AgentMark size={26} working={busy} filled />}
       <div className="min-w-0 flex-1">
-        <div className={`truncate text-fs-15 font-bold leading-tight text-ink ${phoneOnly}`}>
-          Assistente 7hub
-        </div>
+        {!docked && (
+          <div className="truncate text-fs-15 font-bold leading-tight text-ink">Assistente 7hub</div>
+        )}
         <div className="flex items-center gap-1.5">
           <span
             className={`h-2 w-2 rounded-full transition-colors ${busy ? 'animate-pulse bg-brand-500' : 'bg-ok'}`}
@@ -84,8 +85,8 @@ export default function ChatHeader({
             <SlidersHorizontal size={20} />
           </HeaderButton>
         )}
-        {onReset && (
-          <HeaderButton onClick={onReset} label="Nuova conversazione" className={phoneOnly}>
+        {onReset && !docked && (
+          <HeaderButton onClick={onReset} label="Nuova conversazione">
             <RotateCcw size={20} />
           </HeaderButton>
         )}

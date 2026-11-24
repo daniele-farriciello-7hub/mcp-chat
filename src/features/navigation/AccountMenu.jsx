@@ -1,8 +1,9 @@
 /**
  * The signed-in operator at the bottom of the sidebar: avatar, name and email, and a menu with "Impostazioni" (the appearance
- * drawer, which the sidebar owns) and "Esci". In the rail only the avatar is seen. The menu is a plain disclosure of two
+ * drawer, which the sidebar owns) and "Esci". In the rail only the avatar is seen. The menu is a plain disclosure of
  * `menuitem`s: Escape closes it and gives the focus back to the button, the arrows move between the items, a click or a Tab
- * outside closes it.
+ * outside closes it. Without `onOpenSettings` (inside 7hub, where the host decides the look) there is no "Impostazioni", nor
+ * the dot that says the look is not the default: the menu is just "Esci".
  */
 'use client';
 
@@ -26,6 +27,8 @@ function initialsOf(name, email) {
 export default function AccountMenu({ name, email, onOpenSettings, onSignOut, buttonRef }) {
   const sidebar = useSidebar();
   const { prefs } = useAppearanceState();
+  // the look is the operator's own only where the sidebar offers to change it
+  const customLook = Boolean(onOpenSettings) && !settingsAreDefault(prefs);
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const menuRef = useRef(null);
@@ -86,19 +89,21 @@ export default function AccountMenu({ name, email, onOpenSettings, onSignOut, bu
             <div className="truncate font-semibold">{label}</div>
             {secondLine && <div className="truncate sb-muted">{secondLine}</div>}
           </div>
-          <button type="button" role="menuitem" onClick={choose(onOpenSettings)} className="sb-menu-item">
-            <span aria-hidden className="grid w-6 place-items-center">
-              {drawerIcons.gear}
-            </span>
-            Impostazioni
-            {!settingsAreDefault(prefs) && (
-              <span
-                aria-hidden
-                className="ml-auto h-2 w-2 rounded-full bg-[#ff5630]"
-                title="Qualcosa è diverso dal predefinito"
-              />
-            )}
-          </button>
+          {onOpenSettings && (
+            <button type="button" role="menuitem" onClick={choose(onOpenSettings)} className="sb-menu-item">
+              <span aria-hidden className="grid w-6 place-items-center">
+                {drawerIcons.gear}
+              </span>
+              Impostazioni
+              {customLook && (
+                <span
+                  aria-hidden
+                  className="ml-auto h-2 w-2 rounded-full bg-[#ff5630]"
+                  title="Qualcosa è diverso dal predefinito"
+                />
+              )}
+            </button>
+          )}
           <button type="button" role="menuitem" onClick={choose(onSignOut)} className="sb-menu-item">
             <span aria-hidden className="grid w-6 place-items-center">
               <LogOut size={20} />
@@ -120,7 +125,7 @@ export default function AccountMenu({ name, email, onOpenSettings, onSignOut, bu
         >
           <span aria-hidden className="sb-avatar">
             {initialsOf(name, email)}
-            {!settingsAreDefault(prefs) && (
+            {customLook && (
               <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-panel bg-[#ff5630]" />
             )}
           </span>

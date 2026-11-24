@@ -6,12 +6,12 @@
  * Storico is mixed the same way: its three history settings use the bar, the data below is read-only.
  *
  * The open tab (`tab`) and subsection (`subsection`) belong to the page (ChatPanel), which changes them from the tabs below
- * or, on the standalone page, from the sidebar (and, on a phone, from the selector below the header): switching never
+ * or, from the sidebar (and, where it is a drawer, from the selector below the header): switching never
  * remounts the panel, so what has been typed and not yet saved is kept, across the subsections of a tab and across tabs
  * alike, and the one "Salva" saves all of it. Leaving with edits unsaved is the page's to confirm: this panel tells it
  * (`onDirtyChange`) and the page drops the edits by giving the panel a new `key`.
  * Beside the sidebar each tab shows only its chosen subsection (settingsSections.js) under a title and a line saying what it is;
- * without it (/embed) each tab shows everything, as it always did.
+ * without it each tab shows everything, as it always did.
  */
 'use client';
 
@@ -42,7 +42,7 @@ export default function SettingsPanel({ tab = 'model', subsection, onTabChange, 
   const [savedSnapshot, setSavedSnapshot] = useState(null);
   const [saveState, setSaveState] = useState(null);
   const scrollRef = useRef(null);
-  // with the sidebar the tabs are its entries (and the selector below is its stand-in on phones): the header names the
+  // with the sidebar the tabs are its entries (and the selector below is its stand-in where it is a drawer): the header names the
   // subsection and the tabs show only that one; without it the strip of tabs does the choosing and the tabs show everything
   const inSidebar = useSidebar() !== null;
   const tabInfo = findTab(tab) ?? findTab('model');

@@ -9,7 +9,7 @@
  * The four views (da indicizzare, con errore, indicizzati, Drive) are the subsections of this tab in the standalone page's
  * sidebar: it passes `view` and `onViewChange`, the strip of views is not drawn (the sidebar is it) and the counters above
  * still switch view. The tab stays mounted while the view changes, so uploads, filters and the descriptions being typed are
- * kept. Without them (/embed) the tab keeps the view itself, as it always did.
+ * kept. Without them (no sidebar) the tab keeps the view itself, as it always did.
  */
 'use client';
 
