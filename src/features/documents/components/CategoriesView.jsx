@@ -7,7 +7,8 @@
  *
  * Renaming moves the documents along (they keep the category under its new name). Removing leaves the name
  * written on the documents but unseen — the panel, the chat and the search ignore a name that is not in the
- * list — so putting it back restores it; the count says how many documents it concerns.
+ * list — so putting it back restores it; the count ("6 documenti") says how many documents it concerns, and
+ * opens the list of the indexed documents filtered by that category (`onShowCategory`).
  */
 'use client';
 
@@ -28,10 +29,13 @@ import {
 } from '@/features/documents/categories';
 import ClassifyDocuments from './ClassifyDocuments';
 
+const documentsLabel = count =>
+  count === 0 ? 'nessun documento' : count === 1 ? '1 documento' : `${count} documenti`;
+
 const iconButton =
   'rounded-lg p-1.5 text-slate-soft transition hover:bg-surface hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-soft';
 
-function CategoryRow({ name, count, index, last, busy, onMove, onRename, onRemove }) {
+function CategoryRow({ name, count, index, last, busy, onMove, onRename, onRemove, onShow }) {
   const [mode, setMode] = useState(null); // null | 'rename' | 'remove'
   const [draft, setDraft] = useState(name);
   const [error, setError] = useState(null);
@@ -119,7 +123,20 @@ function CategoryRow({ name, count, index, last, busy, onMove, onRename, onRemov
   return (
     <li className="flex items-center gap-1 px-3 py-1.5">
       <span className="min-w-0 flex-1 truncate text-fs-13 font-medium text-ink">{name}</span>
-      <span className="mr-1 text-fs-11 text-slate-soft">{count}</span>
+      {count > 0 && onShow ? (
+        <Tooltip label="Mostra i documenti" align="right">
+          <button
+            type="button"
+            onClick={() => onShow(name)}
+            aria-label={`Mostra ${documentsLabel(count)} con ${name}`}
+            className="mr-1 whitespace-nowrap rounded text-fs-11 text-slate-soft underline decoration-dotted underline-offset-2 transition hover:text-brand-600"
+          >
+            {documentsLabel(count)}
+          </button>
+        </Tooltip>
+      ) : (
+        <span className="mr-1 whitespace-nowrap text-fs-11 text-slate-soft">{documentsLabel(count)}</span>
+      )}
       <Tooltip label="Sposta su" align="right">
         <button
           type="button"
@@ -172,7 +189,7 @@ function CategoryRow({ name, count, index, last, busy, onMove, onRename, onRemov
   );
 }
 
-export default function CategoriesView({ categories, documents, onSaved }) {
+export default function CategoriesView({ categories, documents, onSaved, onShowCategory }) {
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null); // { tone: 'error' | 'ok', text }
@@ -276,6 +293,7 @@ export default function CategoriesView({ categories, documents, onSaved }) {
                 onMove={move}
                 onRename={rename}
                 onRemove={remove}
+                onShow={onShowCategory}
               />
             ))}
           </ul>

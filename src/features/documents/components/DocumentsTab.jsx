@@ -10,6 +10,9 @@
  * documents that have none (CategoriesView). Mode (studied / archive only) and category are chosen at upload,
  * shown as pills, changed on the row, and filter every list of documents.
  *
+ * In "Categorie" the number of documents of a category opens "Indicizzati" filtered by it (the other filters are cleared, so the
+ * list is what the number says).
+ *
  * The five views (da indicizzare, con errore, indicizzati, Drive, categorie) are the subsections of this tab in the standalone page's
  * sidebar: it passes `view` and `onViewChange`, the strip of views is not drawn (the sidebar is it) and the counters above
  * still switch view. The tab stays mounted while the view changes, so uploads, filters and the descriptions being typed are
@@ -139,6 +142,14 @@ export default function DocumentsTab({
     setView('pending');
   };
 
+  // from "Categorie": the indexed documents of one category, with no other filter in the way
+  const showCategory = name => {
+    setNameFilter('');
+    setModeFilter('all');
+    setCategoryFilter(name);
+    setView('indexed');
+  };
+
   const showsSelectableList = view === 'pending' || view === 'failed';
   const filtersActive = Boolean(nameFilter) || modeFilter !== 'all' || activeCategoryFilter !== 'all';
 
@@ -234,6 +245,7 @@ export default function DocumentsTab({
           categories={categories}
           documents={catalog.documents || []}
           onSaved={onCategoriesSaved}
+          onShowCategory={showCategory}
         />
       )}
     </div>

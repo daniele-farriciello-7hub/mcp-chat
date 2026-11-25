@@ -2,7 +2,9 @@
  * Tests the categories of the documents and the two kinds of document (studied / archive only): choosing
  * categories from the admins' list and nothing else, what indexing writes about them (an admin's own
  * are never overwritten), what the server's indexing copy (functions/src/drive/indexCard.js) must keep
- * identical to the browser's (src/features/documents), and the short card of an archive document.
+ * identical to the browser's (src/features/documents), the short card of an archive document, and the bulk
+ * change of the categories of many documents (add, take off, replace: the maximum of three, the names the list
+ * no longer has, the summary sentence).
  * The browser modules are loaded as they are (support/src-alias.mjs). Run: npm test.
  */
 import assert from 'node:assert/strict';
@@ -16,6 +18,7 @@ const docs = file => import(new URL(`../../src/features/documents/${file}`, impo
 const categories = await docs('categories.js');
 const modes = await docs('archiveMode.js');
 const textMatch = await docs('textMatch.js');
+const bulk = await docs('bulkCategories.js');
 
 const LIST = ['Mutuo', 'Cessione del quinto', 'Prestito', 'Policy banca', 'Modulistica'];
 
@@ -288,5 +291,200 @@ test('the list of categories is read from the settings like the browser does', (
   assert.deepEqual(
     server.indexingSettings({ documentCategories: 'Mutuo' }).categories,
     categories.DEFAULT_DOCUMENT_CATEGORIES
+  );
+});
+
+// ── the same change on many documents (the "Categorie" action of the selection bar) ──────────────────────────
+
+const add = (stored, ...names) => bulk.changeCategories(stored, { action: 'add', names }, LIST);
+const remove = (stored, ...names) => bulk.changeCategories(stored, { action: 'remove', names }, LIST);
+const replace = (stored, ...names) => bulk.changeCategories(stored, { action: 'replace', names }, LIST);
+
+test('adding a category keeps the ones a document has and puts the new one after them', () => {
+  assert.deepEqual(add([], 'Mutuo'), { result: 'changed', categories: ['Mutuo'] });
+  assert.deepEqual(add(undefined, 'Mutuo'), { result: 'changed', categories: ['Mutuo'] });
+  assert.deepEqual(add(['Prestito'], 'Mutuo'), { result: 'changed', categories: ['Prestito', 'Mutuo'] });
+  // written as the list spells it, whatever was stored or asked
+  assert.deepEqual(add(['prestito'], 'MUTUO'), { result: 'changed', categories: ['Prestito', 'Mutuo'] });
+  // several at once, each once
+  assert.deepEqual(add([], 'Mutuo', 'Prestito', 'mutuo'), {
+    result: 'changed',
+    categories: ['Mutuo', 'Prestito']
+  });
+});
+
+test('a document that already has the category is not written again', () => {
+  assert.deepEqual(add(['Mutuo', 'Prestito'], 'Prestito'), { result: 'unchanged' });
+  assert.deepEqual(add(['mutuo'], 'Mutuo'), { result: 'unchanged' });
+  // already full, but it has it: nothing to do, not "full"
+  assert.deepEqual(add(['Mutuo', 'Prestito', 'Modulistica'], 'Mutuo'), { result: 'unchanged' });
+  // a name that is not in the list is nothing to add
+  assert.deepEqual(add(['Mutuo'], 'Inventata'), { result: 'unchanged' });
+  assert.deepEqual(add(['Mutuo']), { result: 'unchanged' });
+});
+
+test('a document with three visible categories is skipped on add, never over the maximum', () => {
+  const three = ['Mutuo', 'Prestito', 'Modulistica'];
+  assert.deepEqual(add(three, 'Policy banca'), { result: 'full' });
+  // two are visible plus one the list no longer has: that one is invisible, it does not take a place
+  assert.deepEqual(add(['Mutuo', 'Marketing', 'Prestito'], 'Modulistica'), {
+    result: 'changed',
+    categories: ['Mutuo', 'Prestito', 'Modulistica', 'Marketing']
+  });
+  // several names: all of them or none, so a document with two cannot take two more
+  assert.deepEqual(add(['Mutuo', 'Prestito'], 'Modulistica', 'Policy banca'), { result: 'full' });
+  assert.deepEqual(add(['Mutuo'], 'Modulistica', 'Policy banca'), {
+    result: 'changed',
+    categories: ['Mutuo', 'Modulistica', 'Policy banca']
+  });
+  // taking exactly the last place is fine
+  assert.equal(
+    add(['Mutuo', 'Prestito'], 'Modulistica').categories.length,
+    categories.MAX_CATEGORIES_PER_DOCUMENT
+  );
+});
+
+test('taking a category off leaves the others, and does nothing to a document that lacks it', () => {
+  assert.deepEqual(remove(['Mutuo', 'Prestito'], 'Mutuo'), { result: 'changed', categories: ['Prestito'] });
+  assert.deepEqual(remove(['Mutuo'], 'mutuo'), { result: 'changed', categories: [] });
+  assert.deepEqual(remove(['Mutuo', 'Prestito', 'Modulistica'], 'Mutuo', 'Modulistica'), {
+    result: 'changed',
+    categories: ['Prestito']
+  });
+  assert.deepEqual(remove(['Prestito'], 'Mutuo'), { result: 'unchanged' });
+  assert.deepEqual(remove([], 'Mutuo'), { result: 'unchanged' });
+  assert.deepEqual(remove(undefined, 'Mutuo'), { result: 'unchanged' });
+  assert.deepEqual(remove(['Mutuo'], 'Inventata'), { result: 'unchanged' });
+});
+
+test('replacing leaves a document with exactly the chosen categories', () => {
+  assert.deepEqual(replace(['Mutuo', 'Prestito', 'Modulistica'], 'Policy banca'), {
+    result: 'changed',
+    categories: ['Policy banca']
+  });
+  assert.deepEqual(replace([], 'Mutuo', 'Prestito'), {
+    result: 'changed',
+    categories: ['Mutuo', 'Prestito']
+  });
+  // the same set, in whatever order, is not a change
+  assert.deepEqual(replace(['Prestito', 'Mutuo'], 'Mutuo', 'Prestito'), { result: 'unchanged' });
+  // an empty choice (or one that is not in the list) never wipes a document
+  assert.deepEqual(replace(['Mutuo']), { result: 'unchanged' });
+  assert.deepEqual(replace(['Mutuo'], 'Inventata'), { result: 'unchanged' });
+  // at most three, even if more are asked
+  assert.equal(replace([], 'Mutuo', 'Prestito', 'Modulistica', 'Policy banca').categories.length, 3);
+});
+
+test('a category the list no longer has stays on the document, unseen, after the new ones', () => {
+  // "Marketing" and "Vecchia" were taken off the list: nothing here shows or touches them
+  const stored = ['Marketing', 'Mutuo', 'Vecchia'];
+  assert.deepEqual(add(stored, 'Prestito'), {
+    result: 'changed',
+    categories: ['Mutuo', 'Prestito', 'Marketing', 'Vecchia']
+  });
+  assert.deepEqual(remove(stored, 'Mutuo'), { result: 'changed', categories: ['Marketing', 'Vecchia'] });
+  assert.deepEqual(replace(stored, 'Prestito'), {
+    result: 'changed',
+    categories: ['Prestito', 'Marketing', 'Vecchia']
+  });
+  // and they stay invisible
+  assert.deepEqual(categories.visibleCategories(add(stored, 'Prestito').categories, LIST), [
+    'Mutuo',
+    'Prestito'
+  ]);
+  // junk in the stored array is not written back
+  assert.deepEqual(add(['Mutuo', null, 3, '  ', {}], 'Prestito').categories, ['Mutuo', 'Prestito']);
+  // a name the admins put back is visible again
+  assert.deepEqual(categories.visibleCategories(add(stored, 'Prestito').categories, [...LIST, 'Marketing']), [
+    'Mutuo',
+    'Prestito',
+    'Marketing'
+  ]);
+  // unchanged also when the only difference would be an invisible name
+  assert.deepEqual(remove(['Marketing'], 'Mutuo'), { result: 'unchanged' });
+});
+
+test('an action that does not exist is a mistake, not a silent no-op', () => {
+  assert.throws(
+    () => bulk.changeCategories(['Mutuo'], { action: 'clear', names: ['Mutuo'] }, LIST),
+    /Unknown/
+  );
+});
+
+test('the plan lists what to write and counts the rest', () => {
+  const documents = [
+    { id: 'a', categories: [] },
+    { id: 'b', categories: ['Mutuo'] }, // already has it
+    { id: 'c', categories: ['Prestito', 'Modulistica', 'Policy banca'] }, // no room
+    { id: 'd', categories: ['Prestito'] },
+    { id: 'e' } // never classified
+  ];
+  const plan = bulk.planCategoryChange(documents, { action: 'add', names: ['Mutuo'] }, LIST);
+  assert.deepEqual(plan.updates, [
+    { id: 'a', categories: ['Mutuo'] },
+    { id: 'd', categories: ['Prestito', 'Mutuo'] },
+    { id: 'e', categories: ['Mutuo'] }
+  ]);
+  assert.deepEqual([plan.changed, plan.unchanged, plan.full], [3, 1, 1]);
+
+  const taken = bulk.planCategoryChange(documents, { action: 'remove', names: ['Prestito'] }, LIST);
+  assert.deepEqual(taken.updates, [
+    { id: 'c', categories: ['Modulistica', 'Policy banca'] },
+    { id: 'd', categories: [] }
+  ]);
+  assert.deepEqual([taken.changed, taken.unchanged, taken.full], [2, 3, 0]);
+
+  // the documents themselves are not changed
+  assert.deepEqual(documents[0].categories, []);
+  assert.deepEqual(bulk.planCategoryChange([], { action: 'add', names: ['Mutuo'] }, LIST).updates, []);
+});
+
+test('the summary says what was done, what was skipped and what failed', () => {
+  const { describeCategoryChange } = bulk;
+  const one = { action: 'add', names: ['Mutuo'] };
+  assert.deepEqual(describeCategoryChange(one, { changed: 12, unchanged: 0, full: 2 }), {
+    tone: 'ok',
+    text: '«Mutuo» aggiunta a 12 documenti; 2 ne avevano già 3.'
+  });
+  assert.equal(
+    describeCategoryChange(one, { changed: 1, unchanged: 1, full: 1 }).text,
+    '«Mutuo» aggiunta a 1 documento; 1 era già a posto; 1 ne aveva già 3.'
+  );
+  assert.equal(
+    describeCategoryChange(
+      { action: 'add', names: ['Mutuo', 'Prestito'] },
+      { changed: 4, unchanged: 0, full: 2 }
+    ).text,
+    '«Mutuo» e «Prestito» aggiunte a 4 documenti; 2 non avevano posto per tutte (massimo 3).'
+  );
+  assert.equal(
+    describeCategoryChange({ action: 'remove', names: ['Mutuo'] }, { changed: 5, unchanged: 3, full: 0 })
+      .text,
+    '«Mutuo» tolta da 5 documenti; 3 erano già a posto.'
+  );
+  assert.equal(
+    describeCategoryChange(
+      { action: 'replace', names: ['A', 'B', 'C'] },
+      { changed: 2, unchanged: 0, full: 0 }
+    ).text,
+    'Categorie sostituite con «A», «B» e «C» in 2 documenti.'
+  );
+  // nothing to write
+  assert.equal(
+    describeCategoryChange(one, { changed: 0, unchanged: 0, full: 3 }).text,
+    'Nessun documento aggiornato; 3 ne avevano già 3.'
+  );
+  // some batches failed: the rest is still reported, and it is an error
+  assert.deepEqual(describeCategoryChange(one, { changed: 12, unchanged: 0, full: 0 }, 5), {
+    tone: 'error',
+    text: '«Mutuo» aggiunta a 7 documenti; 5 non sono stati aggiornati: riprova.'
+  });
+  assert.deepEqual(describeCategoryChange(one, { changed: 3, unchanged: 0, full: 0 }, 3), {
+    tone: 'error',
+    text: 'Nessun documento aggiornato; 3 non sono stati aggiornati: riprova.'
+  });
+  assert.equal(
+    describeCategoryChange(one, { changed: 2, unchanged: 0, full: 0 }, 1).text,
+    '«Mutuo» aggiunta a 1 documento; 1 non è stato aggiornato: riprova.'
   );
 });

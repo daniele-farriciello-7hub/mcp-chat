@@ -154,6 +154,39 @@ export async function setDocumentCategoriesFromAi(id, categories, allowed) {
 }
 
 const BATCH_SIZE = 400; // Firestore allows 500 writes per batch
+// the bulk category action reports after every batch: small ones keep the progress moving
+const CATEGORY_BATCH_SIZE = 100;
+
+/**
+ * Sets the categories of several documents by hand, in batches: what the "Categorie" bulk action of the indexed
+ * list writes. `updates` is `[{ id, categories }]` (bulkCategories.js `planCategoryChange`, which keeps the names the
+ * list no longer has); each document gets `categories` and `categoriesManual: true`, exactly as
+ * `setDocumentCategories` writes one, so it works the same for uploaded and Drive documents.
+ *
+ * `onProgress({ done, total })` follows it. A batch is all or nothing: one that fails is logged and its documents are
+ * counted as failed, and the next batches still go on. Resolves to `{ written, failed }`.
+ */
+export async function setCategoriesOnDocuments(updates, { onProgress = () => {} } = {}) {
+  let written = 0;
+  let failed = 0;
+  for (let start = 0; start < updates.length; start += CATEGORY_BATCH_SIZE) {
+    const chunk = updates.slice(start, start + CATEGORY_BATCH_SIZE);
+    try {
+      const batch = writeBatch(db);
+      for (const { id, categories } of chunk) {
+        batch.update(documentRef(id), { categories, categoriesManual: true });
+      }
+      await batch.commit();
+      written += chunk.length;
+    } catch (error) {
+      console.error('[documents] saving the categories of a batch of documents failed:', error);
+      failed += chunk.length;
+    }
+    onProgress({ done: written + failed, total: updates.length });
+  }
+  if (written) invalidateChatCatalog();
+  return { written, failed };
+}
 
 /**
  * A category was renamed in the list: the documents that carry the old name get the new one (written as the
