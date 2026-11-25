@@ -107,6 +107,27 @@ test('a reason that is not text is dropped, and rows never come along', async ()
   assert.deepEqual(storedActivity('q1'), { kind: 'data', outcome: 'failed' });
 });
 
+test('a file picker keeps why it was shown, so the Storico draws the same card', async () => {
+  await turn([
+    {
+      id: 'f1',
+      kind: 'file_choice',
+      label: 'Moduli per il mutuo',
+      outcome: 'done',
+      reason: 'listing',
+      files: [{ documentId: 'privacy-1', documentName: 'Modulo privacy mutuo.pdf' }]
+    }
+  ]);
+
+  assert.deepEqual(storedActivity('f1'), {
+    kind: 'file_choice',
+    label: 'Moduli per il mutuo',
+    outcome: 'done',
+    reason: 'listing',
+    files: [{ documentId: 'privacy-1', documentName: 'Modulo privacy mutuo.pdf' }]
+  });
+});
+
 // ── the reply of a command without AI ─────────────────────────────────────────
 
 const storedReply = () => world.writes.find(w => w.id === 'r1').data;

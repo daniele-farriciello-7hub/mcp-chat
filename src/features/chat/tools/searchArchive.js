@@ -2,7 +2,8 @@
  * `search_archive` tool: finds files among the archive documents (`mode: 'archive'`), which are not in the
  * system prompt. The model gives some words and, if it knows which, a category; it gets back up to 10 files
  * (id, name, description, categories) and then hands them over with `offer_files` (several candidates, or a
- * listing like "che moduli ci sono per il mutuo?") or `share_file` (one clear match). Those two accept the
+ * listing like "che moduli ci sono per il mutuo?", which is `reason: 'listing'`) or `share_file` (one clear
+ * match). Those two accept the
  * ids found here: they validate against the whole catalog, archive files included.
  *
  * The search runs in the browser over the catalog the chat already holds (documents/searchArchive.js: folded
@@ -31,7 +32,8 @@ export function searchArchiveTool(categories = []) {
           "nome, descrizione e categorie. Poi mostrali con offer_files, così l'operatore ha le anteprime e il " +
           'pulsante per scaricarli (share_file solo se ne corrisponde uno solo, chiaramente). ' +
           'Per una domanda come "che moduli ci sono per il mutuo?" chiama questo strumento con la categoria ' +
-          'giusta (e, se serve, qualche parola) e mostra il risultato con offer_files. Non rispondere mai sul ' +
+          'giusta (e, se serve, qualche parola) e mostra il risultato con offer_files e reason "listing" ' +
+          '(è un elenco di file disponibili, non una proposta: anche con un solo file). Non rispondere mai sul ' +
           'contenuto di questi file: i risultati servono solo a trovarli e consegnarli.',
         parameters: {
           type: 'object',
@@ -54,6 +56,10 @@ export function searchArchiveTool(categories = []) {
     ]
   };
 }
+
+// said to the model with every non-empty result: a category browse must not end up as a "did you mean?" card
+const LISTING_HINT =
+  'If the operator asked what files exist (a category, a kind of file), show them with offer_files and reason "listing".';
 
 const plural = n => (n === 1 ? '1 file trovato' : `${n} file trovati`);
 
@@ -108,8 +114,8 @@ export async function runSearchArchiveCall(
         total === 0
           ? 'no archive file matches: say so in one line, do not invent an id. Try other words or a category before giving up.'
           : total > results.length
-            ? `${total - results.length} more files match: say how many, and suggest narrowing by words or category`
-            : 'these are archive files: offer or deliver them (offer_files / share_file), never describe their content'
+            ? `${total - results.length} more files match: say how many, and suggest narrowing by words or category. ${LISTING_HINT}`
+            : `these are archive files: offer or deliver them (offer_files / share_file), never describe their content. ${LISTING_HINT}`
     }
   };
 }

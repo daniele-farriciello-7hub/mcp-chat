@@ -38,7 +38,7 @@ const { SEARCH_ARCHIVE_TOOL_NAME, runSearchArchiveCall, searchArchiveTool } = aw
   src('features/chat/tools/searchArchive.js')
 );
 const { runShareFileCall } = await import(src('features/chat/tools/shareFile.js'));
-const { runOfferFilesCall } = await import(src('features/chat/tools/offerFiles.js'));
+const { OFFER_FILES_TOOL, runOfferFilesCall } = await import(src('features/chat/tools/offerFiles.js'));
 const { runToolCalls } = await import(src('features/chat/tools/runToolCalls.js'));
 const { ARCHIVE_ONLY_REFUSAL } = await import(src('features/documents/archiveMode.js'));
 
@@ -131,6 +131,9 @@ test('the archive is one line with the count and how to search it, then the rule
   assert.ok(text.includes('è disponibile per il download'));
   assert.ok(text.includes('che moduli ci sono per il mutuo?'));
   assert.ok(text.includes('offer_files'));
+  // browsing a category is a listing, never a "did you mean?"
+  assert.ok(text.includes('offer_files e reason "listing"'));
+  assert.ok(text.includes('mai "no_exact_match" né "ambiguous"'));
 });
 
 test('without archive files the prompt does not mention the archive at all', () => {
@@ -306,6 +309,7 @@ test('the tool the model sees offers the list of categories as the values of `ca
   // the hint that makes a category listing show download buttons
   assert.ok(declaration.description.includes('offer_files'));
   assert.ok(declaration.description.includes('che moduli ci sono per il mutuo?'));
+  assert.ok(declaration.description.includes('reason "listing"'));
   // no list, no enum (an empty enum is not valid)
   assert.ok(!('enum' in searchArchiveTool([]).functionDeclarations[0].parameters.properties.category));
 });
@@ -359,4 +363,72 @@ test('offer_files shows archive files to pick from, with no round trip through t
   );
   assert.equal(end.reason, 'ambiguous');
   assert.equal(end.label, 'Quale modulo?');
+});
+
+test('a listing keeps its own reason and its title, with one file or several', async () => {
+  const several = activity();
+  const result = await runOfferFilesCall(
+    { args: { question: 'Moduli per il mutuo', ids: ['privacy-1', 'delega-1'], reason: 'listing' } },
+    { catalog: [POLICY, PRIVACY, DELEGA], round: 0, index: 0, ...several }
+  );
+  assert.equal(result.response.ok, true);
+  assert.equal(several.events.at(-1)[2].reason, 'listing');
+  assert.equal(several.events.at(-1)[2].label, 'Moduli per il mutuo');
+  assert.ok(result.response.shown.includes('list'));
+
+  // a category can hold just one file: still a listing, not a "did you mean this?"
+  const single = activity();
+  await runOfferFilesCall(
+    { args: { question: 'Moduli per il mutuo', ids: ['privacy-1'], reason: 'listing' } },
+    { catalog: [POLICY, PRIVACY, DELEGA], round: 0, index: 0, ...single }
+  );
+  const end = single.events.at(-1)[2];
+  assert.equal(end.reason, 'listing');
+  assert.deepEqual(
+    end.files.map(f => f.documentId),
+    ['privacy-1']
+  );
+});
+
+test('a listing without a title is called "File disponibili"; a choice without one keeps its question', async () => {
+  const listing = activity();
+  await runOfferFilesCall(
+    { args: { question: '  ', ids: ['privacy-1', 'delega-1'], reason: 'listing' } },
+    { catalog: [PRIVACY, DELEGA], round: 0, index: 0, ...listing }
+  );
+  assert.equal(listing.events.at(-1)[2].label, 'File disponibili');
+
+  const choice = activity();
+  await runOfferFilesCall(
+    { args: { ids: ['privacy-1', 'delega-1'] } },
+    { catalog: [PRIVACY, DELEGA], round: 0, index: 0, ...choice }
+  );
+  assert.equal(choice.events.at(-1)[2].label, 'Quale file intendi?');
+  assert.equal(choice.events.at(-1)[2].reason, 'ambiguous');
+});
+
+test('a single file offered as ambiguous or as no exact match is a "did you mean this?"', async () => {
+  for (const reason of ['ambiguous', 'no_exact_match', undefined, 'something else']) {
+    const a = activity();
+    await runOfferFilesCall(
+      { args: { question: 'Forse intendevi questo?', ids: ['privacy-1'], reason } },
+      { catalog: [PRIVACY], round: 0, index: 0, ...a }
+    );
+    assert.equal(a.events.at(-1)[2].reason, 'no_exact_match', String(reason));
+  }
+});
+
+test('the tool the model sees lists the three reasons and says when to use "listing"', () => {
+  const [declaration] = OFFER_FILES_TOOL.functionDeclarations;
+  assert.deepEqual(declaration.parameters.properties.reason.enum, ['ambiguous', 'no_exact_match', 'listing']);
+  assert.ok(declaration.description.includes('reason "listing"'));
+  assert.ok(declaration.parameters.properties.question.description.includes('Moduli per il mutuo'));
+});
+
+test('search_archive tells the model to show what it found as a listing', async () => {
+  const { response } = await runSearchArchiveCall(
+    { args: { query: '', category: 'Modulistica' } },
+    { catalog: [PRIVACY, DELEGA], categories: LIST, round: 0, index: 0, ...activity() }
+  );
+  assert.ok(response.note.includes('reason "listing"'));
 });

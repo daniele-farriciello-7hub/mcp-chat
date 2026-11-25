@@ -7,6 +7,12 @@
  * The other thumbnails stay in view, dimmed and off. "Nessuno di questi" is the way out: it sends a normal
  * message, so the model can carry on. The card is rebuilt from document ids alone.
  *
+ * The header depends on why the card is there (`reason`): "Non ho trovato esattamente quello che cerchi.
+ * Forse intendevi:" when nothing matched exactly (`no_exact_match`); otherwise the card's own title, i.e. the
+ * question ("Quale logo intendi?", `ambiguous`) or the title of the list ("Moduli per il mutuo", `listing`).
+ * A `listing` is the operator browsing what exists, not choosing among candidates, so it has no "Nessuno di
+ * questi" and, without a title, reads "File disponibili".
+ *
  * `answered` means a message followed the card (the operator picked, typed, or asked for none of them).
  */
 'use client';
@@ -20,6 +26,7 @@ import PreviewImage from '@/features/documents/components/PreviewImage';
 
 const NONE_OF_THESE = 'Nessuno di questi';
 const NO_EXACT_MATCH = 'Non ho trovato esattamente quello che cerchi. Forse intendevi:';
+const LISTING_FALLBACK = 'File disponibili';
 
 /**
  * One thumbnail. `chosen` is the picked file; `dimmed` the others once one is picked. A pick reports the
@@ -92,6 +99,8 @@ export default function FileChoiceCard({ activity, answered, onPickFile, onAsk }
   const decided = answered || Boolean(selected);
   const chosenFile = files.find(file => file.documentId === selected);
   const noExactMatch = reason === 'no_exact_match';
+  const listing = reason === 'listing';
+  const title = noExactMatch ? NO_EXACT_MATCH : label || (listing ? LISTING_FALLBACK : '');
 
   return (
     <div
@@ -107,7 +116,7 @@ export default function FileChoiceCard({ activity, answered, onPickFile, onAsk }
             : 'text-fs-11 font-semibold uppercase tracking-[0.08em] text-slate-soft'
         }`}
       >
-        {noExactMatch ? NO_EXACT_MATCH : label}
+        {title}
       </div>
       <div className="grid grid-cols-2 gap-2 p-2.5">
         {files.map(file => (
@@ -121,7 +130,7 @@ export default function FileChoiceCard({ activity, answered, onPickFile, onAsk }
           />
         ))}
       </div>
-      {!chosenFile && (
+      {!chosenFile && !listing && (
         <div className="border-t border-line px-3 py-2">
           <button
             type="button"

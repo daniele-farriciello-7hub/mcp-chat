@@ -45,7 +45,7 @@ const ACTIVITY_FIELDS = [
   // the raw reason a database call failed (the same one the model got): read by admins in the history,
   // never drawn in the chat — an operator's card only says that it did not work
   'errorDetail',
-  // why a file picker is shown: 'ambiguous' | 'no_exact_match'
+  // why a file picker is shown: 'ambiguous' | 'no_exact_match' | 'listing' (any text up to the cap is kept)
   'reason'
 ];
 

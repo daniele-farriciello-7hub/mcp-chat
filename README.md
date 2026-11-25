@@ -466,7 +466,7 @@ runs the matching handler in `chat/tools/`, and the result goes back as a `funct
 | `read_document`   | opens an indexed document in full                                                                                  |
 | `search_archive`  | finds files of the archive (solo archivio) by words and category: up to 10, with id, name, description, categories |
 | `share_file`      | shows an archive file (logo, image, PDF…) with a preview and a "Scarica" button                                    |
-| `offer_files`     | thumbnails of 1–6 archive files to pick from, when several match or none matches exactly                           |
+| `offer_files`     | thumbnails of 1–6 archive files: to pick from (several match, none matches exactly) or to list a category          |
 | `ask_options`     | 2–5 clickable answers to an ambiguous question — see "Clarifying questions" below                                  |
 | `describe_table`  | columns and card of one enabled table                                                                              |
 | `query_database`  | one read-only `SELECT`, rows go back to the model (capped by the admin)                                            |
@@ -504,8 +504,9 @@ può aprire documenti o interrogare il database" (default 6 giri).
   answered with the list.
 - **Archive files only.** Studied documents are already in the prompt, with their ids, and `share_file` takes
   them from there: searching them too would only add noise to a "che moduli ci sono per il mutuo?" listing.
-- The model then hands the files over with `offer_files` (several candidates, or a listing: the tool
-  description says so for "che moduli ci sono per il mutuo?") or `share_file` (one clear match). Both validate
+- The model then hands the files over with `offer_files` (several candidates, or a listing with
+  `reason: "listing"`: the tool description says so for "che moduli ci sono per il mutuo?") or `share_file`
+  (one clear match). Both validate
   against the whole catalog, so they accept archive ids. `offer_files` shows 6 at most: past that the model says
   how many there are and asks to narrow down (`note` tells it).
 - Activity rows, in plain Italian: "Cerco nell'archivio", then "N file trovati" / "Nessun file trovato".
@@ -533,10 +534,12 @@ può aprire documenti o interrogare il database" (default 6 giri).
 When a request is ambiguous the assistant shows clickable choices instead of guessing or writing a wall of
 text. Both tools end the model's turn: it writes at most one short sentence and waits.
 
-- **`offer_files`** `{ question, ids[1–6], reason? }` — `reason` is `ambiguous` (default) or `no_exact_match`
-  (the header then reads "Non ho trovato esattamente quello che cerchi. Forse intendevi:"). A single id is a
-  "did you mean this?": it is allowed only as `no_exact_match`, and with `ambiguous` the handler turns it into
-  `no_exact_match`. The model uses it whenever the request only approximately matches a file (a typo, a partial
+- **`offer_files`** `{ question, ids[1–6], reason? }` — `reason` is `ambiguous` (default), `no_exact_match`
+  (the header then reads "Non ho trovato esattamente quello che cerchi. Forse intendevi:") or `listing`: the
+  operator asked what files exist ("che moduli ci sono per il mutuo?"), so `question` is the title of the list
+  ("Moduli per il mutuo", "File disponibili" when empty) and the card has no "Nessuno di questi". A single id is
+  a "did you mean this?": it is allowed as `no_exact_match` or `listing` (a category can hold one file), and
+  with `ambiguous` the handler turns it into `no_exact_match`. The model uses it whenever the request only approximately matches a file (a typo, a partial
   name, a guessed abbreviation) instead of silently correcting it and calling `share_file`. Ids not in the
   catalog are dropped; with none left the model gets an error. `FileChoiceCard.jsx` shows the thumbnails
   (`PreviewImage`, a file icon for non-images); picking one is played out by the app as a normal exchange
