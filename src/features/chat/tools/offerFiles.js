@@ -11,6 +11,9 @@
  * `ambiguous` (several files match) fewer than two is a contradiction, so the handler turns it into
  * `no_exact_match` instead of failing.
  *
+ * The ids may be those of archive-only files, found with `search_archive`: this is also how the files of a
+ * category are listed with a download button each.
+ *
  * The model's turn ends here: it is told to stop and wait, and the operator's answer either needs
  * nothing more (a file picked) or arrives as a normal message ("Nessuno di questi").
  */
@@ -32,8 +35,9 @@ export const OFFER_FILES_TOOL = {
         'file va bene, come "forse intendevi questo?", invece di correggere la richiesta in silenzio. ' +
         "Non chiamare share_file più volte al posto suo. Quando l'operatore sceglie, l'app gli " +
         'mostra il file con il pulsante per scaricarlo: tu non devi fare altro. Usa solo id che compaiono ' +
-        "nell'elenco dei documenti indicizzati. Dopo averlo chiamato chiudi il turno con al massimo una frase " +
-        "breve e aspetta: non rispondere alla domanda al posto dell'operatore.",
+        "nell'elenco dei documenti indicizzati o fra i risultati di search_archive: è così che si mostra " +
+        'l\'elenco dei file di una categoria ("che moduli ci sono per il mutuo?"). Dopo averlo chiamato chiudi il ' +
+        "turno con al massimo una frase breve e aspetta: non rispondere alla domanda al posto dell'operatore.",
       parameters: {
         type: 'object',
         properties: {
@@ -45,7 +49,7 @@ export const OFFER_FILES_TOOL = {
             type: 'array',
             items: { type: 'string' },
             description:
-              "Da 1 a 6 id di file presi dall'elenco, i più probabili per primi. Un solo id è ammesso solo con " +
+              "Da 1 a 6 id di file presi dall'elenco o da search_archive, i più probabili per primi. Un solo id è ammesso solo con " +
               'reason "no_exact_match"; con "ambiguous" ne servono almeno 2.'
           },
           reason: {

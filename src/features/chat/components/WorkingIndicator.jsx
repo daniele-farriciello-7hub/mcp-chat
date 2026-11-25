@@ -18,6 +18,7 @@ import {
   Download,
   FileSearch,
   FileSpreadsheet,
+  FolderSearch,
   Highlighter,
   Image as ImageIcon,
   Images,
@@ -59,6 +60,8 @@ const TOOL_PHASES = {
   data: { Icon: Database, cycle: [Database, Table2, Calculator, Sigma], label: 'Faccio i conti sui dati…' },
   export: { Icon: FileSpreadsheet, cycle: [FileSpreadsheet, Table2, Download], label: 'Preparo il file…' },
   file: { Icon: ImageIcon, cycle: [Search, ImageIcon, Download], label: 'Cerco il file…' },
+  // search_archive: looking for a file among the archive-only ones
+  archive: { Icon: FolderSearch, cycle: [FolderSearch, Search, FileSearch], label: "Cerco nell'archivio…" },
   // clarification: the assistant is putting choices on screen (ask_options, offer_files)
   choice: {
     Icon: ListChecks,

@@ -8,7 +8,11 @@ import { canIndexNow, getIndexingBlocker } from '@/features/documents/indexabili
 import { enqueueForIndexing } from '@/features/documents/indexingQueue';
 import { useIndexingQueue } from '@/features/documents/useIndexingQueue';
 import DriveLinkButton from '@/features/drive/components/DriveLinkButton';
+import { isArchive } from '@/features/documents/archiveMode';
 import DeleteDocumentButton from './DeleteDocumentButton';
+import DocumentCategoriesEditor from './DocumentCategoriesEditor';
+import DocumentModeSwitch from './DocumentModeSwitch';
+import DocumentPills from './DocumentPills';
 import FileActionButton from './FileActionButton';
 import FileTypeIcon from './FileTypeIcon';
 import ImageDescriptionField from './ImageDescriptionField';
@@ -58,9 +62,11 @@ function ReindexButton({ document, busy }) {
 
 /**
  * An indexed document. Expanding it shows the index card exactly as the assistant sees it; for an
- * image, first the picture and its description, which the chat uses as soon as it is saved.
+ * image, first the picture and its description, which the chat uses as soon as it is saved. Mode and
+ * categories show as pills on the row and are changed in the expanded part (`categories` is the admins'
+ * list). The checkbox is for changing the mode of several at once (IndexedDocumentList).
  */
-export default function IndexedDocumentRow({ document }) {
+export default function IndexedDocumentRow({ document, categories, selected = false, onToggle }) {
   const [expanded, setExpanded] = useState(false);
   // the description changed after the card was written: offer to rewrite the card too
   const [cardOutdated, setCardOutdated] = useState(false);
@@ -70,6 +76,7 @@ export default function IndexedDocumentRow({ document }) {
   const image = isImage(document.mimeType);
   const description = document.description?.trim();
   const fromDrive = document.source === 'drive';
+  const archive = isArchive(document);
 
   const meta = [
     fromDrive && ['Google Drive', document.drivePath].filter(Boolean).join(' · '),
@@ -81,8 +88,18 @@ export default function IndexedDocumentRow({ document }) {
     .join(' · ');
 
   return (
-    <div className={expanded ? 'bg-surface/40' : ''}>
+    <div className={expanded ? 'bg-surface/40' : selected ? 'bg-brand-50/60' : ''}>
       <div className="flex items-start gap-2.5 px-3 py-2.5">
+        {onToggle && (
+          <input
+            type="checkbox"
+            checked={selected}
+            disabled={reindexing}
+            onChange={onToggle}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-brand-500 disabled:invisible"
+            aria-label={`Seleziona ${document.name}`}
+          />
+        )}
         {image ? (
           <ImageThumb document={document} className="h-10 w-10" />
         ) : (
@@ -105,6 +122,9 @@ export default function IndexedDocumentRow({ document }) {
               {fromDrive ? <Cloud size={10} /> : <Upload size={10} />}
               <span className="truncate">{meta}</span>
             </span>
+          </span>
+          <span className="mt-1 flex flex-wrap items-center gap-1">
+            <DocumentPills document={document} categories={categories} />
           </span>
           {image && (
             <span
@@ -156,14 +176,39 @@ export default function IndexedDocumentRow({ document }) {
             </CardSection>
           )}
 
+          <CardSection title="Come lo usa Vale">
+            <DocumentModeSwitch document={document} disabled={reindexing} />
+            <p className="mt-1.5 text-fs-11 leading-snug text-slate-soft">
+              {archive
+                ? 'Solo archivio: Vale lo trova e lo consegna, ma non risponde sul contenuto. Non pesa sul prompt di ogni domanda.'
+                : 'Studiato: Vale legge il file e risponde sul contenuto.'}
+            </p>
+          </CardSection>
+
+          <CardSection title="Categorie" hint="fino a 3, dall’elenco in Documenti → Categorie">
+            <DocumentCategoriesEditor key={document.id} document={document} categories={categories} />
+          </CardSection>
+
           <p className="rounded-lg bg-brand-50/60 px-2.5 py-2 text-fs-11 leading-snug text-slate-soft">
-            Questa è la <span className="font-semibold text-ink">scheda</span> che Gemini ha scritto leggendo
-            il documento. L’assistente la legge a ogni domanda per capire se il documento è pertinente, e solo
-            in quel caso apre il file completo per rispondere.
+            {card.light ? (
+              <>
+                Questa è la <span className="font-semibold text-ink">scheda breve</span> che Gemini ha scritto
+                leggendo il file: serve a ritrovarlo, cercandolo in chat. L’assistente non la legge a ogni
+                domanda e non apre mai il file per rispondere.
+              </>
+            ) : (
+              <>
+                Questa è la <span className="font-semibold text-ink">scheda</span> che Gemini ha scritto
+                leggendo il documento.{' '}
+                {archive
+                  ? 'Ora è un file di solo archivio: la scheda non va più nel prompt e serve a trovarlo.'
+                  : 'L’assistente la legge a ogni domanda per capire se il documento è pertinente, e solo in quel caso apre il file completo per rispondere.'}
+              </>
+            )}
           </p>
 
           {card.summary && (
-            <CardSection title="Di cosa parla">
+            <CardSection title={card.light ? 'Che file è' : 'Di cosa parla'}>
               <p className="text-fs-12 leading-relaxed text-ink">{card.summary}</p>
             </CardSection>
           )}

@@ -1,3 +1,4 @@
+import { DEFAULT_DOCUMENT_CATEGORIES } from '@/features/documents/categories';
 import { DEFAULT_CHAT_MODEL, DEFAULT_INDEXING_MODEL } from './models';
 
 /** Icon ids an admin can pick for a welcome shortcut, with their Italian display name. */
@@ -124,6 +125,11 @@ export const DEFAULT_SETTINGS = {
   databaseModel: '',
   indexingInstructions: DEFAULT_INDEXING_INSTRUCTIONS,
   indexingAttachments: [], // [{ name, content }] — see shared/promptAttachments.js
+  // The fixed list of document categories (Documenti → Categorie). At indexing the model picks 1–3 from it for
+  // each document, an admin can correct them by hand; the Drive indexer on the server reads the list from here
+  // too (functions/src/drive/indexCard.js, which keeps a copy of the default). Saved by the Documents tab on
+  // its own, not by the shared "Salva" bar. An empty list is the admin's choice: no categories are assigned.
+  documentCategories: DEFAULT_DOCUMENT_CATEGORIES,
   documentSelectionInstructions: DEFAULT_DOCUMENT_SELECTION_INSTRUCTIONS,
   documentSelectionAttachments: [],
   databaseInstructions: DEFAULT_DATABASE_INSTRUCTIONS,

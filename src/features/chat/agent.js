@@ -15,7 +15,9 @@
  * Besides talking, the assistant can open indexed documents (tools/readDocument.js), hand the operator
  * a file from the archive with a download button (tools/shareFile.js), query an enabled database
  * connection (tools/queryDatabase.js), and offer a CSV download of a table it put together from any
- * of the above (tools/exportExcel.js). When a request is ambiguous it shows clickable choices instead
+ * of the above (tools/exportExcel.js). The documents an admin set to "solo archivio" are not read by the
+ * assistant and not in its prompt: it finds them with tools/searchArchive.js and hands them over with the
+ * same share_file / offer_files. When a request is ambiguous it shows clickable choices instead
  * of guessing: files to pick from (tools/offerFiles.js) or answers to pick from (tools/askOptions.js).
  * It cannot yet read or write customers and applications: the instructions make it say so instead of
  * promising.
@@ -24,6 +26,7 @@ import { ThinkingLevel } from 'firebase/ai';
 import { getModel } from '@/shared/firebase/ai';
 import { isRateLimitError, isTransientError, withRetry } from '@/shared/retry';
 import { getChatCatalog } from '@/features/documents/chatCatalog';
+import { splitByMode } from '@/features/documents/archiveMode';
 import { getChatSchema } from '@/features/database/chatSchema';
 import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
 import { fallbackModelFor } from '@/features/settings/models';
@@ -33,6 +36,7 @@ import { buildSystemInstruction, toModelHistory } from './systemPrompt';
 import { READ_DOCUMENT_TOOL } from './tools/readDocument';
 import { SHARE_FILE_TOOL } from './tools/shareFile';
 import { OFFER_FILES_TOOL, OFFER_FILES_TOOL_NAME } from './tools/offerFiles';
+import { searchArchiveTool } from './tools/searchArchive';
 import { ASK_OPTIONS_TOOL, ASK_OPTIONS_TOOL_NAME } from './tools/askOptions';
 import { QUERY_DATABASE_TOOL, QUERY_DATABASE_TOOL_NAME } from './tools/queryDatabase';
 import { DESCRIBE_TABLE_TOOL, DESCRIBE_TABLE_TOOL_NAME } from './tools/describeTable';
@@ -113,14 +117,15 @@ export async function streamAgentReply({
     // export_excel rides along whenever there's at least one other data source to export from —
     // pointless (and not offered) on its own, since it never fetches anything itself.
     const hasDataSource = catalog.length > 0 || schema.length > 0;
+    // `catalog` holds every indexed document. Only the studied ones can be read; every one can be handed
+    // over, and the archive-only ones are found with search_archive (they are not in the system prompt)
+    const { studied, archive } = splitByMode(catalog);
     const toolDeclarations = [
+      ...(studied.length ? READ_DOCUMENT_TOOL.functionDeclarations : []),
       ...(catalog.length
-        ? [
-            ...READ_DOCUMENT_TOOL.functionDeclarations,
-            ...SHARE_FILE_TOOL.functionDeclarations,
-            ...OFFER_FILES_TOOL.functionDeclarations
-          ]
+        ? [...SHARE_FILE_TOOL.functionDeclarations, ...OFFER_FILES_TOOL.functionDeclarations]
         : []),
+      ...(archive.length ? searchArchiveTool(settings.documentCategories).functionDeclarations : []),
       ...(schema.length
         ? [
             ...QUERY_DATABASE_TOOL.functionDeclarations,
@@ -150,6 +155,7 @@ export async function streamAgentReply({
           catalog,
           documentSelection: settings.documentSelectionInstructions,
           documentSelectionAttachments: settings.documentSelectionAttachments,
+          documentCategories: settings.documentCategories,
           schema,
           databaseInstructions: settings.databaseInstructions,
           databaseSelection: settings.databaseSelectionInstructions,
@@ -275,6 +281,7 @@ export async function streamAgentReply({
       if (!calls?.length) break;
       message = await runToolCalls(calls, {
         catalog,
+        categories: settings.documentCategories,
         schema,
         round,
         isAdmin,

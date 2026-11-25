@@ -99,6 +99,14 @@ export default function SettingsPanel({ tab = 'model', subsection, onTabChange, 
     setSaveState(null);
   };
 
+  // The Documents tab saves the category list by itself, straight to Firestore. This panel's copy must follow,
+  // in the edited settings and in the saved snapshot alike: otherwise the next "Salva" on another tab would
+  // write the old list back, and the tab would look as if it had unsaved changes.
+  const categoriesSaved = documentCategories => {
+    setSettings(current => ({ ...current, documentCategories }));
+    setSavedSnapshot(snapshot => JSON.stringify({ ...JSON.parse(snapshot), documentCategories }));
+  };
+
   const save = async () => {
     setSaveState('saving');
     try {
@@ -143,6 +151,8 @@ export default function SettingsPanel({ tab = 'model', subsection, onTabChange, 
           )}
           {activeTab === 'documents' && (
             <DocumentsTab
+              categories={settings.documentCategories}
+              onCategoriesSaved={categoriesSaved}
               // beside the sidebar the subsections are the views; the same instance stays up while they change
               {...(inSidebar && {
                 view: DOCUMENT_VIEW_OF_SUBSECTION[activeSubsection],
@@ -170,7 +180,11 @@ export default function SettingsPanel({ tab = 'model', subsection, onTabChange, 
           <div className="mt-8 border-t border-line pt-4">
             <ResetToDefaults
               onReset={() => {
-                setSettings(DEFAULT_SETTINGS);
+                // the category list is kept: the documents carry its names, and it is saved on its own (Documenti)
+                setSettings(current => ({
+                  ...DEFAULT_SETTINGS,
+                  documentCategories: current.documentCategories
+                }));
                 setSaveState(null);
               }}
             />

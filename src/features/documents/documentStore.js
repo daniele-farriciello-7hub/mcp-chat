@@ -12,11 +12,15 @@ import {
   onSnapshot,
   serverTimestamp,
   setDoc,
-  updateDoc
+  updateDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { auth, storage } from '@/shared/firebase/app';
+import { auth, db, storage } from '@/shared/firebase/app';
 import { INDEXING_STATUS, documentRef, documentsCollection, storageFolder } from './schema';
+import { DOCUMENT_MODE } from './archiveMode';
+import { pickCategories } from './categories';
+import { foldText } from './textMatch';
 import {
   INDEXABLE_MIME_TYPES,
   MAX_FILE_SIZE_BYTES,
@@ -55,8 +59,11 @@ export class DuplicateNameError extends Error {
  * Uploads a file. With `replace`, an existing document with the same name is overwritten: same
  * entry, new bytes, and its index card is dropped so it gets indexed again — otherwise the chat
  * would keep answering from the old version's summary.
+ *
+ * `mode` is how the assistant will use it (archiveMode.js): studied unless said otherwise. A replaced
+ * document keeps the mode it had, unless one is given, and its categories (an admin's own too).
  */
-export async function uploadDocument(file, { replace = false } = {}) {
+export async function uploadDocument(file, { replace = false, mode } = {}) {
   if (file.size > MAX_FILE_SIZE_BYTES) throw new Error('Supera i 20 MB.');
   const mimeType = mimeTypeOf(file);
   if (!INDEXABLE_MIME_TYPES.has(mimeType) || mimeType.startsWith('application/vnd.google-apps')) {
@@ -103,6 +110,10 @@ export async function uploadDocument(file, { replace = false } = {}) {
     error: null,
     // a replaced image is still the same logo: its description stays
     description: existing?.description ?? '',
+    mode: mode ?? existing?.mode ?? DOCUMENT_MODE.studied,
+    // a replaced file is the same document: its categories stay until indexing picks again (never over an admin's)
+    categories: existing?.categories ?? [],
+    categoriesManual: existing?.categoriesManual === true,
     createdAt: serverTimestamp(),
     uploadedBy: currentUserEmail()
   });
@@ -117,6 +128,56 @@ export async function uploadDocument(file, { replace = false } = {}) {
 export async function updateDocumentDescription(id, description) {
   await updateDoc(documentRef(id), { description: description.trim() });
   invalidateChatCatalog();
+}
+
+/**
+ * Sets the categories of a document by hand, from the admins' list: indexing leaves them alone from then on
+ * (`categoriesManual`, categories.js). Works on Drive documents too: the sync never writes these fields.
+ */
+export async function setDocumentCategories(id, categories, allowed) {
+  await updateDoc(documentRef(id), {
+    categories: pickCategories(categories, allowed),
+    categoriesManual: true
+  });
+  invalidateChatCatalog();
+}
+
+/** Gives the choice of categories back to indexing: the next one picks them again (`categoriesManual` off). */
+export async function releaseDocumentCategories(id) {
+  await updateDoc(documentRef(id), { categoriesManual: false });
+}
+
+/** Writes only `categories` of a document, as the model chose them: what "Classifica tutti" does. Never touches `categoriesManual`. */
+export async function setDocumentCategoriesFromAi(id, categories, allowed) {
+  await updateDoc(documentRef(id), { categories: pickCategories(categories, allowed) });
+  invalidateChatCatalog();
+}
+
+const BATCH_SIZE = 400; // Firestore allows 500 writes per batch
+
+/**
+ * A category was renamed in the list: the documents that carry the old name get the new one (written as the
+ * list spells it), so renaming does not make them lose it. `categoriesManual` is not touched. Resolves to how
+ * many documents were updated.
+ */
+export async function renameCategoryOnDocuments(documents, from, to) {
+  const key = foldText(from);
+  const changes = [];
+  for (const document of documents) {
+    const own = Array.isArray(document.categories) ? document.categories : [];
+    if (!own.some(name => foldText(name) === key)) continue;
+    const renamed = [...new Set(own.map(name => (foldText(name) === key ? to : name)))];
+    changes.push({ id: document.id, categories: renamed });
+  }
+  for (let start = 0; start < changes.length; start += BATCH_SIZE) {
+    const batch = writeBatch(db);
+    for (const { id, categories } of changes.slice(start, start + BATCH_SIZE)) {
+      batch.update(documentRef(id), { categories });
+    }
+    await batch.commit();
+  }
+  if (changes.length) invalidateChatCatalog();
+  return changes.length;
 }
 
 /** Removes a document from the catalog: its Firestore entry and its Storage copy. Not one from Drive. */

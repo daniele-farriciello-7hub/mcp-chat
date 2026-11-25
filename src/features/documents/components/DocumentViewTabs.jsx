@@ -1,7 +1,7 @@
-import { Cloud } from 'lucide-react';
+import { Cloud, Tags } from 'lucide-react';
 
 export default function DocumentViewTabs({ activeView, onChange, totals }) {
-  // the Drive view lists sources, not documents: it has no count
+  // the Drive view lists sources and the categories view the list of names, not documents: no count
   const views = [
     { id: 'pending', name: 'Da indicizzare', count: totals.pending },
     { id: 'failed', name: 'Con errore', count: totals.failed, alert: totals.failed > 0 },
@@ -12,7 +12,8 @@ export default function DocumentViewTabs({ activeView, onChange, totals }) {
       count: null,
       icon: Cloud,
       size: 'gap-1.5 text-[length:calc(12.5px*var(--fs-scale,1))] leading-[calc(16.5px*var(--fs-scale,1))]'
-    }
+    },
+    { id: 'categories', name: 'Categorie', count: null, icon: Tags }
   ];
 
   return (

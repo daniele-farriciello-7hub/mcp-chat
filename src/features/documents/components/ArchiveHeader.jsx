@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Upload } from 'lucide-react';
 import Button from '@/shared/ui/Button';
 import HowIndexingWorks from './HowIndexingWorks';
+import UploadModeChoice from './UploadModeChoice';
 
 const ACCEPTED_FILES =
   '.pdf,.txt,.csv,.md,.png,.jpg,.jpeg,.webp,.gif,.svg,' +
@@ -27,7 +28,15 @@ function Stat({ value, label, tone = 'neutral', active, onClick }) {
 }
 
 /** What the archive holds at a glance, the one action that always works (uploading) and how it all works. */
-export default function ArchiveHeader({ totals, activeView, onSelectView, onUpload, uploading }) {
+export default function ArchiveHeader({
+  totals,
+  activeView,
+  onSelectView,
+  onUpload,
+  uploading,
+  uploadMode,
+  onUploadModeChange
+}) {
   const fileInputRef = useRef(null);
 
   return (
@@ -36,7 +45,8 @@ export default function ArchiveHeader({ totals, activeView, onSelectView, onUplo
         <div className="min-w-0">
           <h3 className="text-fs-13 font-bold text-ink">Archivio documenti</h3>
           <p className="mt-0.5 text-fs-11 leading-snug text-slate-soft">
-            Quello che l’assistente può consultare e mostrarti quando risponde.
+            Quello che l’assistente può consultare e mostrarti quando risponde. Scegli come usa i file che
+            carichi.
           </p>
         </div>
         <Button
@@ -59,11 +69,13 @@ export default function ArchiveHeader({ totals, activeView, onSelectView, onUplo
           accept={ACCEPTED_FILES}
           className="hidden"
           onChange={e => {
-            if (e.target.files?.length) onUpload(e.target.files);
+            if (e.target.files?.length) onUpload(e.target.files, { mode: uploadMode });
             e.target.value = '';
           }}
         />
       </div>
+
+      <UploadModeChoice value={uploadMode} onChange={onUploadModeChange} />
 
       <div className="mt-3 flex gap-2">
         <Stat

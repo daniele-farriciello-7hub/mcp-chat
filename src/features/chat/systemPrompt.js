@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
 import { isImage } from '@/features/documents/fileTypes';
+import { splitByMode } from '@/features/documents/archiveMode';
 import { attachmentsBlock } from '@/shared/promptAttachments';
 import { disabledHostTools } from './tools/hostTools';
 
@@ -59,28 +60,57 @@ Se le parole dell'operatore corrispondono solo più o meno (un refuso, un nome p
 Se più file corrispondono davvero e la richiesta non dice quale, non tirare a indovinare e non chiamare share_file più volte: usa offer_files, come spiegato nelle regole sui chiarimenti. Chiama share_file più volte solo se l'operatore chiede esplicitamente tutti i file ("mandameli tutti", "tutte e due le versioni"), al massimo 4, e di' in una riga quale è quale. Se non c'è nessun file pertinente, dillo: non inventare un id.
 Le voci marcate [immagine] sono immagini: la loro descrizione è scritta dall'operatore e fa fede su cosa raffigurano. read_document serve a guardare il contenuto di un file per rispondere, non a consegnarlo.`;
 
-/** Indexed documents, one line each, so the model can decide what to open. */
-function catalogBlock(catalog, documentSelection, documentSelectionAttachments) {
+/**
+ * The rules for the files that are only archived (`mode: 'archive'`, documents/archiveMode.js). Like
+ * FILE_SHARING_RULES it is not editable: it describes tools the app adds on its own (`search_archive`) and a
+ * limit the admins chose per document, so it has to be there whatever the admin saved. Only added when the
+ * archive has such files.
+ */
+const ARCHIVE_RULES = `Regole per i file di solo archivio:
+- Non sono nell'elenco qui sopra, per non appesantirlo: si trovano con search_archive (qualche parola del nome o dell'argomento e, se serve, la categoria). Prima di dire che un file non esiste, cercalo con search_archive.
+- Servono solo a essere trovati e consegnati. Non rispondere mai a domande sul loro contenuto — nemmeno se dal nome o dalla descrizione credi di saperlo — e non provare ad aprirli con read_document (viene rifiutato). Se l'operatore chiede cosa c'è scritto in uno di questi file, di' in una riga che il file è disponibile per il download e che non lo studi, e offrilo con offer_files o share_file.
+- Per consegnarne uno valgono le regole sui file: un solo risultato che corrisponde chiaramente → share_file; più candidati o una corrispondenza approssimativa → offer_files.
+- Per "che moduli ci sono per il mutuo?" e richieste simili chiama search_archive con la categoria giusta e mostra i risultati con offer_files, così l'operatore ha i pulsanti per scaricarli. offer_files ne mostra al massimo 6: se i risultati sono di più, di' quanti sono e invita a restringere.`;
+
+/** The one line that says an archive of files exists, how many and how to search it, then the rules. */
+const archiveBlock = (count, categories) =>
+  [
+    `File di solo archivio: ${count} (moduli, contratti, loghi…), non elencati qui sopra. Per cercarli usa search_archive` +
+      (categories?.length ? `; categorie: ${categories.join(', ')}.` : '.'),
+    ARCHIVE_RULES
+  ].join('\n');
+
+/**
+ * Indexed documents, one line each, so the model can decide what to open. Only the studied ones: the archive
+ * files are not listed, only counted (`archiveBlock`) and found with `search_archive`, which is what keeps this
+ * list, sent with every message, from growing with every form and logo.
+ */
+function catalogBlock(catalog, documentSelection, documentSelectionAttachments, categories) {
   if (!catalog.length) return "Archivio documentale: per ora non c'e' ancora nessun documento indicizzato.";
-  const lines = catalog
+  const { studied, archive } = splitByMode(catalog);
+  const lines = studied
     .map(entry => {
       // banks and products come first: they are what tells two otherwise similar documents apart
       const banks = entry.banks?.length ? ` Istituti: ${entry.banks.join(', ')}.` : '';
       const products = entry.products?.length ? ` Prodotti: ${entry.products.join(', ')}.` : '';
+      const own = entry.categories?.length ? ` Categorie: ${entry.categories.join(', ')}.` : '';
       const topics = entry.topics?.length ? ` Argomenti: ${entry.topics.join(', ')}.` : '';
       const keywords = entry.keywords?.length ? ` Parole chiave: ${entry.keywords.join(', ')}.` : '';
       const kind = isImage(entry.mimeType) ? ' [immagine]' : '';
       // written by the operator: stated before the card, which Gemini wrote from the file itself
       const description = entry.description ? `Descrizione dell'operatore: «${entry.description}». ` : '';
-      return `- [id: ${entry.id}] ${entry.name}${kind} — ${description}${entry.summary}${banks}${products}${topics}${keywords}`;
+      return `- [id: ${entry.id}] ${entry.name}${kind} — ${description}${entry.summary}${banks}${products}${own}${topics}${keywords}`;
     })
     .join('\n');
   return [
-    `Archivio documentale: ${catalog.length} documenti indicizzati.`,
-    lines,
-    documentSelection || DEFAULT_SETTINGS.documentSelectionInstructions,
+    studied.length
+      ? `Archivio documentale: ${studied.length} documenti indicizzati.`
+      : 'Archivio documentale: nessun documento da consultare per rispondere, solo file da consegnare (vedi sotto).',
+    studied.length ? lines : null,
+    studied.length ? documentSelection || DEFAULT_SETTINGS.documentSelectionInstructions : null,
     FILE_SHARING_RULES,
-    attachmentsBlock(documentSelectionAttachments)
+    archive.length ? archiveBlock(archive.length, categories) : null,
+    studied.length ? attachmentsBlock(documentSelectionAttachments) : null
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -169,6 +199,7 @@ export function buildSystemInstruction({
   catalog,
   documentSelection,
   documentSelectionAttachments,
+  documentCategories,
   schema,
   databaseInstructions,
   databaseSelection,
@@ -184,7 +215,7 @@ export function buildSystemInstruction({
     instructions,
     attachmentsBlock(instructionsAttachments),
     contextLine(context),
-    catalogBlock(catalog, documentSelection, documentSelectionAttachments),
+    catalogBlock(catalog, documentSelection, documentSelectionAttachments, documentCategories),
     schemaBlock(
       schema,
       databaseInstructions,

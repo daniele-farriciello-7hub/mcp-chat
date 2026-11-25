@@ -4,6 +4,11 @@
  * from the browser through Firebase AI Logic (same model setting, instructions, attachments, schema
  * and prompt: see indexCard.js), and the same fields written on the document.
  *
+ * What is written depends on the document's `mode` and categories, as in the browser: an archive document gets a
+ * short card (indexCard.js), and 1–3 categories of the admins' list are asked for unless an admin set them by
+ * hand (`categoriesManual`). Both are read from the document right before the call, so a change made while
+ * the sync was running counts.
+ *
  * Location is "global", as in the browser (src/shared/firebase/ai.js): Gemini 3.x on Vertex is only
  * served from there. The calls are made as the functions' runtime service account, which needs
  * "Vertex AI User" (DEPLOY.md).
@@ -13,7 +18,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { appRoot } from '../appContext.js';
 import { INDEXING_STATUS, documentRef } from './archive.js';
-import { INDEX_CARD_SCHEMA, cardFromAnswer, indexingPrompt, indexingSettings } from './indexCard.js';
+import { cardFromAnswer, categoryUpdate, indexingPrompt, indexingSettings, schemaFor } from './indexCard.js';
 import { PDF_MIME_TYPE } from './driveClient.js';
 import { withRetry } from './retry.js';
 
@@ -33,6 +38,9 @@ export async function loadIndexingSettings() {
 async function generateIndexCard(document, settings, signal) {
   const bucket = getStorage().bucket();
   const fileUri = `gs://${bucket.name}/${document.storagePath}`;
+  const mode = document.mode === 'archive' ? 'archive' : 'studied';
+  // a document whose categories an admin set by hand is not asked for them: they would be thrown away
+  const categories = document.categoriesManual === true ? [] : settings.categories;
   const response = await withRetry(
     () =>
       gemini().models.generateContent({
@@ -41,7 +49,7 @@ async function generateIndexCard(document, settings, signal) {
           {
             role: 'user',
             parts: [
-              { text: indexingPrompt(settings.instructions, settings.attachments, document) },
+              { text: indexingPrompt(settings.instructions, settings.attachments, document, categories) },
               { fileData: { mimeType: PDF_MIME_TYPE, fileUri } }
             ]
           }
@@ -50,7 +58,7 @@ async function generateIndexCard(document, settings, signal) {
         config: {
           temperature: 0.2,
           responseMimeType: 'application/json',
-          responseSchema: INDEX_CARD_SCHEMA,
+          responseSchema: schemaFor(mode, categories),
           abortSignal: signal
         }
       }),
@@ -65,20 +73,43 @@ async function generateIndexCard(document, settings, signal) {
   } catch {
     throw new Error('La risposta del modello non era JSON valido.');
   }
-  return cardFromAnswer(card);
+  return {
+    indexCard: cardFromAnswer(card, mode),
+    // what the model proposed and the list it chose from: `categoryUpdate` reduces one to the other
+    proposedCategories: card.categories,
+    allowedCategories: categories
+  };
 }
 
 /**
  * Writes the card on the document and marks it done. A failure is written on the document too (it then
  * shows in "Con errore", where the browser can retry it) and thrown, so the sync can count it.
- * `document` needs `{ id, name, description?, storagePath }`.
+ * `document` needs `{ id, name, description?, storagePath }`; its `mode`, `categoriesManual` and
+ * `description` are read again from the stored document, which is where an admin changes them.
  */
 export async function indexDocument(document, settings, signal) {
   const ref = documentRef(document.id);
   try {
-    const indexCard = await generateIndexCard(document, settings, signal);
+    const current = await ref.get();
+    const stored = current.exists ? current.data() : {};
+    const fresh = {
+      ...document,
+      description: stored.description ?? document.description,
+      mode: stored.mode ?? document.mode,
+      categoriesManual: stored.categoriesManual ?? document.categoriesManual
+    };
+    const { indexCard, proposedCategories, allowedCategories } = await generateIndexCard(
+      fresh,
+      settings,
+      signal
+    );
     await ref.update({
       indexCard,
+      ...categoryUpdate({
+        proposed: proposedCategories,
+        allowed: allowedCategories,
+        manual: fresh.categoriesManual
+      }),
       indexedWithModel: settings.modelId,
       indexingStatus: INDEXING_STATUS.done,
       error: null,

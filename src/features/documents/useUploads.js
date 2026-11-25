@@ -33,17 +33,18 @@ export function useUploads() {
     }
   };
 
-  const upload = async fileList => {
+  // `mode` is how the assistant will use these files (archiveMode.js); a replacement keeps the choice of its batch
+  const upload = async (fileList, { mode } = {}) => {
     const files = [...fileList];
     setBatchId(++batchCounter);
-    setUploads(files.map(file => ({ name: file.name, status: 'queued' })));
-    for (const [index, file] of files.entries()) await uploadOne(file, index, {});
+    setUploads(files.map(file => ({ name: file.name, status: 'queued', mode })));
+    for (const [index, file] of files.entries()) await uploadOne(file, index, { mode });
   };
 
   /** Re-runs one upload, overwriting the document that has the same name. */
   const replaceExisting = async index => {
     const entry = uploads[index];
-    if (entry?.file) await uploadOne(entry.file, index, { replace: true });
+    if (entry?.file) await uploadOne(entry.file, index, { replace: true, mode: entry.mode });
   };
 
   /** Replaces every duplicate in the batch, one at a time. */

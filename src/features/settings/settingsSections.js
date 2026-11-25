@@ -89,6 +89,12 @@ export const SETTINGS_TABS = [
         id: 'drive',
         name: 'Drive',
         description: 'Cartelle e PDF di Google Drive tenuti allineati con l’archivio.'
+      },
+      {
+        id: 'categorie',
+        name: 'Categorie',
+        description:
+          'L’elenco da cui Gemini sceglie le categorie dei documenti, e come assegnarle a quelli che non ne hanno.'
       }
     ]
   },

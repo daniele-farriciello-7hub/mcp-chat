@@ -8,6 +8,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/shared/firebase/app';
 import { FIRESTORE_ROOT } from '@/shared/firebase/paths';
 import { normalizeCommands } from '@/features/chat/commands/commandSettings';
+import { normalizeCategoryList } from '@/features/documents/categories';
 import { DEFAULT_SETTINGS } from './defaultSettings';
 
 const settingsDoc = () => doc(db, ...FIRESTORE_ROOT, 'config', 'settings');
@@ -44,6 +45,10 @@ function withDefaults(stored) {
     noAiCommands: normalizeCommands(stored),
     // un array vuoto e' una scelta dell'admin: i default valgono solo se il campo non c'e' proprio
     shortcuts: Array.isArray(stored.shortcuts) ? stored.shortcuts : DEFAULT_SETTINGS.shortcuts,
+    // same for the document categories: an empty list is a choice, the seed list only when the field is missing
+    documentCategories: Array.isArray(stored.documentCategories)
+      ? normalizeCategoryList(stored.documentCategories)
+      : DEFAULT_SETTINGS.documentCategories,
     ...attachmentFields
   };
   // the old field was converted above: it does not travel on, so a save never writes it back

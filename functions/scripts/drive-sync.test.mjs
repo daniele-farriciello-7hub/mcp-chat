@@ -21,6 +21,7 @@ import { PRODUCTION_APP, DEVELOPMENT_APP, forApp } from '../src/appContext.js';
 import { channelToken, verifyChannelToken } from '../src/drive/channels.js';
 import {
   DEFAULT_CHAT_MODEL,
+  DEFAULT_DOCUMENT_CATEGORIES,
   DEFAULT_INDEXING_INSTRUCTIONS,
   DEFAULT_INDEXING_MODEL,
   INDEX_CARD_SCHEMA,
@@ -412,7 +413,8 @@ test('settings are completed with the defaults like the browser does', () => {
   assert.deepEqual(indexingSettings({}), {
     modelId: DEFAULT_INDEXING_MODEL,
     instructions: DEFAULT_INDEXING_INSTRUCTIONS,
-    attachments: []
+    attachments: [],
+    categories: DEFAULT_DOCUMENT_CATEGORIES
   });
   // an empty indexing model means "the chat model"
   assert.equal(indexingSettings({ indexingModel: '', chatModel: 'gemini-x' }).modelId, 'gemini-x');

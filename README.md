@@ -61,7 +61,7 @@ src/
     history/               conversation history client, Storico tab (admin)
     shortcuts/             personal shortcuts and their admin views
     navigation/            the sidebar of both pages: frame (rail, drawer), entries, account menu — see "Sidebar" below
-    documents/             archive schema, store, indexing + background queue, chat catalog, Documents tab
+    documents/             archive schema, store, indexing + background queue, modes and categories, archive search, chat catalog, Documents tab
     database/              db connections schema/store, schema scan, card drafting, chat schema, Database tab
     drive/                 Google Drive sources: the "Drive" view of the Documents tab, `drive` function client
     settings/              settings store and defaults, model list, settings panel
@@ -83,7 +83,7 @@ functions/
     db/                    MariaDB/MySQL pool, schema introspection, SQL validation, credential encryption, xlsx
     drive/                 Google Drive → archive sync: Drive client, listing, change plan, notification
                            channels, server-side indexing, source store, scheduler tick
-  scripts/                 tests, smoke test, response inspection, schema migration
+  scripts/                 tests (also of browser modules from src/, loaded through support/src-alias.mjs), smoke test, response inspection, schema migration
 ```
 
 ## Conventions
@@ -112,10 +112,10 @@ Shown for production; development has the same layout under `apps/assistente-7hu
 `Storage assistente-7hub-development/` (DEPLOY.md).
 
 ```
-apps/assistente-7hub/documents/{id}       document metadata, source (upload|drive), indexingStatus (pending|done|failed), indexCard, description (images); drive* fields for Drive files
+apps/assistente-7hub/documents/{id}       document metadata, source (upload|drive), indexingStatus (pending|done|failed), indexCard, description (images), mode (studied|archive), categories, categoriesManual; drive* fields for Drive files
 apps/assistente-7hub/driveSources/{id}    a linked Drive folder or PDF: frequency, next/last run and result, lease, webhook state — server only
   /channels/{id}                          its Drive notification channels
-apps/assistente-7hub/config/settings      chatModel, indexingModel, instructions, historyLimit, shortcuts, noAiCommands…
+apps/assistente-7hub/config/settings      chatModel, indexingModel, instructions, documentCategories, historyLimit, shortcuts, noAiCommands…
 apps/assistente-7hub/dbConnections/{id}   database connection config (host, port, user…), never the password
   /tables/{t}                             per table: columns, keys, enabled, card { summary, columns }
 apps/assistente-7hub/dbSecrets/{id}       encrypted database password
@@ -289,7 +289,8 @@ Outgoing messages also carry the legacy Italian `tipo` key, and legacy incoming 
 ## Chat and documents
 
 - The chat model, instructions, temperature and history limit come from settings (admin panel).
-- On every message the assistant receives the list of indexed documents (name + index card) and can call
+- On every message the assistant receives the list of indexed documents to study (name + index card + categories;
+  the archive-only ones are not in it, see "Studied documents and archive files" below) and can call
   `read_document` to open one in full; the file goes back to Gemini as `fileData` inside the
   `functionResponse`.
 - Indexing runs in the browser with the **indexing model** chosen in settings and no output token limit, in
@@ -332,6 +333,72 @@ Outgoing messages also carry the legacy Italian `tipo` key, and legacy incoming 
   catalog directly: editing it on an indexed image needs no re-index (`updateDocumentDescription` only drops
   the cached catalog), the "Aggiorna anche la scheda" button is there for when the card should follow.
 
+### Studied documents and archive files
+
+Every document is one of two kinds (`mode` on the document, `features/documents/archiveMode.js`; a document
+without it is a studied one, so everything uploaded before keeps working):
+
+|                      | **Studia** (`studied`)                                        | **Solo archivio** (`archive`)                                                                       |
+| -------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| What Vale does       | reads the file and answers about its content                  | recognises the file and hands it over, never answers about its content                              |
+| Index card           | full: summary, institutes, products, topics, keywords         | short (`indexCard.light`): 1–2 sentences, 5–10 keywords, institutes and products only if obvious    |
+| Instructions         | the admin's (Configurazione → Modello IA → Uso dei documenti) | a dedicated short prompt, fixed in the code (no admin text, no attached guides)                     |
+| In the system prompt | one line per document, on every turn                          | **never**: one line says that N archive files exist and how to search them                          |
+| `read_document`      | opens the file                                                | refuses, with a message telling the model to say the file is available for download and to offer it |
+| Found with           | the list in the prompt                                        | `search_archive`, then `offer_files` / `share_file`                                                 |
+
+- **Choosing the mode.** Before uploading, the Documents tab asks "Studia" or "Solo archivio" (default: Studia);
+  the choice applies to the files picked next. It is changed later per document: on the row of a file not yet
+  indexed, in the open card of an indexed one, or on several at once (checkboxes + "Studia" / "Solo archivio"
+  in the Indicizzati list). Studied → archive only changes the mode (the full card is more than the short one
+  needs). Archive → studied on a document that has only the short card drops it to "pending" and queues the
+  full card (`documentMode.js`); until it is written the chat does not read it.
+- **Drive documents** are studied by default and changed the same way, from the browser. This is a plain
+  `updateDoc` of `mode`, `categories` and `categoriesManual`: the Drive sync (`functions/src/drive/syncSource.js`)
+  updates only the fields it names, so it never writes or clears them (a test in
+  `functions/scripts/archive-indexer.test.mjs` covers the server indexer; the browser already updates Drive
+  documents, to retry a failed card). No new action of the `drive` function was needed. When the sync does
+  re-index a Drive document (content changed, "Reindicizza tutto"), the server reads the stored `mode` and
+  `categoriesManual` right before the call and writes the right card.
+- **The rule for the model** (`ARCHIVE_RULES` in `chat/systemPrompt.js`, not editable like `FILE_SHARING_RULES`):
+  archive files are for finding and delivering; never answer about their content, say the file is available
+  and offer it.
+- **Chat plumbing**: `getChatCatalog` returns every indexed document with its `mode` and visible categories;
+  `buildSystemInstruction` lists only the studied ones (`catalogBlock`), `agent.js` offers `read_document`
+  only when there are studied documents and `search_archive` only when there are archive files, and passes the
+  whole catalog to `share_file` / `offer_files`, which therefore accept archive ids.
+
+### Categories
+
+A fixed list of names kept by the admins, `documentCategories` in the settings (Configurazione → Documenti →
+**Categorie**: add, rename, remove, reorder; every change is saved at once, like the rest of the Documents
+tab). Seed: Mutuo, Cessione del quinto, Prestito, Policy banca, Modulistica, Contratti, Procedure interne,
+Marketing. `features/documents/categories.js` is the single place that decides what a category is.
+
+- **Assignment**: at indexing (both kinds, uploads in the browser and Drive on the server) Gemini picks 1–3
+  categories **from the list only**: the schema's `enum`, the prompt and, last, `pickCategories` (which drops any
+  name not in the list, spelled as in the list) all enforce it. Stored as `categories` on the document.
+  `functions/src/drive/indexCard.js` keeps copies (`pickCategories`, `categoryUpdate`, the schema pieces, the
+  default list); `functions/scripts/archive-categories.test.mjs` runs both over the same cases and compares the
+  source text of the pieces that are prompt or schema.
+- **Manual corrections**: in the open card of an indexed document the admin switches categories on and off
+  (at most 3). That writes `categoriesManual: true`: from then on indexing neither asks for nor writes
+  `categories` on that document (`categoryUpdate`). "Lascia scegliere a Gemini" gives it back.
+- **"Classifica"** (`classifyCategories.js`, buttons in Categorie and above the Indicizzati list): for indexed
+  documents with no category left in the list and not set by hand it makes one short call per document (3 at a
+  time) with the indexing model, from the card already written (no file is read), and writes **only**
+  `categories`. It runs in the browser for uploaded and Drive documents alike, which is why no server action is
+  needed: the sync never touches that field. Above the Indicizzati list it works on what the filters show, so a
+  few documents can be classified without touching the rest (type part of the name first).
+- **Removing a category** from the list leaves the name written on the documents but unseen: the panel, the
+  filters, the chat and the search all go through `visibleCategories`, and "Classifica" counts such a document
+  as having none. Putting the name back brings it back. **Renaming** is different: the documents that carry the
+  old name are updated to the new one (`renameCategoryOnDocuments`).
+- **Where they show**: pills on every indexed row, a category filter and a mode filter (Studiati / Archivio /
+  Tutti) next to the name filter on every list, `Categorie: …` on the catalog line of a studied document, the
+  `category` argument of `search_archive`. Permissions or profiles by category are not part of this: the field
+  is just kept clean for that.
+
 ## Google Drive sync
 
 Documents → **Drive** links Drive folders (sub-folders included) and single PDFs to the archive. The server
@@ -352,6 +419,9 @@ polling it.
   the server with Gemini on Vertex, with the same model, instructions, attachments, schema and prompt as the
   browser (`functions/src/drive/indexCard.js` is a copy of `features/documents/indexing.js`: keep them
   identical; a test fails if they drift) and the same fields on the document.
+- **Mode and categories** of a Drive document (studied / archive only, categories and their manual flag) are set
+  from the browser and survive every sync: the run updates only the fields it names. See "Studied documents and
+  archive files" above.
 - **Removal**: a file deleted from Drive, or no longer inside any linked source, leaves the archive (Firestore
   entry and Storage file) at the next run, and the chat catalog follows. A file reachable from two sources is
   one document (`driveSourceIds`) and goes only when none holds it. A source that cannot be read in full (a
@@ -391,17 +461,18 @@ The model never calls an API itself: it returns a `functionCall` (name + JSON ar
 runs the matching handler in `chat/tools/`, and the result goes back as a `functionResponse`, up to the
 "giri" limit in settings.
 
-| Tool              | What it does                                                                                  |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| `read_document`   | opens an indexed document in full                                                             |
-| `share_file`      | shows an archive file (logo, image, PDF…) with a preview and a "Scarica" button               |
-| `offer_files`     | thumbnails of 1–6 archive files to pick from, when several match or none matches exactly      |
-| `ask_options`     | 2–5 clickable answers to an ambiguous question — see "Clarifying questions" below             |
-| `describe_table`  | columns and card of one enabled table                                                         |
-| `query_database`  | one read-only `SELECT`, rows go back to the model (capped by the admin)                       |
-| `export_database` | the model writes the query; the server builds the .xlsx on click, up to the admin's row limit |
-| `export_excel`    | a table the model already has (e.g. from documents) as .xlsx                                  |
-| `show_chart`      | a chart drawn by the app — see below                                                          |
+| Tool              | What it does                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `read_document`   | opens an indexed document in full                                                                                  |
+| `search_archive`  | finds files of the archive (solo archivio) by words and category: up to 10, with id, name, description, categories |
+| `share_file`      | shows an archive file (logo, image, PDF…) with a preview and a "Scarica" button                                    |
+| `offer_files`     | thumbnails of 1–6 archive files to pick from, when several match or none matches exactly                           |
+| `ask_options`     | 2–5 clickable answers to an ambiguous question — see "Clarifying questions" below                                  |
+| `describe_table`  | columns and card of one enabled table                                                                              |
+| `query_database`  | one read-only `SELECT`, rows go back to the model (capped by the admin)                                            |
+| `export_database` | the model writes the query; the server builds the .xlsx on click, up to the admin's row limit                      |
+| `export_excel`    | a table the model already has (e.g. from documents) as .xlsx                                                       |
+| `show_chart`      | a chart drawn by the app — see below                                                                               |
 
 Every tool shows the operator an activity card in plain language ("Sto leggendo…", "Dati letti", "File
 pronto"), never the tool name or its arguments; admins also see the SQL that ran. A tool that fails still
@@ -411,17 +482,40 @@ può aprire documenti o interrogare il database" (default 6 giri).
 
 ### `read_document` — open a document
 
-- The model always receives the list of indexed documents with their index cards; it opens one in full only
-  when the card is not enough.
+- The model always receives the list of indexed **studied** documents with their index cards; it opens one in
+  full only when the card is not enough. An archive file (`mode: 'archive'`) is refused: the answer says it can
+  be offered or delivered but is not read to answer, and tells the model to say so in a line and offer it. The
+  check is made on the cached catalog and again on the stored document (so a file switched to archive a
+  minute ago is refused too).
 - The file goes back to Gemini as `fileData` inside the `functionResponse`: the model reads the original
   (PDF, Word…), not an extracted text. Only ids from the list are accepted.
 - The same document opened twice in one answer shows one card. No admin limit: the cost is the document size.
 
+### `search_archive` — find an archive file
+
+- The archive files are not in the system prompt (only their count, and how to search). `{ query, category? }`:
+  free text and/or a category of the admins' list (the argument is an enum of it). Runs in the browser over the
+  catalog the chat already loaded (`documents/searchArchive.js`): text folded for capitals, accents and
+  punctuation, filler words dropped, a crude Italian stem ("mutuo" finds "mutui"), then a score per query word by
+  where it is found — file name 5, keywords / categories / institutes / products 3, description and card text
+  1 — plus a bonus when every word is found and one when the words appear in a row in the name. No embeddings,
+  no server. It answers `{ ok, total, shown, files: [{ id, name, description, categories }], note }`, at most 10
+  files, best first. `query` may be empty with a category, which lists the category; an unknown category is
+  answered with the list.
+- **Archive files only.** Studied documents are already in the prompt, with their ids, and `share_file` takes
+  them from there: searching them too would only add noise to a "che moduli ci sono per il mutuo?" listing.
+- The model then hands the files over with `offer_files` (several candidates, or a listing: the tool
+  description says so for "che moduli ci sono per il mutuo?") or `share_file` (one clear match). Both validate
+  against the whole catalog, so they accept archive ids. `offer_files` shows 6 at most: past that the model says
+  how many there are and asks to narrow down (`note` tells it).
+- Activity rows, in plain Italian: "Cerco nell'archivio", then "N file trovati" / "Nessun file trovato".
+
 ### `share_file` — hand over a file
 
-- For "mi dai il logo di WeUnit": the model finds the file in the catalog by name, description and index card
-  and calls `share_file` with its id; the operator gets a card with the image (or the file name) and a
-  **Scarica** button. Any archive document works, not only images. Only ids from the catalog are accepted;
+- For "mi dai il logo di WeUnit": the model finds the file in the catalog (or, for an archive file, with
+  `search_archive`) by name, description and index card and calls `share_file` with its id; the operator gets a card with the image (or the file name) and a
+  **Scarica** button. Any archive document works, not only images, and archive-only ones too. Only ids from the
+  catalog are accepted;
   when several match the model uses `offer_files` instead of stacking cards (several `share_file` only if the
   operator asks for all of them, at most 4). `share_file` is called directly only when the request clearly names
   the file; an approximate match goes through `offer_files` with `no_exact_match`.

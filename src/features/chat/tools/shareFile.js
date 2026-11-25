@@ -3,7 +3,9 @@
  * asked for — as a card with a preview (for images) and a "Scarica" button, instead of the model
  * describing it. Nothing is sent back to the model but a confirmation: the card is drawn by the app
  * (`components/SharedFileCard.jsx`) from the document id alone, which is why it also comes back after a
- * reload. The model opens a file to *read* it with `read_document`; this one is for *giving* it.
+ * reload. The model opens a file to *read* it with `read_document`; this one is for *giving* it. Any file
+ * of the archive can be given, archive-only ones included (found with `search_archive`): the id is checked
+ * against the whole catalog (documents/chatCatalog.js), not only against the studied documents.
  */
 import { getDocumentUrlById } from '@/features/documents/documentStore';
 
@@ -18,12 +20,15 @@ export const SHARE_FILE_TOOL = {
         'pulsante per scaricarlo. Usalo quando chiede di avere, vedere o scaricare un file ("mi dai il logo di ' +
         '…", "mandami il PDF di …"): non descriverlo a parole al posto di mostrarlo e non scrivere mai un link. ' +
         "Una chiamata per file. Usa solo un id che compare nell'elenco dei documenti indicizzati ricevuto " +
-        "nell'istruzione di sistema: non inventarne uno. Dopo averlo chiamato di' in una riga cosa hai mostrato: " +
-        'il pulsante compare da solo sopra alla risposta.',
+        "nell'istruzione di sistema o fra i risultati di search_archive: non inventarne uno. Dopo averlo " +
+        "chiamato di' in una riga cosa hai mostrato: il pulsante compare da solo sopra alla risposta.",
       parameters: {
         type: 'object',
         properties: {
-          id: { type: 'string', description: "L'id del file da mostrare, preso dall'elenco." }
+          id: {
+            type: 'string',
+            description: "L'id del file da mostrare, preso dall'elenco o dai risultati di search_archive."
+          }
         },
         required: ['id']
       }

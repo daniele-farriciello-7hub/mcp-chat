@@ -5,17 +5,17 @@ const STEPS = [
   {
     icon: Upload,
     title: 'Carica',
-    text: 'PDF, TXT, CSV, Markdown o immagini (PNG, JPG, WebP, GIF, SVG) fino a 20 MB. Il file entra nell’archivio, ma l’assistente non lo vede ancora. Ogni immagine vuole una breve descrizione, obbligatoria: dice cosa mostra e serve a ritrovarla. In alternativa collega una cartella o un PDF di Google Drive (scheda Drive): i PDF si scaricano da soli, anche quando cambiano.'
+    text: 'PDF, TXT, CSV, Markdown o immagini (PNG, JPG, WebP, GIF, SVG) fino a 20 MB. Prima scegli come li usa Vale: “Studia” (legge il file e risponde sul contenuto) o “Solo archivio” (lo riconosce e lo consegna, ma non risponde sul contenuto: moduli, contratti, loghi). Si cambia poi riga per riga. Il file entra nell’archivio, ma l’assistente non lo vede ancora. Ogni immagine vuole una breve descrizione, obbligatoria: dice cosa mostra e serve a ritrovarla. In alternativa collega una cartella o un PDF di Google Drive (scheda Drive): i PDF si scaricano da soli, anche quando cambiano.'
   },
   {
     icon: Sparkles,
     title: 'Indicizza',
-    text: 'Gemini legge tutto il documento e scrive una scheda: sintesi, argomenti e parole chiave. Un’immagine senza descrizione non si indicizza: la scheda parte da quello che hai scritto. I file di Drive li indicizza il server subito dopo averli scaricati, senza che tu faccia nulla.'
+    text: 'Gemini legge tutto il documento e scrive una scheda: sintesi, argomenti e parole chiave; per un file di solo archivio una scheda breve. In entrambi i casi sceglie fino a 3 categorie dall’elenco (scheda Categorie). Un’immagine senza descrizione non si indicizza: la scheda parte da quello che hai scritto. I file di Drive li indicizza il server subito dopo averli scaricati, senza che tu faccia nulla.'
   },
   {
     icon: MessageSquareText,
     title: 'Usa in chat',
-    text: 'L’assistente vede le schede di tutti i documenti e apre quello giusto quando serve per rispondere. Se chiedi un file o un logo, te lo mostra con il pulsante per scaricarlo.'
+    text: 'L’assistente vede le schede dei documenti studiati e apre quello giusto quando serve per rispondere. I file di solo archivio non pesano su ogni domanda: li cerca solo quando glieli chiedi (“mandami il modulo privacy”, “che moduli ci sono per il mutuo?”) e te li mostra con il pulsante per scaricarli. Se chiedi un file o un logo, te lo mostra allo stesso modo.'
   }
 ];
 

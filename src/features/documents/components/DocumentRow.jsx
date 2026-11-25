@@ -7,6 +7,7 @@ import { isImage } from '@/features/documents/fileTypes';
 import { INDEXING_STATUS } from '@/features/documents/schema';
 import DriveLinkButton from '@/features/drive/components/DriveLinkButton';
 import DeleteDocumentButton from './DeleteDocumentButton';
+import DocumentModeSwitch from './DocumentModeSwitch';
 import FileActionButton from './FileActionButton';
 import FileTypeIcon from './FileTypeIcon';
 import ImageDescriptionField from './ImageDescriptionField';
@@ -48,6 +49,7 @@ function StatusLine({ document, phase, blocker }) {
  * A document not yet indexed. `phase` is set while the queue works on it. Images show a preview and
  * their description field right on the row: it is mandatory, and the field itself says so while it is
  * empty, so the row only reports problems with the file. `onDescriptionText(id, text)` follows the field.
+ * The mode (studied / archive only) is chosen at upload and can be changed here, before it is indexed.
  */
 export default function DocumentRow({ document, selected, onToggle, phase, onDescriptionText }) {
   const blocker = getFileBlocker(document);
@@ -97,6 +99,12 @@ export default function DocumentRow({ document, selected, onToggle, phase, onDes
           <span className="truncate">{meta}</span>
         </div>
         <StatusLine document={document} phase={phase} blocker={blocker} />
+        {!phase && (
+          // choosing the mode must not select the row
+          <div className="mt-1.5" onClick={e => e.stopPropagation()}>
+            <DocumentModeSwitch document={document} />
+          </div>
+        )}
         {image && !phase && (
           // typing here must not select the row
           <div className="mt-2" onClick={e => e.stopPropagation()}>
