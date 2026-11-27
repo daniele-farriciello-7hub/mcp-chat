@@ -4,6 +4,9 @@
  * (features/chat/commands). The list is part of the shared settings object (`settings.noAiCommands`), so the
  * panel's "Salva" bar applies. The admin adds, edits, switches off and deletes them; "Erogato" is only one
  * of them, started from a preset (the server's `commandPresets`).
+ *
+ * A word may belong to one command only, and not to a list of documents without AI either (`documentLists`,
+ * Documenti → Documenti senza AI): both panels check against both kinds, so one message never means two answers.
  */
 'use client';
 
@@ -20,7 +23,13 @@ import NoAiCommandRow from './NoAiCommandRow';
 const MENU_ITEM_CLASS =
   'rounded-lg px-3 py-2 text-left text-fs-12 font-semibold text-ink transition hover:bg-surface disabled:opacity-40';
 
-export default function NoAiCommandsSection({ commands, connections, hasUnsavedChanges, onChange }) {
+export default function NoAiCommandsSection({
+  commands,
+  documentLists = [],
+  connections,
+  hasUnsavedChanges,
+  onChange
+}) {
   const [expandedId, setExpandedId] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [presets, setPresets] = useState(null); // null = not asked yet
@@ -28,7 +37,9 @@ export default function NoAiCommandsSection({ commands, connections, hasUnsavedC
   const [loadingPresets, setLoadingPresets] = useState(false);
   const [notice, setNotice] = useState(null);
 
-  const collisions = triggerCollisions(commands);
+  // everything that answers an exact message without the model: the words must not repeat across all of it
+  const owners = [...commands, ...documentLists];
+  const collisions = triggerCollisions(owners);
 
   const openMenu = async () => {
     setMenuOpen(open => !open);
@@ -46,7 +57,7 @@ export default function NoAiCommandsSection({ commands, connections, hasUnsavedC
   };
 
   const add = preset => {
-    const { command, rejected } = createCommand(commands, preset);
+    const { command, rejected } = createCommand(owners, preset);
     onChange([...commands, command]);
     setExpandedId(command.id);
     setMenuOpen(false);
@@ -79,7 +90,7 @@ export default function NoAiCommandsSection({ commands, connections, hasUnsavedC
           <NoAiCommandRow
             key={command.id}
             command={command}
-            others={commands.filter(other => other.id !== command.id)}
+            others={owners.filter(other => other.id !== command.id)}
             connections={connections}
             collisions={collisions}
             expanded={expandedId === command.id}

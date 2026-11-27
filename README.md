@@ -57,6 +57,7 @@ src/
     chat/                  agent (Gemini streaming + tools), conversation state, voice input, chat UI
       tools/               tools the model can call and their dispatcher (see "Model tools" below)
       commands/            commands without AI (settings.noAiCommands): trigger matching, format registry, runner, composers
+      documentLists/       lists of documents without AI (settings.noAiDocumentLists): settings, trigger matching, selection, reply
     charts/                charts drawn in the chat: data helpers and the SVG component
     history/               conversation history client, Storico tab (admin)
     shortcuts/             personal shortcuts and their admin views
@@ -115,7 +116,7 @@ Shown for production; development has the same layout under `apps/assistente-7hu
 apps/assistente-7hub/documents/{id}       document metadata, source (upload|drive), indexingStatus (pending|done|failed), indexCard, description (images), mode (studied|archive), categories, categoriesManual; drive* fields for Drive files
 apps/assistente-7hub/driveSources/{id}    a linked Drive folder or PDF: frequency, next/last run and result, lease, webhook state — server only
   /channels/{id}                          its Drive notification channels
-apps/assistente-7hub/config/settings      chatModel, indexingModel, instructions, documentCategories, historyLimit, shortcuts, noAiCommands…
+apps/assistente-7hub/config/settings      chatModel, indexingModel, instructions, documentCategories, historyLimit, shortcuts, noAiCommands, noAiDocumentLists…
 apps/assistente-7hub/dbConnections/{id}   database connection config (host, port, user…), never the password
   /tables/{t}                             per table: columns, keys, enabled, card { summary, columns }
 apps/assistente-7hub/dbSecrets/{id}       encrypted database password
@@ -191,7 +192,7 @@ name, title, description) and the tab components take `subsection` and draw only
 | --------------------------------- | ------------------------------------------------------------------------------------- |
 | Modello IA                        | Istruzioni · Modelli · Uso dei documenti · Risposte · Grafici · Memoria e trasparenza |
 | Scorciatoie                       | Riquadri · Personali                                                                  |
-| Documenti                         | Da indicizzare · Con errore · Indicizzati · Drive (the four views of the archive)     |
+| Documenti                         | Da indicizzare · Con errore · Indicizzati · Drive · Categorie · Documenti senza AI    |
 | Database                          | Connessioni · Istruzioni e modello · Limiti · Comandi senza AI                        |
 | Storico (under "Assistente")      | Panoramica · Conversazioni · Salvataggio                                              |
 | 7Hub                              | Istruzioni · Strumenti                                                                |
@@ -365,8 +366,9 @@ without it is a studied one, so everything uploaded before keeps working):
   and offer it.
 - **Chat plumbing**: `getChatCatalog` returns every indexed document with its `mode` and visible categories;
   `buildSystemInstruction` lists only the studied ones (`catalogBlock`), `agent.js` offers `read_document`
-  only when there are studied documents and `search_archive` only when there are archive files, and passes the
-  whole catalog to `share_file` / `offer_files`, which therefore accept archive ids.
+  only when there are studied documents and `search_archive` whenever there is any document (it searches all of
+  them, see below), and passes the whole catalog to `share_file` / `offer_files`, which therefore accept archive
+  ids. Each catalog entry also carries `date` (see "Listings" below).
 
 ### Categories
 
@@ -461,18 +463,18 @@ The model never calls an API itself: it returns a `functionCall` (name + JSON ar
 runs the matching handler in `chat/tools/`, and the result goes back as a `functionResponse`, up to the
 "giri" limit in settings.
 
-| Tool              | What it does                                                                                                       |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `read_document`   | opens an indexed document in full                                                                                  |
-| `search_archive`  | finds files of the archive (solo archivio) by words and category: up to 10, with id, name, description, categories |
-| `share_file`      | shows an archive file (logo, image, PDF…) with a preview and a "Scarica" button                                    |
-| `offer_files`     | thumbnails of 1–6 archive files: to pick from (several match, none matches exactly) or to list a category          |
-| `ask_options`     | 2–5 clickable answers to an ambiguous question — see "Clarifying questions" below                                  |
-| `describe_table`  | columns and card of one enabled table                                                                              |
-| `query_database`  | one read-only `SELECT`, rows go back to the model (capped by the admin)                                            |
-| `export_database` | the model writes the query; the server builds the .xlsx on click, up to the admin's row limit                      |
-| `export_excel`    | a table the model already has (e.g. from documents) as .xlsx                                                       |
-| `show_chart`      | a chart drawn by the app — see below                                                                               |
+| Tool              | What it does                                                                                                   |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- |
+| `read_document`   | opens an indexed document in full                                                                              |
+| `search_archive`  | finds documents (any mode) by words and category, best match or most recent first: 10 by default, up to 50     |
+| `share_file`      | shows an archive file (logo, image, PDF…) with a preview and a "Scarica" button                                |
+| `offer_files`     | 1–6 files (up to 50 when a number is asked for): to pick from (several match, none matches exactly) or to list |
+| `ask_options`     | 2–5 clickable answers to an ambiguous question — see "Clarifying questions" below                              |
+| `describe_table`  | columns and card of one enabled table                                                                          |
+| `query_database`  | one read-only `SELECT`, rows go back to the model (capped by the admin)                                        |
+| `export_database` | the model writes the query; the server builds the .xlsx on click, up to the admin's row limit                  |
+| `export_excel`    | a table the model already has (e.g. from documents) as .xlsx                                                   |
+| `show_chart`      | a chart drawn by the app — see below                                                                           |
 
 Every tool shows the operator an activity card in plain language ("Sto leggendo…", "Dati letti", "File
 pronto"), never the tool name or its arguments; admins also see the SQL that ran. A tool that fails still
@@ -491,25 +493,55 @@ può aprire documenti o interrogare il database" (default 6 giri).
   (PDF, Word…), not an extracted text. Only ids from the list are accepted.
 - The same document opened twice in one answer shows one card. No admin limit: the cost is the document size.
 
-### `search_archive` — find an archive file
+### `search_archive` — find files and build listings
 
-- The archive files are not in the system prompt (only their count, and how to search). `{ query, category? }`:
-  free text and/or a category of the admins' list (the argument is an enum of it). Runs in the browser over the
-  catalog the chat already loaded (`documents/searchArchive.js`): text folded for capitals, accents and
-  punctuation, filler words dropped, a crude Italian stem ("mutuo" finds "mutui"), then a score per query word by
-  where it is found — file name 5, keywords / categories / institutes / products 3, description and card text
-  1 — plus a bonus when every word is found and one when the words appear in a row in the name. No embeddings,
-  no server. It answers `{ ok, total, shown, files: [{ id, name, description, categories }], note }`, at most 10
-  files, best first. `query` may be empty with a category, which lists the category; an unknown category is
-  answered with the list.
-- **Archive files only.** Studied documents are already in the prompt, with their ids, and `share_file` takes
-  them from there: searching them too would only add noise to a "che moduli ci sono per il mutuo?" listing.
+- The archive files are not in the system prompt (only their count, and how to search). The arguments are `query`,
+  `category`, `sort` and `limit`: free text and/or a category of the admins' list (the argument is an enum of it),
+  `sort` `relevance` (default) or `recent`, `limit` how many files come back. It runs in the browser over the catalog
+  the chat already loaded (`documents/searchArchive.js`): text folded for capitals, accents and punctuation, filler
+  words dropped, a crude Italian stem ("mutuo" finds "mutui"), then a score per query word by where it is found — file name 5,
+  keywords / categories / institutes / products 3, description and card text 1 — plus a bonus when every word is
+  found and one when the words appear in a row in the name. No embeddings, no server. It answers with `ok`,
+  `total`, `shown`, `sorted`, `files` (each `id`, `name`, `description`, `categories`, `mode` and `date` when it has
+  one) and a `note`. `query` may be empty with a category, which lists the category, or with `sort: "recent"`,
+  which is the whole archive newest first; an unknown category is answered with the list.
+- **Every indexed document is searched, studied ones too** (each result says its `mode`). It used to be archive
+  files only, but a listing is not a job for the model reading the system prompt's list: asked for "the
+  communications sent by Direzione, most recent first", it composed the list from the prompt and dropped the newest
+  ones (and `search_archive` was not even offered when there were no archive files). Here the filter, the order and
+  the count are exact. Putting a date in every line of the prompt would cost tokens on every turn for something
+  this tool answers on demand, so the prompt is unchanged.
+- **Limits.** `limit` is 10 when not given, and at most 50 (`documents/listingLimits.js`: `DEFAULT_LISTING_FILES` 6,
+  `MAX_LISTING_FILES` 50; anything that is not a number is the default). With `sort: "recent"` the same filter
+  (words, category) applies and the matches are ordered from the most recent document, undated ones last, the score and
+  then the name breaking ties.
+- **The date of a document** (`documents/documentDate.js`, `documentDateMs`): a date written in the file name wins
+  (ISO `2026-11-25`, also with `_` or `.`, or Italian `25-11-2026`, `25/11/2026`, `25.11.2026`; the first real calendar
+  date, years 2000 to 2099, so a whole batch synced the same day still sorts by the day each file is from), else
+  `driveModifiedTime` for a Drive document (the content's date; `createdAt` there is only when the sync first saw the
+  file), else `createdAt` (an upload, or the new version of a replaced one), else `indexedAt`. A date in the name is
+  noon UTC of that day, so it is shown as the same day in Rome. The catalog entry carries it in milliseconds
+  (`date`); the model gets it as `date: 'YYYY-MM-DD'` in Rome time (absent when there is none), and so does an
+  `offer_files` card (`documentDate`).
 - The model then hands the files over with `offer_files` (several candidates, or a listing with
-  `reason: "listing"`: the tool description says so for "che moduli ci sono per il mutuo?") or `share_file`
-  (one clear match). Both validate
-  against the whole catalog, so they accept archive ids. `offer_files` shows 6 at most: past that the model says
-  how many there are and asks to narrow down (`note` tells it).
+  `reason: "listing"`: the tool description says so for "che moduli ci sono per il mutuo?" and "le ultime 20
+  comunicazioni") or `share_file` (one clear match). Both validate against the whole catalog.
 - Activity rows, in plain Italian: "Cerco nell'archivio", then "N file trovati" / "Nessun file trovato".
+
+### Listings: how many files
+
+A listing is the operator asking what files exist (a category, a kind of file, "le ultime N"). The rules are in
+`LISTING_RULES` (`chat/systemPrompt.js`, fixed like `FILE_SHARING_RULES`, present whenever there is any indexed
+document): call `search_archive` (category, `sort: "recent"` for the latest ones, `limit`), show the result with
+`offer_files` and `reason: "listing"`, all the ids in one call and in the order received. **How many**: 6 when neither
+the operator's message nor the admin's instructions (the "Modello IA" prompt fields, e.g. «Come sceglie i
+documenti»: "per le comunicazioni mostra le ultime 15") give a number; otherwise that number (the operator's wins
+over the instructions'), at most 50. The model decides, the code enforces the cap: `offer_files` shows 50 at most
+and tells the model if it cut the list (`capped`), the history store keeps the same 50
+(`MAX_CHOICE_FILES`, compared with the browser's cap in `history-store.test.mjs`). The card
+(`FileChoiceCard.jsx`) is the grid of thumbnails up to 8 files and, past that, a compact list (icon, name, date) in a
+box that scrolls (`max-h-[22rem]`), with the count in the header; a listing also shows each file's date. A row does
+not look the file up (fifty reads for a list mostly scrolled past): picking one gives the usual shared-file card.
 
 ### `share_file` — hand over a file
 
@@ -534,7 +566,7 @@ può aprire documenti o interrogare il database" (default 6 giri).
 When a request is ambiguous the assistant shows clickable choices instead of guessing or writing a wall of
 text. Both tools end the model's turn: it writes at most one short sentence and waits.
 
-- **`offer_files`** `{ question, ids[1–6], reason? }` — `reason` is `ambiguous` (default), `no_exact_match`
+- **`offer_files`** `{ question, ids[1–6, up to 50 for a listing], reason? }` — `reason` is `ambiguous` (default), `no_exact_match`
   (the header then reads "Non ho trovato esattamente quello che cerchi. Forse intendevi:") or `listing`: the
   operator asked what files exist ("che moduli ci sono per il mutuo?"), so `question` is the title of the list
   ("Moduli per il mutuo", "File disponibili" when empty) and the card has no "Nessuno di questi". A single id is
@@ -547,7 +579,10 @@ text. Both tools end the model's turn: it writes at most one short sentence and 
   "Ho scelto <nome file>", then the usual `SharedFileCard` and "Ecco il file." — while the other thumbnails stay
   in view, dimmed. `useConversation.pickFile` stores that exchange like any turn (`recordQuestion` for the pick,
   `recordTurn` for the card and the line), so it comes back in order after a reload and the model sees it in its
-  history. "Nessuno di questi" sends that text as a normal message.
+  history. "Nessuno di questi" sends that text as a normal message. A reply shows at most one picker: the model is told
+  to call `offer_files` once, with all the files, and if it calls it again the later card replaces the earlier one
+  (the end payload carries a constant `replaceKey`, handled in `useConversation` like a redrawn chart: the earlier
+  card leaves the chat and is never stored; the key itself is not stored either).
 - **`ask_options`** `{ question, options[2–5], allow_other? }` — each option is a full answer the operator would
   type. `ChoiceCard.jsx` (same look as `OptionsCard`) sends the clicked option's text as the next user message
   through the normal send path. "Altro…" (unless `allow_other` is false) only focuses the message box.
@@ -627,7 +662,8 @@ edits, switches on or off and deletes commands. "Erogato" is just one of them, s
   `erogato luglio 2026`) still goes to the model. The message is matched against **all the commands that are
   on** (`commandFor` in `features/chat/commands/matchCommand.js`). Two commands cannot share a trigger: the
   panel leaves out a word another command has (and says whose it is) and flags any clash that is already
-  there; a list that has one still behaves the same every time, the first command of the list runs.
+  there; a list that has one still behaves the same every time, the first command of the list runs. The same goes
+  across the two kinds: a word of a list of documents without AI (below) is refused here too.
 - **Formats** (`features/chat/commands/formats.js`, matching `COMMAND_FORMATS` in
   `functions/src/db/commandFormats.js`: keep the two in step, `chat-commands.test.mjs` checks it). A format is
   how the rows become the answer. Browser side: a label, a summary for the panel, `hasDefaultSql` and
@@ -661,7 +697,8 @@ edits, switches on or off and deletes commands. "Erogato" is just one of them, s
 - **Shortcuts.** A shortcut's `command` is a command id (the editor's "Cosa fa" lists the configured commands
   by name; the server only checks the id's shape, `[A-Za-z0-9_-]{1,64}`, since it cannot know the commands). In
   the chat it shows the command's first trigger as the question; if the command is off, incomplete or deleted,
-  that text goes to the model as for any shortcut.
+  that text goes to the model as for any shortcut. The same field can hold the id of a list of documents without AI
+  (see below): the pickers list both ("Comando: …", "Elenco: …", `shortcuts/noAiTargets.js`).
 - **Migration.** Settings saved when there was one command hold it in `erogatoCommand`. Until the panel is saved
   (which writes the array), both readers (`normalizeCommands` in the browser, `commandsFromSettings` on the
   server) turn it into one command: `id: 'erogato'`, name «Erogato», `format: 'erogato'`, its connection,
@@ -670,6 +707,54 @@ edits, switches on or off and deletes commands. "Erogato" is just one of them, s
   does not write it back, and it is left in the document, unused.
 - **"Prova ora"** (per command) runs the SAVED command as the signed-in admin and shows the row count and time, or
   the reason (missing columns, truncation, disabled tables…).
+
+## Documents without AI
+
+The same idea for files: "comunicazioni", "moduli mutuo" always mean the same list, so it should appear in a moment,
+with no model call and no tokens. An admin defines **lists of documents without AI** in Configurazione → Documenti →
+**Documenti senza AI** (`settings.noAiDocumentLists`, an array; shape and defaults in
+`features/chat/documentLists/documentListSettings.js`). Unlike the rest of the Documents tab (saved as it goes) this
+section is part of the shared settings object, so it has the panel's "Salva" bar.
+
+- **A list**: `id` (generated, always `list-…`; shortcuts point to it like they point to a command), `name`, `enabled`,
+  `triggers`, `title` (the card's heading; empty = the name), `intro` (optional line written under the card; empty =
+  "Ecco i file (N)."), `emptyMessage` (empty = a default naming the list) and the selection, `selection` `rule` or
+  `fixed`:
+  - **rule**: `categories` (0..n names of `documentCategories`; a document qualifies with **any** of them, none = every
+    document), `nameContains` (text the file name must contain, compared folded), `sort` `recent` (by the document's
+    date, undated last) or `name` (numbers read as numbers), `limit` 1–50 (default 6). A rule that names categories
+    none of which is still in the list matches nothing (the panel strikes them out), instead of turning "the
+    communications" into "every document".
+  - **fixed**: `documentIds`, chosen by hand with a picker (search over the indexed documents) and ordered with
+    up / down, at most 50; an id that is gone (deleted, or no longer indexed) is skipped without a word.
+
+- **Which documents.** Studied and archive-only documents are both eligible: the selection works on the chat catalog
+  (`getChatCatalog`), which has them all. A list can be switched on only if it can show something (a fixed one needs
+  a document).
+- **When it shows.** The typed message is exactly one of the list's triggers (the same `normalizeTrigger` rules as a
+  command: trimmed, lowercase, single spaces, no trailing punctuation), or a shortcut names the list's id
+  (`documentListFor` in `matchDocumentList.js`). Anything longer goes to the model.
+- **Trigger conflicts.** A word may belong to one list or command only. Both panels check against both kinds
+  (`claimTriggers` / `triggerCollisions` over commands + lists): the Documenti panel refuses a word another list or a
+  command has, the Database panel refuses a word a list has, and a clash already in the settings is flagged. If one
+  still reaches the chat, **the command runs**: `useConversation.send` looks for a command first, then a list, then
+  the model. Commands go first because the panels make conflicts impossible anyway and a command is the more
+  expensive of the two to run by mistake (a query on the database).
+- **Flow.** `useConversation.send` calls `streamDocumentListReply` instead of `streamAgentReply` or
+  `streamCommandReply` (same callbacks): `getChatCatalog()` (cached a minute), `selectDocuments`, then a `file_choice`
+  activity with `reason: 'listing'` — the usual `FileChoiceCard`, so picking a file gives the shared-file card with
+  its download button — and a normal assistant line (the intro, or "Ecco i file (N)."), so later model turns see
+  the exchange. Nothing matches: no card, only `emptyMessage`. The catalog cannot be read: a sentence and the
+  turn is recorded with `error` and `errorDetail`; it never falls back to the model.
+- **History.** The reply is stored with `model: 'elenco'` (not `comando`: the Storico says "elenco di documenti
+  «Ultime comunicazioni», senza AI" — `documentListReplyLabel`), `command: <the list's name that day>` (the field a
+  command's name uses; the server keeps it for either marker), zero usage and the duration. The card is stored like an
+  `offer_files` one (ids, names, day) and comes back after a reload.
+- **Shortcuts.** A shortcut's `command` field can hold a list id; "Cosa fa" lists "Elenco: …" next to the commands. In the
+  chat it writes the list's first trigger (or its name) as the question; a list that is off, incomplete or deleted
+  sends that text to the model as for any shortcut. The server only checks the id's shape.
+- **Not done**: renaming a category in Documenti → Categorie does not rewrite the lists' rules (the old name shows struck
+  out in the list's editor until it is replaced).
 
 ## Charts in the chat
 

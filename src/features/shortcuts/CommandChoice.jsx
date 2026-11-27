@@ -1,16 +1,16 @@
 /**
  * What a shortcut does when tapped: ask the model a question, or run one of the commands without AI
- * (features/chat/commands), which answers without it. Shared by the admin's editor and the operator's own
- * form. `value` is the command's id, or empty for "ask the model"; `onChange` gets the same. `commands` is
- * `settings.noAiCommands` (null while it is being read). With no commands there is nothing to choose, and
- * the control is left out.
+ * (features/chat/commands) or show one of the lists of documents without AI (features/chat/documentLists), which
+ * answer without it. Shared by the admin's editor and the operator's own form. `value` is the id of the command or
+ * the list, or empty for "ask the model"; `onChange` gets the same. `targets` is both as one list (noAiTargets.js;
+ * null while it is being read). With none there is nothing to choose, and the control is left out.
  */
 import { INPUT_CLASS } from '@/shared/ui/formStyles';
-import { isCommandOn } from '@/features/chat/commands/matchCommand';
+import { isTargetOn, targetLabel } from './noAiTargets';
 
-export default function CommandChoice({ value, commands, onChange }) {
-  const known = commands?.some(command => command.id === value);
-  if (!commands?.length && !value) return null;
+export default function CommandChoice({ value, targets, onChange }) {
+  const known = targets?.some(target => target.id === value);
+  if (!targets?.length && !value) return null;
   return (
     <select
       value={value || ''}
@@ -20,12 +20,12 @@ export default function CommandChoice({ value, commands, onChange }) {
     >
       <option value="">Testo per l’assistente</option>
       {value && !known && (
-        <option value={value}>{commands ? 'Comando eliminato' : 'Comando senza AI'}</option>
+        <option value={value}>{targets ? 'Comando o elenco eliminato' : 'Senza AI'}</option>
       )}
-      {commands?.map(command => (
-        <option key={command.id} value={command.id}>
-          Comando: {command.name}
-          {isCommandOn(command) ? '' : ' (spento)'}
+      {targets?.map(target => (
+        <option key={target.id} value={target.id}>
+          {targetLabel(target)}
+          {isTargetOn(target) ? '' : ' (spento)'}
         </option>
       ))}
     </select>

@@ -13,6 +13,8 @@ import { romeDay } from '@/features/history/romeDay';
 import { streamAgentReply } from './agent';
 import { commandFor } from './commands/matchCommand';
 import { streamCommandReply } from './commands/streamCommandReply';
+import { documentListFor } from './documentLists/matchDocumentList';
+import { streamDocumentListReply } from './documentLists/streamDocumentListReply';
 
 let turnCounter = 0;
 // activity ids are only unique within a page load (`t1:read-0-0`); stored, they must not collide
@@ -58,7 +60,9 @@ function markInterrupted(messages) {
  *
  * A message that is exactly a trigger word of a command without AI (commands/, `settings.noAiCommands`), or
  * a shortcut that names the command, is answered without the model: same flow, same history,
- * `streamCommandReply` in place of `streamAgentReply`.
+ * `streamCommandReply` in place of `streamAgentReply`. The same goes for a list of documents without AI
+ * (documentLists/, `settings.noAiDocumentLists`): its card comes from the documents catalog, with no call at all.
+ * A command is looked for first, then a list (matchDocumentList.js says why).
  */
 export function useConversation({ uid, context, isAdmin = false }) {
   const [messages, setMessages] = useState([]);
@@ -114,7 +118,8 @@ export function useConversation({ uid, context, isAdmin = false }) {
   }, []);
 
   const send = useCallback(
-    // `command`: a shortcut that runs a command without AI names its id here; a typed message is matched below
+    // `command`: a shortcut that runs a command, or shows a list of documents, without AI names its id here (the
+    // ids of the two never collide); a typed message is matched below
     async (text, { command: requestedCommand = null } = {}) => {
       if (status !== 'idle') return;
       sentRef.current = true;
@@ -129,6 +134,9 @@ export function useConversation({ uid, context, isAdmin = false }) {
       // `settingsRef` is from the mount, and an admin who just switched a command on has not reloaded
       const commandSettings = await getSettings();
       const command = commandFor(text, commandSettings.noAiCommands, requestedCommand);
+      const documentList = command
+        ? null
+        : documentListFor(text, commandSettings.noAiDocumentLists, requestedCommand);
 
       let history = messages;
       // resolves to the stored conversation ({id, day, isNew}) or null; the turn's write waits on it
@@ -174,10 +182,16 @@ export function useConversation({ uid, context, isAdmin = false }) {
       let replyId = null;
       let replyText = '';
 
-      // a command without AI answers on its own, with these same callbacks; the extra fields are for it only
-      const streamReply = command ? streamCommandReply : streamAgentReply;
+      // a command or a list of documents without AI answers on its own, with these same callbacks; the extra
+      // fields are for them only
+      const streamReply = command
+        ? streamCommandReply
+        : documentList
+          ? streamDocumentListReply
+          : streamAgentReply;
       await streamReply({
         command,
+        documentList,
         settings: commandSettings,
         text,
         context,
@@ -264,7 +278,8 @@ export function useConversation({ uid, context, isAdmin = false }) {
                   error,
                   errorDetail,
                   fallbackFrom,
-                  // the name of the command that answered, when one did (`model` is then 'comando')
+                  // the name of the command or the list of documents that answered, when one did (`model` is
+                  // then 'comando' or 'elenco')
                   command: commandName
                 })
             )

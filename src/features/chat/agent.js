@@ -17,7 +17,8 @@
  * connection (tools/queryDatabase.js), and offer a CSV download of a table it put together from any
  * of the above (tools/exportExcel.js). The documents an admin set to "solo archivio" are not read by the
  * assistant and not in its prompt: it finds them with tools/searchArchive.js and hands them over with the
- * same share_file / offer_files. When a request is ambiguous it shows clickable choices instead
+ * same share_file / offer_files; the same tool builds every listing (the latest N, a category), studied
+ * documents included. When a request is ambiguous it shows clickable choices instead
  * of guessing: files to pick from (tools/offerFiles.js) or answers to pick from (tools/askOptions.js).
  * It cannot yet read or write customers and applications: the instructions make it say so instead of
  * promising.
@@ -118,14 +119,16 @@ export async function streamAgentReply({
     // pointless (and not offered) on its own, since it never fetches anything itself.
     const hasDataSource = catalog.length > 0 || schema.length > 0;
     // `catalog` holds every indexed document. Only the studied ones can be read; every one can be handed
-    // over, and the archive-only ones are found with search_archive (they are not in the system prompt)
-    const { studied, archive } = splitByMode(catalog);
+    // over. search_archive searches all of them, so it is there whenever there is any document: the
+    // archive-only ones are found only with it (they are not in the system prompt), and every listing ("le
+    // ultime 20 comunicazioni") is built with it, studied documents included
+    const { studied } = splitByMode(catalog);
     const toolDeclarations = [
       ...(studied.length ? READ_DOCUMENT_TOOL.functionDeclarations : []),
       ...(catalog.length
         ? [...SHARE_FILE_TOOL.functionDeclarations, ...OFFER_FILES_TOOL.functionDeclarations]
         : []),
-      ...(archive.length ? searchArchiveTool(settings.documentCategories).functionDeclarations : []),
+      ...(catalog.length ? searchArchiveTool(settings.documentCategories).functionDeclarations : []),
       ...(schema.length
         ? [
             ...QUERY_DATABASE_TOOL.functionDeclarations,

@@ -19,12 +19,13 @@ async function adminLimit() {
 }
 const LIMITS = { icon: 30, title: 60, description: 120, prompt: 1000 };
 
-// A shortcut may run a command without AI instead of asking the model (src/features/chat/commands): its
-// `command` is the id of one of the commands in the settings (`settings.noAiCommands`). The server cannot
-// know which exist (an operator's shortcut is saved without reading the settings, and the admin may add or
-// delete commands later), so it checks the shape only: the id charset the app generates, nothing that could
-// be anything else. A command that is gone or off is the browser's business: the shortcut then asks the
-// model. The question stays on the shortcut too, as the text the chat shows and the model gets in that case.
+// A shortcut may run a command without AI instead of asking the model (src/features/chat/commands), or show a list
+// of documents without AI (src/features/chat/documentLists): its `command` is the id of one of the commands in the
+// settings (`settings.noAiCommands`) or of one of the lists (`settings.noAiDocumentLists`; their ids never collide).
+// The server cannot know which exist (an operator's shortcut is saved without reading the settings, and the admin
+// may add or delete them later), so it checks the shape only: the id charset the app generates, nothing that could
+// be anything else. One that is gone or off is the browser's business: the shortcut then asks the model. The
+// question stays on the shortcut too, as the text the chat shows and the model gets in that case.
 const COMMAND_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 const docOf = uid => getFirestore().doc(`${appRoot()}/chatUsers/${uid}/private/shortcuts`);

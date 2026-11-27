@@ -229,6 +229,7 @@ export default function DatabaseTab({ settings, onChange, hasUnsavedChanges = fa
           {shows('comandi') && (
             <NoAiCommandsSection
               commands={settings.noAiCommands}
+              documentLists={settings.noAiDocumentLists}
               connections={connections}
               hasUnsavedChanges={hasUnsavedChanges}
               onChange={value => onChange('noAiCommands', value)}

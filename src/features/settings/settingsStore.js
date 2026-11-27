@@ -8,6 +8,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/shared/firebase/app';
 import { FIRESTORE_ROOT } from '@/shared/firebase/paths';
 import { normalizeCommands } from '@/features/chat/commands/commandSettings';
+import { normalizeDocumentLists } from '@/features/chat/documentLists/documentListSettings';
 import { normalizeCategoryList } from '@/features/documents/categories';
 import { DEFAULT_SETTINGS } from './defaultSettings';
 
@@ -43,6 +44,8 @@ function withDefaults(stored) {
     chartLimits: { ...DEFAULT_SETTINGS.chartLimits, ...(stored.chartLimits || {}) },
     // the list of commands without AI; settings saved with the old single `erogatoCommand` give one command
     noAiCommands: normalizeCommands(stored),
+    // the lists of documents without AI, cleaned the same way (a stored entry without a safe id is dropped)
+    noAiDocumentLists: normalizeDocumentLists(stored),
     // un array vuoto e' una scelta dell'admin: i default valgono solo se il campo non c'e' proprio
     shortcuts: Array.isArray(stored.shortcuts) ? stored.shortcuts : DEFAULT_SETTINGS.shortcuts,
     // same for the document categories: an empty list is a choice, the seed list only when the field is missing

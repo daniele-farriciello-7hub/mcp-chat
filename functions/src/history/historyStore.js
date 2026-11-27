@@ -29,8 +29,11 @@ const MAX_ACTIVITIES = 50;
 const FIRST_QUESTION_CHARS = 140;
 const SETTINGS_TTL_MS = 30_000;
 
-// what a reply stores as `model` when a command without AI wrote it (src/features/chat/commands/matchCommand.js)
-const COMMAND_MODEL = 'comando';
+// what a reply stores as `model` when something without AI wrote it, with its name in `command`: a command
+// (src/features/chat/commands/matchCommand.js) or a list of documents
+// (src/features/chat/documentLists/matchDocumentList.js). Exported for the tests that compare the copies
+export const COMMAND_MODEL = 'comando';
+export const DOCUMENT_LIST_MODEL = 'elenco';
 
 const ACTIVITY_FIELDS = [
   'kind',
@@ -49,10 +52,13 @@ const ACTIVITY_FIELDS = [
   'reason'
 ];
 
-// clarification cards (`choice`: ask_options, `file_choice`: offer_files) — most they can offer
+// clarification cards (`choice`: ask_options, `file_choice`: offer_files, or a list of documents without AI) —
+// most they can offer. A file card holds up to 50 files (src/features/documents/listingLimits.js, which the
+// server cannot import: functions/scripts/history-store.test.mjs compares the two)
 const MAX_CHOICES = 5;
 const MAX_CHOICE_CHARS = 200;
-const MAX_CHOICE_FILES = 6;
+export const MAX_CHOICE_FILES = 50;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 const db = () => getFirestore();
 const conversations = () => db().collection(`${appRoot()}/chatConversations`);
@@ -130,7 +136,10 @@ function storableChoices(choices) {
     .map(choice => choice.slice(0, MAX_CHOICE_CHARS));
 }
 
-/** The files offered by an `offer_files` card: ids and names only, the card is rebuilt from the ids. */
+/**
+ * The files offered by an `offer_files` card: ids and names only, the card is rebuilt from the ids. The day of
+ * the document ('YYYY-MM-DD') comes along when there is one: a listing shows it next to the name.
+ */
 function storableChoiceFiles(files) {
   if (!Array.isArray(files)) return [];
   return files
@@ -138,7 +147,10 @@ function storableChoiceFiles(files) {
     .slice(0, MAX_CHOICE_FILES)
     .map(file => ({
       documentId: file.documentId.slice(0, 200),
-      documentName: typeof file.documentName === 'string' ? file.documentName.slice(0, 200) : ''
+      documentName: typeof file.documentName === 'string' ? file.documentName.slice(0, 200) : '',
+      ...(typeof file.documentDate === 'string' && DAY.test(file.documentDate)
+        ? { documentDate: file.documentDate }
+        : {})
     }));
 }
 
@@ -356,9 +368,11 @@ export async function recordTurn(user, body) {
   // leave its model, which one: both optional, and the detail is only ever kept for a failure
   const errorDetail = failed ? text(body.errorDetail, MAX_ERROR_DETAIL_CHARS).trim() : '';
   const fallbackFrom = text(body.fallbackFrom, 100).trim();
-  // a command without AI answered, not a model: `model` is the fixed marker 'comando' and `command` the
-  // name the admin gave it when it ran (a rename or a delete later does not rewrite the history)
-  const commandName = body.model === COMMAND_MODEL ? text(body.command, 100).trim() : '';
+  // a command without AI, or a list of documents without AI, answered, not a model: `model` is the fixed marker
+  // ('comando' or 'elenco') and `command` the name the admin gave it when it ran (a rename or a delete later does
+  // not rewrite the history)
+  const commandName =
+    body.model === COMMAND_MODEL || body.model === DOCUMENT_LIST_MODEL ? text(body.command, 100).trim() : '';
 
   const batch = db().batch();
   let seq = 1;

@@ -15,18 +15,20 @@ import FileChoiceCard from '@/features/chat/components/FileChoiceCard';
 import SharedFileCard from '@/features/chat/components/SharedFileCard';
 import ChatChart from '@/features/charts/ChatChart';
 import { commandReplyLabel } from '@/features/chat/commands/matchCommand';
+import { documentListReplyLabel } from '@/features/chat/documentLists/matchDocumentList';
 import { loadTranscript, toUiMessage } from '../historyApi';
 import { SkeletonConversation } from '@/shared/ui/Skeleton';
 
 function ReplyMeta({ message }) {
   // a command without AI's reply (`model: 'comando'`, the command's name in `command`): the server ran a
-  // query and the chat wrote the answer, so there is no model to name and no tokens to count
-  const command = commandReplyLabel(message);
+  // query and the chat wrote the answer. A list of documents without AI (`model: 'elenco'`, the list's name in
+  // `command`): the chat picked the files itself. Either way there is no model to name and no tokens to count
+  const noAi = commandReplyLabel(message) ?? documentListReplyLabel(message);
   const parts = [
-    command ?? message.model,
+    noAi ?? message.model,
     // a rate limit made the turn leave the model the operator had chosen
     message.fallbackFrom && `riserva al posto di ${message.fallbackFrom}`,
-    !command &&
+    !noAi &&
       message.usage &&
       `${(message.usage.input + message.usage.output + message.usage.thinking).toLocaleString('it-IT')} token`,
     message.durationMs != null && `${(message.durationMs / 1000).toFixed(1)} s`,

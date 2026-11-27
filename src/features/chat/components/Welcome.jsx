@@ -14,6 +14,7 @@ import AgentMark from './AgentMark';
 import { historyNotice } from '@/features/history/historyNotice';
 import PersonalShortcuts from '@/features/shortcuts/PersonalShortcuts';
 import { isOnlyFor, shortcutText, shortcutsFor } from '@/features/shortcuts/personalShortcuts';
+import { noAiTargets } from '@/features/shortcuts/noAiTargets';
 
 const greeting = () => {
   const hour = new Date().getHours();
@@ -28,8 +29,8 @@ const sharedFor = (shortcuts, uid, isAdmin) =>
 
 export default function Welcome({ uid, isAdmin = false, userName, onAsk }) {
   const [shortcuts, setShortcuts] = useState(sharedFor(DEFAULT_SETTINGS.shortcuts, uid, isAdmin));
-  // the commands without AI a shortcut may run: the text it shows in the chat is the command's own word
-  const [commands, setCommands] = useState(DEFAULT_SETTINGS.noAiCommands);
+  // the commands and lists of documents without AI a shortcut may run: the text it shows in the chat is its own word
+  const [targets, setTargets] = useState(() => noAiTargets(DEFAULT_SETTINGS));
   const [showAiNotice, setShowAiNotice] = useState(DEFAULT_SETTINGS.showAiNotice);
   // the history notice, or null when operators are not told (or nothing is kept)
   const [historyText, setHistoryText] = useState(null);
@@ -37,7 +38,7 @@ export default function Welcome({ uid, isAdmin = false, userName, onAsk }) {
   useEffect(() => {
     getSettings().then(settings => {
       setShortcuts(sharedFor(settings.shortcuts, uid, isAdmin));
-      setCommands(settings.noAiCommands);
+      setTargets(noAiTargets(settings));
       setShowAiNotice(settings.showAiNotice !== false);
       setHistoryText(
         settings.historyEnabled && settings.showHistoryNotice !== false
@@ -70,8 +71,8 @@ export default function Welcome({ uid, isAdmin = false, userName, onAsk }) {
                 <button
                   key={i}
                   type="button"
-                  // a shortcut with a command runs it (without the model) when that command is on
-                  onClick={() => onAsk(shortcutText(shortcut, commands), { command: shortcut.command })}
+                  // a shortcut with a command or a list runs it (without the model) when it is on
+                  onClick={() => onAsk(shortcutText(shortcut, targets), { command: shortcut.command })}
                   className="group flex items-center justify-between gap-3 rounded-xl border border-line bg-panel px-3.5 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:bg-brand-50/60 hover:shadow-soft"
                   style={{ animation: 'var(--animate-fade-up)', animationDelay: `${i * 70}ms` }}
                 >

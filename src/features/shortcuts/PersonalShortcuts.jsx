@@ -12,13 +12,13 @@ import IconPicker from '@/features/settings/components/IconPicker';
 import ShortcutIcon from '@/features/settings/components/ShortcutIcon';
 import { INPUT_CLASS } from '@/shared/ui/formStyles';
 import { SkeletonCards } from '@/shared/ui/Skeleton';
-import { useNoAiCommands } from '@/features/chat/commands/useNoAiCommands';
+import { useNoAiTargets } from './useNoAiTargets';
 import CommandChoice from './CommandChoice';
 import { loadOwnShortcuts, saveOwnShortcuts, shortcutSummary, shortcutText } from './personalShortcuts';
 
 const EMPTY = { icon: 'question', title: '', description: '', prompt: '' };
 
-function ShortcutForm({ initial, commands, onSave, onCancel, saving, error }) {
+function ShortcutForm({ initial, targets, onSave, onCancel, saving, error }) {
   const [draft, setDraft] = useState(initial);
   const set = (key, value) => setDraft(d => ({ ...d, [key]: value }));
   const canSave = draft.title.trim() && (draft.command || draft.prompt.trim());
@@ -27,10 +27,10 @@ function ShortcutForm({ initial, commands, onSave, onCancel, saving, error }) {
       onSubmit={e => {
         e.preventDefault();
         if (!canSave) return;
-        // a command shortcut keeps the command's word as its question: what the chat shows, and what the
-        // model gets if the command is switched off or deleted later
+        // a shortcut that runs a command or a list keeps its word as its question: what the chat shows, and
+        // what the model gets if it is switched off or deleted later
         onSave(
-          draft.command && !draft.prompt.trim() ? { ...draft, prompt: shortcutText(draft, commands) } : draft
+          draft.command && !draft.prompt.trim() ? { ...draft, prompt: shortcutText(draft, targets) } : draft
         );
       }}
       className="flex flex-col gap-2.5 rounded-xl border border-brand-200 bg-panel p-3 shadow-soft"
@@ -44,10 +44,10 @@ function ShortcutForm({ initial, commands, onSave, onCancel, saving, error }) {
         className={INPUT_CLASS}
         aria-label="Titolo"
       />
-      <CommandChoice commands={commands} value={draft.command} onChange={value => set('command', value)} />
+      <CommandChoice targets={targets} value={draft.command} onChange={value => set('command', value)} />
       {draft.command ? (
         <p className="text-fs-11 leading-snug text-slate-soft">
-          Parte da solo, senza il modello: in chat compare «{shortcutText(draft, commands)}» e la risposta
+          Parte da solo, senza il modello: in chat compare «{shortcutText(draft, targets)}» e la risposta
           arriva in pochi secondi.
         </p>
       ) : (
@@ -99,7 +99,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [limit, setLimit] = useState(null); // set by the admin; null = no limit
-  const commands = useNoAiCommands(); // the commands without AI a shortcut may run
+  const targets = useNoAiTargets(); // the commands and lists of documents without AI a shortcut may run
 
   useEffect(() => {
     loadOwnShortcuts({ uid, isAdmin })
@@ -156,7 +156,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
             <ShortcutForm
               key={i}
               initial={shortcut}
-              commands={commands}
+              targets={targets}
               saving={saving}
               error={error}
               onCancel={() => setEditing(null)}
@@ -172,7 +172,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
                 onClick={() =>
                   inPanel
                     ? setEditing(i)
-                    : onAsk(shortcutText(shortcut, commands), { command: shortcut.command })
+                    : onAsk(shortcutText(shortcut, targets), { command: shortcut.command })
                 }
                 className="flex min-w-0 flex-1 items-center gap-3 px-3.5 py-3 text-left"
               >
@@ -182,7 +182,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
                 <span className="min-w-0">
                   <span className="block truncate text-fs-14 font-semibold text-ink">{shortcut.title}</span>
                   <span className="block truncate text-fs-12 leading-snug text-slate-soft">
-                    {shortcut.description || shortcutSummary(shortcut, commands)}
+                    {shortcut.description || shortcutSummary(shortcut, targets)}
                   </span>
                 </span>
               </button>
@@ -234,7 +234,7 @@ export default function PersonalShortcuts({ uid, isAdmin = false, onAsk, onChang
         {editing === 'new' ? (
           <ShortcutForm
             initial={EMPTY}
-            commands={commands}
+            targets={targets}
             saving={saving}
             error={error}
             onCancel={() => setEditing(null)}

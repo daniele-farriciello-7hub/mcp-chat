@@ -2,6 +2,7 @@ import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
 import { isImage } from '@/features/documents/fileTypes';
 import { splitByMode } from '@/features/documents/archiveMode';
 import { attachmentsBlock } from '@/shared/promptAttachments';
+import { DEFAULT_LISTING_FILES, MAX_LISTING_FILES } from '@/features/documents/listingLimits';
 import { disabledHostTools } from './tools/hostTools';
 
 /**
@@ -70,7 +71,20 @@ const ARCHIVE_RULES = `Regole per i file di solo archivio:
 - Non sono nell'elenco qui sopra, per non appesantirlo: si trovano con search_archive (qualche parola del nome o dell'argomento e, se serve, la categoria). Prima di dire che un file non esiste, cercalo con search_archive.
 - Servono solo a essere trovati e consegnati. Non rispondere mai a domande sul loro contenuto — nemmeno se dal nome o dalla descrizione credi di saperlo — e non provare ad aprirli con read_document (viene rifiutato). Se l'operatore chiede cosa c'è scritto in uno di questi file, di' in una riga che il file è disponibile per il download e che non lo studi, e offrilo con offer_files o share_file.
 - Per consegnarne uno valgono le regole sui file: un solo risultato che corrisponde chiaramente → share_file; più candidati o una corrispondenza approssimativa → offer_files.
-- Per "che moduli ci sono per il mutuo?" e richieste simili (quali file ci sono, di una categoria o di un tipo) chiama search_archive con la categoria giusta e mostra i risultati con offer_files e reason "listing", così l'operatore ha i pulsanti per scaricarli. Come domanda scrivi il titolo dell'elenco ("Moduli per il mutuo"), senza punto interrogativo: non è una proposta di candidati, quindi mai "no_exact_match" né "ambiguous", nemmeno se il risultato è un solo file. offer_files ne mostra al massimo 6: se i risultati sono di più, di' quanti sono e invita a restringere.`;
+- Gli elenchi ("che moduli ci sono per il mutuo?") seguono le regole sugli elenchi di file: search_archive con la categoria giusta, poi offer_files con reason "listing".`;
+
+/**
+ * How to list files: what files exist, a category, "le ultime N comunicazioni". Not editable and always there when
+ * there are indexed documents, studied or archive-only: `search_archive` searches all of them, in the order and in
+ * the number asked for, which the model composing the list by hand from the catalog above does not (it drops the
+ * newest). The number follows the operator, then the admin's instructions, then the default
+ * (documents/listingLimits.js).
+ */
+const LISTING_RULES = `Regole per gli elenchi di file ("che moduli ci sono per il mutuo?", "mostrami le ultime 20 comunicazioni", "le comunicazioni inviate da Direzione, dalla più recente"):
+- Non comporre l'elenco a mano leggendo la lista dei documenti qui sopra: si perdono i più recenti e il conto non torna. Chiama search_archive, che cerca fra tutti i documenti, anche quelli studiati: category con la categoria giusta (query vuota, o poche parole per restringere), sort "recent" quando l'operatore chiede i più recenti, gli ultimi o li vuole dalla più recente, e limit con quanti file mostrare. Ogni risultato ha la data del documento.
+- Quanti: se né l'operatore né le istruzioni dell'amministratore dicono un numero, al massimo ${DEFAULT_LISTING_FILES} (limit ${DEFAULT_LISTING_FILES}): se i risultati sono di più, di' quanti sono e invita a restringere o a chiedere un numero maggiore ("gli ultimi 20"). Se l'operatore chiede un numero ("le ultime 20 comunicazioni"), o le istruzioni dell'amministratore dicono quanti file mostrare per quel tipo di elenco ("per le comunicazioni mostra le ultime 15"), usa quel numero come limit, fino a ${MAX_LISTING_FILES}. Se i due numeri sono diversi vale quello dell'operatore. Non superare mai ${MAX_LISTING_FILES}: se ne chiede di più, mostra ${MAX_LISTING_FILES} e dillo.
+- Mostra il risultato con offer_files e reason "listing", con tutti gli id in un'unica chiamata e nell'ordine in cui li ha dati search_archive. Come domanda scrivi il titolo dell'elenco ("Comunicazioni di Direzione", "Moduli per il mutuo"), senza punto interrogativo: non è una proposta di candidati, quindi mai "no_exact_match" né "ambiguous", nemmeno se il risultato è un solo file. Chiama offer_files una sola volta per risposta.
+- I file con mode "archive" si consegnano soltanto: non rispondere sul loro contenuto. Quelli con mode "studied" li puoi anche leggere con read_document per rispondere.`;
 
 /** The one line that says an archive of files exists, how many and how to search it, then the rules. */
 const archiveBlock = (count, categories) =>
@@ -109,6 +123,7 @@ function catalogBlock(catalog, documentSelection, documentSelectionAttachments, 
     studied.length ? lines : null,
     studied.length ? documentSelection || DEFAULT_SETTINGS.documentSelectionInstructions : null,
     FILE_SHARING_RULES,
+    LISTING_RULES,
     archive.length ? archiveBlock(archive.length, categories) : null,
     studied.length ? attachmentsBlock(documentSelectionAttachments) : null
   ]
@@ -133,10 +148,11 @@ const CLARIFICATION_RULES = `Quando una richiesta può voler dire cose diverse c
 const FILE_CLARIFICATION_RULES = `Chiarimenti sui file dell'archivio:
 - Chiama share_file direttamente, senza domande, solo se il nome o la descrizione nella richiesta corrispondono chiaramente a un solo file: lo stesso nome, o una descrizione che lo identifica senza dubbio ("logo WeUnit bianco").
 - Se le parole dell'operatore corrispondono solo più o meno — un refuso, un nome parziale o diverso, una sigla indovinata ("omu" per OAM, "weunt" per WeUnit) — non correggerle mai in silenzio, nemmeno se un file sembra ovvio: chiama offer_files con reason "no_exact_match", una domanda breve ("Forse intendevi questo?") e i candidati più vicini, anche uno solo. L'app scrive da sola "Non ho trovato esattamente quello che cerchi".
-- Se più file corrispondono davvero e la richiesta non dice quale (la versione chiara e quella scura di un logo, formati diversi, loghi di società diverse), chiama offer_files con una domanda breve ("Quale logo intendi?") e gli id dei candidati, almeno 2 e al massimo 6: l'operatore li vede come anteprime e ne sceglie uno con un clic. Non chiamare share_file più volte al suo posto. Un solo id con reason "ambiguous" non ha senso: con un solo candidato usa "no_exact_match".
-- Se nessun file ci va vicino ma l'operatore ha chiesto un tipo di file ("un logo", "il logo della banca X") e nell'archivio ce ne sono alcuni di quel tipo (fino a 6), proponi quelli con offer_files e reason "no_exact_match" invece di limitarti a dire che non c'è. Solo se non c'è davvero nulla di pertinente, dillo in una riga e non chiamare nessuno strumento: non inventare un id.
-- Se l'operatore chiede quali file ci sono ("che moduli ci sono per il mutuo?", "che loghi abbiamo?"), non è una richiesta di un file preciso né un'ipotesi sbagliata: chiama offer_files con reason "listing" e, come domanda, il titolo breve dell'elenco ("Moduli per il mutuo", senza punto interrogativo). Vale anche con un solo file. L'app non scrive nessun "non ho trovato esattamente" e non mostra "Nessuno di questi".
-- Dopo offer_files vale lo stesso: chiudi il turno con al massimo una frase breve e aspetta. Quando l'operatore sceglie un file, l'app glielo mostra da sola: non devi chiamare share_file. Se invece risponde "Nessuno di questi", non riproporre gli stessi file: chiedi in una riga cosa cerca, o proponine altri solo se ne hai di diversi.`;
+- Se più file corrispondono davvero e la richiesta non dice quale (la versione chiara e quella scura di un logo, formati diversi, loghi di società diverse), chiama offer_files con una domanda breve ("Quale logo intendi?") e gli id dei candidati, almeno 2 e di norma al massimo ${DEFAULT_LISTING_FILES}: l'operatore li vede come anteprime e ne sceglie uno con un clic. Non chiamare share_file più volte al suo posto. Un solo id con reason "ambiguous" non ha senso: con un solo candidato usa "no_exact_match".
+- Se nessun file ci va vicino ma l'operatore ha chiesto un tipo di file ("un logo", "il logo della banca X") e nell'archivio ce ne sono alcuni di quel tipo (fino a ${DEFAULT_LISTING_FILES}), proponi quelli con offer_files e reason "no_exact_match" invece di limitarti a dire che non c'è. Solo se non c'è davvero nulla di pertinente, dillo in una riga e non chiamare nessuno strumento: non inventare un id.
+- Se l'operatore chiede quali file ci sono ("che moduli ci sono per il mutuo?", "che loghi abbiamo?", "le ultime 20 comunicazioni"), non è una richiesta di un file preciso né un'ipotesi sbagliata: cerca con search_archive e chiama offer_files con reason "listing" e, come domanda, il titolo breve dell'elenco ("Moduli per il mutuo", senza punto interrogativo), come spiegato nelle regole sugli elenchi di file. Vale anche con un solo file. L'app non scrive nessun "non ho trovato esattamente" e non mostra "Nessuno di questi".
+- Dopo offer_files vale lo stesso: chiudi il turno con al massimo una frase breve e aspetta. Quando l'operatore sceglie un file, l'app glielo mostra da sola: non devi chiamare share_file. Se invece risponde "Nessuno di questi", non riproporre gli stessi file: chiedi in una riga cosa cerca, o proponine altri solo se ne hai di diversi.
+- Chiama offer_files al massimo una volta per risposta: metti tutti i file (di norma fino a ${DEFAULT_LISTING_FILES}, fino a ${MAX_LISTING_FILES} solo se l'operatore o le istruzioni dell'amministratore chiedono un numero maggiore) in un'unica chiamata e non richiamarlo per aggiungerne o correggere l'elenco, perché la seconda chiamata sostituisce la prima.`;
 
 /** How often to ask: the admin's choice (`clarificationFrequency`), one sentence each. */
 const CLARIFICATION_FREQUENCY_RULES = {

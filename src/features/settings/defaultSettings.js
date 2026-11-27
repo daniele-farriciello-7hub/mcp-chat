@@ -153,6 +153,11 @@ export const DEFAULT_SETTINGS = {
   // the browser sends neither the SQL nor the connection. Settings saved with the old single `erogatoCommand`
   // are read as one command, see `normalizeCommands` (called by settingsStore.js).
   noAiCommands: [],
+  // The lists of documents without AI (features/chat/documentLists): each answers an exact message with a card of
+  // files the browser picks from the documents catalog, by a rule (categories, a word in the name, most recent or by
+  // name, how many) or by a fixed list of documents. None until the admin adds one (Documenti → Documenti senza AI);
+  // the shape of a list is in features/chat/documentLists/documentListSettings.js. Shortcuts may point to one.
+  noAiDocumentLists: [],
   exportTimeoutSeconds: 45,
   temperature: 0.4,
   maxOutputTokens: 1200,

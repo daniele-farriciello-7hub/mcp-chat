@@ -36,7 +36,7 @@ const ICON_BUTTON_CLASS =
 export default function ShortcutEditor({
   shortcut,
   users,
-  commands,
+  targets,
   index,
   count,
   expanded,
@@ -84,17 +84,17 @@ export default function ShortcutEditor({
           <div>
             <span className="mb-1.5 block text-fs-12 font-semibold text-ink">Cosa fa</span>
             <CommandChoice
-              commands={commands}
+              targets={targets}
               value={shortcut.command}
               onChange={value => onChange('command', value)}
             />
           </div>
           {shortcut.command ? (
             <p className={`${HELP_TEXT_CLASS} -mt-1.5`}>
-              Il comando parte da solo, senza passare dal modello: in chat compare «
-              {shortcutText(shortcut, commands)}» e la risposta arriva in pochi secondi. I comandi si
-              impostano in Database → Comandi senza AI; se quello scelto è spento o eliminato, la parola va al
-              modello come una domanda qualsiasi.
+              Parte da solo, senza passare dal modello: in chat compare «{shortcutText(shortcut, targets)}» e
+              la risposta arriva in pochi secondi. I comandi si impostano in Database → Comandi senza AI, gli
+              elenchi di documenti in Documenti → Documenti senza AI; se quello scelto è spento o eliminato,
+              la parola va al modello come una domanda qualsiasi.
             </p>
           ) : (
             <Field

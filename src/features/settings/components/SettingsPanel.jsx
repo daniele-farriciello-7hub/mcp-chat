@@ -1,6 +1,7 @@
 /**
  * Admin-only configuration panel. Changes go to Firestore and apply to everyone from the next
- * conversation. The Documents tab saves on its own, so it has no save bar. The Database tab is
+ * conversation. The Documents tab saves on its own, so it has no save bar — except its "Documenti senza AI" subsection,
+ * whose lists are part of the shared settings. The Database tab is
  * mixed: connections and tables save on their own too, but the database instructions and query
  * limits inside it are part of this shared settings object — same "Salva" bar as every other tab.
  * Storico is mixed the same way: its three history settings use the bar, the data below is read-only.
@@ -25,6 +26,7 @@ import HistoryTab from '@/features/history/components/HistoryTab';
 import { DEFAULT_SETTINGS } from '@/features/settings/defaultSettings';
 import { findSubsection, findTab } from '@/features/settings/settingsSections';
 import { getSettings, saveSettings } from '@/features/settings/settingsStore';
+import { noAiTargets } from '@/features/shortcuts/noAiTargets';
 import { useSidebar } from '@/features/navigation/SidebarContext';
 import { PageTitleContext } from '@/shared/ui/Section';
 import ModelSettingsTab from './ModelSettingsTab';
@@ -36,6 +38,9 @@ import SettingsSkeleton from './SettingsSkeleton';
 import SettingsTabs from './SettingsTabs';
 import HubTab from './HubTab';
 import ShortcutsTab from './ShortcutsTab';
+
+// the one subsection of the Documents tab whose data is the shared settings object (settingsSections.js)
+const NO_AI_DOCUMENTS_SUBSECTION = 'senza-ai';
 
 export default function SettingsPanel({ tab = 'model', subsection, onTabChange, onClose, onDirtyChange }) {
   const [settings, setSettings] = useState(null);
@@ -122,8 +127,9 @@ export default function SettingsPanel({ tab = 'model', subsection, onTabChange, 
   // Documents writes to Firestore as the admin interacts with it, with nothing from the shared
   // settings object on that tab: no save bar, no reset block. Database is mixed (see the comment
   // above) and keeps both — its connections/tables ignore the reset regardless, since they never
-  // come from DEFAULT_SETTINGS in the first place.
-  const savesItself = activeTab === 'documents';
+  // come from DEFAULT_SETTINGS in the first place. So is Documents' "Documenti senza AI": its lists are
+  // part of the shared settings object, so that one subsection has the bar like the others.
+  const savesItself = activeTab === 'documents' && activeSubsection !== NO_AI_DOCUMENTS_SUBSECTION;
 
   return (
     <div className="flex h-full flex-col bg-panel">
@@ -142,7 +148,7 @@ export default function SettingsPanel({ tab = 'model', subsection, onTabChange, 
           {activeTab === 'shortcuts' && (
             <ShortcutsTab
               shortcuts={settings.shortcuts}
-              commands={settings.noAiCommands}
+              targets={noAiTargets(settings)}
               onChange={value => update('shortcuts', value)}
               personalLimit={settings.personalShortcutsLimit}
               onPersonalLimitChange={value => update('personalShortcutsLimit', value)}
@@ -153,6 +159,9 @@ export default function SettingsPanel({ tab = 'model', subsection, onTabChange, 
             <DocumentsTab
               categories={settings.documentCategories}
               onCategoriesSaved={categoriesSaved}
+              documentLists={settings.noAiDocumentLists}
+              commands={settings.noAiCommands}
+              onDocumentListsChange={value => update('noAiDocumentLists', value)}
               // beside the sidebar the subsections are the views; the same instance stays up while they change
               {...(inSidebar && {
                 view: DOCUMENT_VIEW_OF_SUBSECTION[activeSubsection],

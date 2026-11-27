@@ -83,7 +83,7 @@ export default function NoAiCommandRow({
 }) {
   const [turnOnError, setTurnOnError] = useState(false);
   const [triggersText, setTriggersText] = useState(null); // the field while it is being typed; null = from the command
-  const [rejected, setRejected] = useState([]); // words the last edit left out because another command has them
+  const [rejected, setRejected] = useState([]); // words the last edit left out because another command or list has them
   const [loadingDefault, setLoadingDefault] = useState(false);
   const [defaultError, setDefaultError] = useState(null);
 
@@ -155,7 +155,7 @@ export default function NoAiCommandRow({
           <CircleAlert
             size={14}
             className="shrink-0 text-danger"
-            aria-label="Parola usata anche da un altro comando"
+            aria-label="Parola usata anche da un altro comando o elenco"
           />
         )}
         <span
@@ -262,7 +262,7 @@ export default function NoAiCommandRow({
 
           <Field
             label="Parole che lo avviano"
-            help="Una per riga. Parte solo se il messaggio è esattamente una di queste: maiuscole, spazi e un «?» o «.» finali non contano. Una frase più lunga («erogato luglio 2026») va al modello. Due comandi non possono avere la stessa parola."
+            help="Una per riga. Parte solo se il messaggio è esattamente una di queste: maiuscole, spazi e un «?» o «.» finali non contano. Una frase più lunga («erogato luglio 2026») va al modello. Due comandi, o un comando e un elenco di documenti senza AI, non possono avere la stessa parola."
           >
             <textarea
               rows={2}
@@ -285,7 +285,7 @@ export default function NoAiCommandRow({
             >
               «{entry.trigger}» è la parola anche di{' '}
               {quoted(entry.commandIds.filter(id => id !== command.id).map(nameOf))}: parte il primo
-              dell’elenco. Togline una da uno dei due.
+              dell’elenco (un comando prima di un elenco di documenti). Togline una da uno dei due.
             </p>
           ))}
 

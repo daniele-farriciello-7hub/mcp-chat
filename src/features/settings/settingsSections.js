@@ -95,6 +95,11 @@ export const SETTINGS_TABS = [
         name: 'Categorie',
         description:
           'L’elenco da cui Gemini sceglie le categorie dei documenti, e come assegnarle a quelli che non ne hanno.'
+      },
+      {
+        id: 'senza-ai',
+        name: 'Documenti senza AI',
+        description: 'Elenchi di file che compaiono subito, a parole fisse, senza passare dal modello.'
       }
     ]
   },

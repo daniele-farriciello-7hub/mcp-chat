@@ -5,8 +5,11 @@
  *
  * The list holds EVERY indexed document, whatever its mode: the chat splits it (archiveMode.js
  * `splitByMode`). Studied documents go in the system prompt of every turn (chat/systemPrompt.js); archive
- * ones never do, they are found with `search_archive` over this same list, and `share_file` / `offer_files`
- * accept the ids of both. `categories` here are only those still in the admins' list.
+ * ones never do. `search_archive` searches this same whole list, any mode (a listing such as "the latest 20
+ * communications" must not depend on how the documents are used), and `share_file` / `offer_files` accept the
+ * ids of both. `categories` here are only those still in the admins' list. `date` is the document's date in
+ * milliseconds (documentDate.js), for the listings that go "from the most recent": `search_archive` and the
+ * lists without AI sort by it, and it is never written into the system prompt.
  */
 'use client';
 
@@ -18,6 +21,7 @@ import { INDEXING_STATUS, documentRef, documentsCollection } from './schema';
 import { geminiMimeTypeOf } from './fileTypes';
 import { isArchive, modeOf } from './archiveMode';
 import { visibleCategories } from './categories';
+import { documentDateMs } from './documentDate';
 
 const CACHE_TTL_MS = 60_000;
 
@@ -49,7 +53,9 @@ export async function getChatCatalog() {
       description: d.description || '',
       ...d.indexCard,
       mode: modeOf(d),
-      categories: visibleCategories(d.categories, documentCategories)
+      categories: visibleCategories(d.categories, documentCategories),
+      // epoch ms or null: what "the most recent N" listings sort by (documentDate.js). Not in the system prompt
+      date: documentDateMs(d)
     }));
   cache = { loadedAt: Date.now(), entries };
   return entries;

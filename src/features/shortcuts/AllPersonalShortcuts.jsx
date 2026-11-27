@@ -9,10 +9,10 @@ import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import ShortcutIcon from '@/features/settings/components/ShortcutIcon';
 import { SkeletonCards } from '@/shared/ui/Skeleton';
-import { useNoAiCommands } from '@/features/chat/commands/useNoAiCommands';
+import { useNoAiTargets } from './useNoAiTargets';
 import { loadAllPersonalShortcuts, shortcutSummary } from './personalShortcuts';
 
-function Owner({ owner, commands }) {
+function Owner({ owner, targets }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl border border-line bg-panel">
@@ -44,7 +44,7 @@ function Owner({ owner, commands }) {
               <span className="min-w-0">
                 <span className="block text-fs-12 font-semibold text-ink">{s.title}</span>
                 <span className="block text-fs-11 leading-snug text-slate-soft">
-                  {shortcutSummary(s, commands)}
+                  {shortcutSummary(s, targets)}
                 </span>
               </span>
             </li>
@@ -58,7 +58,7 @@ function Owner({ owner, commands }) {
 export default function AllPersonalShortcuts() {
   const [owners, setOwners] = useState(null);
   const [error, setError] = useState(false);
-  const commands = useNoAiCommands();
+  const targets = useNoAiTargets();
 
   useEffect(() => {
     loadAllPersonalShortcuts()
@@ -86,7 +86,7 @@ export default function AllPersonalShortcuts() {
         {total} scorciatoie di {owners.length} {owners.length === 1 ? 'operatore' : 'operatori'}.
       </p>
       {owners.map(owner => (
-        <Owner key={owner.uid} owner={owner} commands={commands} />
+        <Owner key={owner.uid} owner={owner} targets={targets} />
       ))}
     </div>
   );

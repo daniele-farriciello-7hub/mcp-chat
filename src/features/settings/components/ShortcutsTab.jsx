@@ -12,7 +12,7 @@ const EMPTY_SHORTCUT = { icon: 'question', title: '', description: '', prompt: '
 /** `subsection` (settingsSections.js): riquadri (the tiles of the chat) or personali (the operators' own); none = both. */
 export default function ShortcutsTab({
   shortcuts,
-  commands,
+  targets,
   onChange,
   personalLimit = 0,
   onPersonalLimitChange,
@@ -65,7 +65,7 @@ export default function ShortcutsTab({
             <ShortcutEditor
               key={index}
               shortcut={shortcut}
-              commands={commands}
+              targets={targets}
               users={users}
               index={index}
               count={shortcuts.length}

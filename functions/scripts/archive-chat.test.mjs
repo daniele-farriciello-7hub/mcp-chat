@@ -39,6 +39,7 @@ const { SEARCH_ARCHIVE_TOOL_NAME, runSearchArchiveCall, searchArchiveTool } = aw
 );
 const { runShareFileCall } = await import(src('features/chat/tools/shareFile.js'));
 const { OFFER_FILES_TOOL, runOfferFilesCall } = await import(src('features/chat/tools/offerFiles.js'));
+const { DEFAULT_LISTING_FILES, MAX_LISTING_FILES } = await import(src('features/documents/listingLimits.js'));
 const { runToolCalls } = await import(src('features/chat/tools/runToolCalls.js'));
 const { ARCHIVE_ONLY_REFUSAL } = await import(src('features/documents/archiveMode.js'));
 
@@ -134,15 +135,45 @@ test('the archive is one line with the count and how to search it, then the rule
   // browsing a category is a listing, never a "did you mean?"
   assert.ok(text.includes('offer_files e reason "listing"'));
   assert.ok(text.includes('mai "no_exact_match" né "ambiguous"'));
+  // all the files in one call: a second one would only replace the first card
+  assert.ok(text.includes('offer_files una sola volta per risposta'));
 });
 
-test('without archive files the prompt does not mention the archive at all', () => {
+test('without archive files the prompt has no archive block, but the rules for listing files are there', () => {
   const text = prompt([POLICY]);
-  assert.ok(!text.includes('search_archive'));
+  // nothing about files that are only archived
   assert.ok(!text.includes('solo archivio'));
+  assert.ok(!text.includes('File di solo archivio'));
+  assert.ok(!text.includes('Regole per i file di solo archivio'));
   // and the same as before for the rest
   assert.ok(text.includes('SELEZIONE'));
   assert.ok(text.includes('Archivio documentale: 1 documenti indicizzati.'));
+  // a listing ("le ultime 20 comunicazioni") is built with search_archive, studied documents included
+  assert.ok(text.includes('Regole per gli elenchi di file'));
+  assert.ok(text.includes('search_archive'));
+  assert.ok(text.includes('sort "recent"'));
+});
+
+test('the rules for lists say how many files to show: 6 unless a number is asked for, 50 at most', () => {
+  assert.equal(DEFAULT_LISTING_FILES, 6);
+  assert.equal(MAX_LISTING_FILES, 50);
+  for (const catalog of [[POLICY], [PRIVACY], [POLICY, PRIVACY, DELEGA]]) {
+    const text = prompt(catalog);
+    const rules = text.slice(text.indexOf('Regole per gli elenchi di file'));
+    // the default, and where a bigger number comes from: the operator's message or the admin's instructions
+    assert.ok(rules.includes('al massimo 6 (limit 6)'));
+    assert.ok(rules.includes("le istruzioni dell'amministratore dicono quanti file mostrare"));
+    assert.ok(rules.includes('"le ultime 20 comunicazioni"'));
+    assert.ok(rules.includes('"per le comunicazioni mostra le ultime 15"'));
+    assert.ok(rules.includes('fino a 50'));
+    assert.ok(rules.includes('Non superare mai 50'));
+    // one card, all the files, in the order search_archive gave them
+    assert.ok(rules.includes("nell'ordine in cui li ha dati search_archive"));
+  }
+  // no 6 is left over elsewhere as a hard limit: the candidates of a choice are "di norma" 6, a bigger listing is allowed
+  const text = prompt([POLICY, PRIVACY, DELEGA]);
+  assert.ok(text.includes('almeno 2 e di norma al massimo 6'));
+  assert.ok(!text.includes('offer_files ne mostra al massimo 6'));
 });
 
 test('a catalog of archive files only has no list to study, but the rules to hand them over', () => {
@@ -245,7 +276,8 @@ test('search_archive finds archive files and says so in plain Italian', async ()
     id: 'privacy-1',
     name: 'Modulo privacy mutuo.pdf',
     description: 'Modulo privacy per richiesta mutuo, da far firmare al cliente.',
-    categories: ['Mutuo', 'Modulistica']
+    categories: ['Mutuo', 'Modulistica'],
+    mode: 'archive'
   });
   assert.equal(events[0][2].label, "Cerco nell'archivio");
   assert.equal(events[0][2].kind, 'archive');
@@ -256,10 +288,13 @@ test('search_archive finds archive files and says so in plain Italian', async ()
   assert.equal(one.events.at(-1)[2].label, '1 file trovato');
 });
 
-test('search_archive never returns a studied document', async () => {
+test('search_archive also finds studied documents, and says which are which', async () => {
   const { response } = await search({ query: 'policy banca rossa' });
-  assert.deepEqual(response.files, []);
-  assert.equal(response.total, 0);
+  assert.deepEqual(
+    response.files.map(f => [f.id, f.mode]),
+    [['policy-1', 'studied']]
+  );
+  assert.equal(response.total, 1);
 });
 
 test('search_archive lists a category: "che moduli ci sono per il mutuo?"', async () => {
@@ -418,6 +453,45 @@ test('a single file offered as ambiguous or as no exact match is a "did you mean
   }
 });
 
+test('every offer_files card that was shown carries the same replaceKey, a failed call carries none', async () => {
+  // the model sometimes calls it twice in one reply (a list of 5, then of 6): the later card replaces
+  // the earlier one (useConversation `latestByReplaceKey`), whatever its reason, title or files
+  const first = activity();
+  await runOfferFilesCall(
+    { args: { question: 'Comunicazioni di direzione', ids: ['privacy-1', 'delega-1'], reason: 'listing' } },
+    { catalog: [POLICY, PRIVACY, DELEGA], round: 0, index: 0, ...first }
+  );
+  const second = activity();
+  const result = await runOfferFilesCall(
+    { args: { question: 'Quale modulo?', ids: ['privacy-1', 'delega-1', 'policy-1'] } },
+    { catalog: [POLICY, PRIVACY, DELEGA], round: 1, index: 0, ...second }
+  );
+  const key = first.events.at(-1)[2].replaceKey;
+  assert.equal(typeof key, 'string');
+  assert.ok(key);
+  assert.equal(second.events.at(-1)[2].replaceKey, key);
+  assert.equal(second.events.at(-1)[2].outcome, 'done');
+
+  // a second call is harmless to the model: it is told the card replaces the earlier one
+  assert.equal(result.response.ok, true);
+  assert.ok(result.response.note.includes('replaces'));
+
+  // nothing valid to show: the earlier card must stay, so the failed end has no key
+  const failed = activity();
+  const failure = await runOfferFilesCall(
+    { args: { question: 'Quale modulo?', ids: ['invented'] } },
+    { catalog: [POLICY, PRIVACY, DELEGA], round: 2, index: 0, ...failed }
+  );
+  assert.ok(failure.response.error);
+  assert.equal(failed.events.at(-1)[2].outcome, 'failed');
+  assert.equal('replaceKey' in failed.events.at(-1)[2], false);
+});
+
+test('the model is told to call offer_files once per reply, in the tool and in the prompt', () => {
+  const [declaration] = OFFER_FILES_TOOL.functionDeclarations;
+  assert.ok(declaration.description.includes('una volta per risposta'));
+});
+
 test('the tool the model sees lists the three reasons and says when to use "listing"', () => {
   const [declaration] = OFFER_FILES_TOOL.functionDeclarations;
   assert.deepEqual(declaration.parameters.properties.reason.enum, ['ambiguous', 'no_exact_match', 'listing']);
@@ -431,4 +505,133 @@ test('search_archive tells the model to show what it found as a listing', async 
     { catalog: [PRIVACY, DELEGA], categories: LIST, round: 0, index: 0, ...activity() }
   );
   assert.ok(response.note.includes('reason "listing"'));
+});
+
+// ── listings: how many, in which order, with which date ──────────────────────
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const NOV_1 = Date.UTC(2026, 10, 1, 12);
+
+/** `n` communications, one a day from the 1st of November: studied documents, as in the dev archive. */
+const communications = n =>
+  Array.from({ length: n }, (_, i) =>
+    entry(`com-${i}`, `Comunicazione ${String(i + 1).padStart(2, '0')}.pdf`, {
+      categories: ['Mutuo'],
+      date: NOV_1 + i * DAY_MS
+    })
+  );
+
+test('search_archive lists the most recent studied documents first and returns as many as asked', async () => {
+  const catalog = communications(30);
+  const { response, events } = await search(
+    { query: '', category: 'Mutuo', sort: 'recent', limit: 20 },
+    catalog
+  );
+  assert.equal(response.total, 30);
+  assert.equal(response.shown, 20);
+  assert.equal(response.sorted, 'recent');
+  // the newest first: the 30th of the month's communications, then back
+  assert.deepEqual(
+    response.files.slice(0, 3).map(f => f.id),
+    ['com-29', 'com-28', 'com-27']
+  );
+  assert.equal(response.files.at(-1).id, 'com-10');
+  // each one carries its day (Rome), and says it is a studied document
+  assert.equal(response.files[0].date, '2026-11-30');
+  assert.equal(response.files[0].mode, 'studied');
+  assert.equal(events.at(-1)[2].label, '30 file trovati');
+  // 10 more than shown: the model is told to say so and that more can be asked for
+  assert.ok(response.note.startsWith('10 more files match'));
+  assert.ok(response.note.includes('up to 50'));
+});
+
+test('search_archive: the limit is capped at 50, falls back to 10 when it is not a number, and "recent" needs no words', async () => {
+  const catalog = communications(60);
+  assert.equal((await search({ query: '', sort: 'recent', limit: 200 }, catalog)).response.shown, 50);
+  assert.equal((await search({ query: '', sort: 'recent', limit: 'tante' }, catalog)).response.shown, 10);
+  assert.equal((await search({ query: '', sort: 'recent' }, catalog)).response.shown, 10);
+  assert.equal((await search({ query: '', sort: 'recent', limit: 6 }, catalog)).response.shown, 6);
+  // an unknown order is the relevance one; without words, category or "recent" there is still nothing to search
+  assert.equal(
+    (await search({ query: 'comunicazione', sort: 'alfabetico' }, catalog)).response.sorted,
+    'relevance'
+  );
+  assert.ok((await search({ query: '', sort: 'relevance' }, catalog)).response.error);
+});
+
+test('a file without a date has no `date` in the result, and goes last in a recent listing', async () => {
+  const catalog = [...communications(2), entry('senza', 'Senza data.pdf', { categories: ['Mutuo'] })];
+  const { response } = await search({ query: '', category: 'Mutuo', sort: 'recent' }, catalog);
+  assert.deepEqual(
+    response.files.map(f => f.id),
+    ['com-1', 'com-0', 'senza']
+  );
+  assert.equal('date' in response.files[2], false);
+});
+
+test('the tool the model sees has `sort` and `limit`, and says 6 unless a number is asked for, up to 50', () => {
+  const [declaration] = searchArchiveTool(LIST).functionDeclarations;
+  const { sort, limit } = declaration.parameters.properties;
+  assert.deepEqual(sort.enum, ['relevance', 'recent']);
+  assert.equal(limit.type, 'integer');
+  assert.ok(limit.description.includes('6'));
+  assert.ok(limit.description.includes('50'));
+  assert.deepEqual(declaration.parameters.required, ['query']);
+  // it covers every document, and never a hand-made list
+  assert.ok(declaration.description.includes('anche quelli studiati'));
+  assert.ok(declaration.description.includes('sort "recent"'));
+});
+
+test('offer_files shows up to fifty files, and drops the rest', async () => {
+  const catalog = communications(60);
+  const a = activity();
+  const result = await runOfferFilesCall(
+    { args: { question: 'Comunicazioni', ids: catalog.map(e => e.id), reason: 'listing' } },
+    { catalog, round: 0, index: 0, ...a }
+  );
+  const end = a.events.at(-1)[2];
+  assert.equal(end.files.length, 50);
+  assert.equal(end.files[0].documentId, 'com-0');
+  assert.equal(end.reason, 'listing');
+  assert.equal(result.response.ok, true);
+  // the model is told it was cut, so it says so to the operator
+  assert.ok(result.response.capped.includes('50'));
+  // a dozen is a dozen
+  const twelve = activity();
+  await runOfferFilesCall(
+    { args: { question: 'Comunicazioni', ids: catalog.slice(0, 12).map(e => e.id), reason: 'listing' } },
+    { catalog, round: 0, index: 0, ...twelve }
+  );
+  assert.equal(twelve.events.at(-1)[2].files.length, 12);
+  assert.equal(
+    'capped' in
+      (
+        await runOfferFilesCall(
+          { args: { question: 'x', ids: ['com-0', 'com-1'], reason: 'listing' } },
+          { catalog, round: 0, index: 0, ...activity() }
+        )
+      ).response,
+    false
+  );
+});
+
+test('a card carries the day of each file, when it has one, and nothing else about the date', async () => {
+  const catalog = [...communications(1), entry('senza', 'Senza data.pdf')];
+  const a = activity();
+  await runOfferFilesCall(
+    { args: { question: 'Comunicazioni', ids: ['com-0', 'senza'], reason: 'listing' } },
+    { catalog, round: 0, index: 0, ...a }
+  );
+  assert.deepEqual(a.events.at(-1)[2].files, [
+    { documentId: 'com-0', documentName: 'Comunicazione 01.pdf', documentDate: '2026-11-01' },
+    { documentId: 'senza', documentName: 'Senza data.pdf' }
+  ]);
+});
+
+test('the tool offer_files says 6 as the rule and 50 as the most, to ask for it', () => {
+  const [declaration] = OFFER_FILES_TOOL.functionDeclarations;
+  assert.ok(declaration.description.includes('di solito da 1 a 6'));
+  assert.ok(declaration.description.includes('fino a 50'));
+  assert.ok(declaration.parameters.properties.ids.description.includes('Da 1 a 6 id'));
+  assert.ok(declaration.parameters.properties.ids.description.includes('fino a 50'));
 });

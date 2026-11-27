@@ -13,6 +13,11 @@
  * In "Categorie" the number of documents of a category opens "Indicizzati" filtered by it (the other filters are cleared, so the
  * list is what the number says).
  *
+ * "Documenti senza AI" is a sixth, reached only from the sidebar (its subsection): lists of documents that the chat shows
+ * without the model (features/chat/documentLists). Unlike everything else on this tab they are part of the shared settings
+ * object, saved with the panel's "Salva" bar, so they come in as `documentLists` / `onDocumentListsChange` and the commands
+ * without AI as `commands` (a word may not belong to both).
+ *
  * The five views (da indicizzare, con errore, indicizzati, Drive, categorie) are the subsections of this tab in the standalone page's
  * sidebar: it passes `view` and `onViewChange`, the strip of views is not drawn (the sidebar is it) and the counters above
  * still switch view. The tab stays mounted while the view changes, so uploads, filters and the descriptions being typed are
@@ -41,6 +46,7 @@ import IndexingProgress from './IndexingProgress';
 import ModeFilters from './ModeFilters';
 import NameFilterInput from './NameFilterInput';
 import SelectableDocumentList from './SelectableDocumentList';
+import NoAiDocumentListsSection from './NoAiDocumentListsSection';
 import UploadProgressPanel from './UploadProgressPanel';
 
 function LoadingSkeleton() {
@@ -60,7 +66,8 @@ export const DOCUMENT_VIEW_OF_SUBSECTION = {
   errori: 'failed',
   indicizzati: 'indexed',
   drive: 'drive',
-  categorie: 'categories'
+  categorie: 'categories',
+  'senza-ai': 'noai'
 };
 export const SUBSECTION_OF_DOCUMENT_VIEW = Object.fromEntries(
   Object.entries(DOCUMENT_VIEW_OF_SUBSECTION).map(([subsection, view]) => [view, subsection])
@@ -74,7 +81,10 @@ export default function DocumentsTab({
   view: controlledView,
   onViewChange,
   categories = [],
-  onCategoriesSaved = () => {}
+  onCategoriesSaved = () => {},
+  documentLists = [],
+  commands = [],
+  onDocumentListsChange = () => {}
 }) {
   const [ownView, setOwnView] = useState('pending');
   const controlled = controlledView !== undefined;
@@ -189,7 +199,7 @@ export default function DocumentsTab({
 
       {!controlled && <DocumentViewTabs activeView={view} onChange={setView} totals={catalog.totals} />}
 
-      {view !== 'drive' && view !== 'categories' && (
+      {view !== 'drive' && view !== 'categories' && view !== 'noai' && (
         <>
           <NameFilterInput value={nameFilter} onChange={setNameFilter} />
           <div className="flex flex-wrap items-center gap-2">
@@ -246,6 +256,16 @@ export default function DocumentsTab({
           documents={catalog.documents || []}
           onSaved={onCategoriesSaved}
           onShowCategory={showCategory}
+        />
+      )}
+
+      {view === 'noai' && (
+        <NoAiDocumentListsSection
+          lists={documentLists}
+          commands={commands}
+          documents={catalog.documents || []}
+          categories={categories}
+          onChange={onDocumentListsChange}
         />
       )}
     </div>

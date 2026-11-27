@@ -12,19 +12,38 @@
  * cerchi") or `listing` (the operator asked what files exist, a category or a kind of file: the header is just
  * the title the model gives it, e.g. "Moduli per il mutuo", and there is no "Nessuno di questi").
  *
- * 1 to 6 files. A single one is a "did you mean this?" and is only meaningful as `no_exact_match`: with
- * `ambiguous` (several files match) fewer than two is a contradiction, so the handler turns it into
- * `no_exact_match` instead of failing. A `listing` of one file stays a listing: a category can hold just one.
+ * 1 to 6 files as a rule, and up to 50 when the operator's message ("mostrami le ultime 20 comunicazioni") or the
+ * admin's instructions ("per le comunicazioni mostra le ultime 15") ask for a number (documents/listingLimits.js):
+ * the model decides, the handler only enforces the cap. Past a few files the card is a compact scrolling list
+ * (`components/FileChoiceCard.jsx`). A single file is a "did you mean this?" and is only meaningful as
+ * `no_exact_match`: with `ambiguous` (several files match) fewer than two is a contradiction, so the handler turns
+ * it into `no_exact_match` instead of failing. A `listing` of one file stays a listing: a category can hold just one.
  *
- * The ids may be those of archive-only files, found with `search_archive`: this is also how the files of a
- * category are listed with a download button each.
+ * The ids may be those of any document, archive-only ones included, found with `search_archive`: this is also how
+ * the files of a category, or the most recent ones, are listed with a download button each. Each file of the card
+ * carries its date (`documentDate`, 'YYYY-MM-DD', when it has one) so a listing "from the most recent" can be read
+ * as such.
  *
  * The model's turn ends here: it is told to stop and wait, and the operator's answer either needs
  * nothing more (a file picked) or arrives as a normal message ("Nessuno di questi").
+ *
+ * One card per reply: the model is told to call it once, but it sometimes calls it again (a list of 5,
+ * then the same list with 6). The card of a later successful call carries the same `replaceKey` as the
+ * earlier one, so `useConversation` replaces the earlier card with it instead of stacking two.
  */
+import { documentDay } from '@/features/documents/documentDate';
+import { DEFAULT_LISTING_FILES, MAX_LISTING_FILES } from '@/features/documents/listingLimits';
+
 export const OFFER_FILES_TOOL_NAME = 'offer_files';
 
-const MAX_FILES = 6;
+/**
+ * Constant on purpose: whatever the reason, the files or the title, a reply shows at most one picker, and
+ * the last one the model builds is the one it means. Unlike a chart's key (`chartReplaceKey`) it does not
+ * depend on the content.
+ */
+export const OFFER_FILES_REPLACE_KEY = OFFER_FILES_TOOL_NAME;
+
+const MAX_FILES = MAX_LISTING_FILES;
 const MAX_QUESTION_CHARS = 200;
 const REASONS = ['ambiguous', 'no_exact_match', 'listing'];
 // the card's title when a listing comes without one
@@ -36,16 +55,18 @@ export const OFFER_FILES_TOOL = {
     {
       name: OFFER_FILES_TOOL_NAME,
       description:
-        "Mostra all'operatore le anteprime di 1-6 file dell'archivio fra cui scegliere, con un clic. Usalo quando " +
+        `Mostra all'operatore le anteprime di file dell'archivio fra cui scegliere, con un clic: di solito da 1 a ${DEFAULT_LISTING_FILES}, ` +
+        `fino a ${MAX_FILES} solo se l'operatore o le istruzioni dell'amministratore chiedono un numero maggiore. Usalo quando ` +
         'più file potrebbero essere quello giusto e la richiesta non dice quale (la versione chiara e quella ' +
         'scura di un logo, formati diversi), oppure quando nessun file corrisponde esattamente ma alcuni ci ' +
         'vanno vicino (un refuso, un nome parziale o diverso, una sigla indovinata): in quel caso anche un solo ' +
         'file va bene, come "forse intendevi questo?", invece di correggere la richiesta in silenzio. ' +
         'Serve anche a mostrare l\'elenco dei file di una categoria o di un tipo ("che moduli ci sono per il ' +
         'mutuo?"): in quel caso usa reason "listing". ' +
-        "Non chiamare share_file più volte al posto suo. Quando l'operatore sceglie, l'app gli " +
-        'mostra il file con il pulsante per scaricarlo: tu non devi fare altro. Usa solo id che compaiono ' +
-        "nell'elenco dei documenti indicizzati o fra i risultati di search_archive. Dopo averlo chiamato chiudi il " +
+        'Non chiamare share_file più volte al posto suo. Chiama offer_files al massimo una volta per risposta, con ' +
+        "tutti i file in un'unica chiamata: un secondo richiamo sostituisce l'elenco mostrato prima. Quando " +
+        "l'operatore sceglie, l'app gli mostra il file con il pulsante per scaricarlo: tu non devi fare altro. " +
+        "Usa solo id che compaiono nell'elenco dei documenti indicizzati o fra i risultati di search_archive. Dopo averlo chiamato chiudi il " +
         "turno con al massimo una frase breve e aspetta: non rispondere alla domanda al posto dell'operatore.",
       parameters: {
         type: 'object',
@@ -60,8 +81,9 @@ export const OFFER_FILES_TOOL = {
             type: 'array',
             items: { type: 'string' },
             description:
-              "Da 1 a 6 id di file presi dall'elenco o da search_archive, i più probabili per primi. Un solo id è ammesso con " +
-              'reason "no_exact_match" o "listing"; con "ambiguous" ne servono almeno 2.'
+              `Da 1 a ${DEFAULT_LISTING_FILES} id di file (fino a ${MAX_FILES} se l'operatore o le istruzioni chiedono un numero maggiore: ` +
+              '"le ultime 20") presi dall\'elenco o da search_archive, i più probabili per primi, o nell\'ordine in cui search_archive ' +
+              'li ha restituiti. Un solo id è ammesso con reason "no_exact_match" o "listing"; con "ambiguous" ne servono almeno 2.'
           },
           reason: {
             type: 'string',
@@ -87,11 +109,11 @@ export async function runOfferFilesCall(call, { catalog, round, index, onActivit
 
   // ids that are not in the catalog (invented, or the file was deleted meanwhile) are dropped, not fatal
   const requested = Array.isArray(ids) ? [...new Set(ids.filter(id => typeof id === 'string'))] : [];
-  const files = requested
-    .map(id => catalog.find(entry => entry.id === id))
-    .filter(Boolean)
-    .slice(0, MAX_FILES)
-    .map(entry => ({ documentId: entry.id, documentName: entry.name }));
+  const found = requested.map(id => catalog.find(entry => entry.id === id)).filter(Boolean);
+  const files = found.slice(0, MAX_FILES).map(entry => {
+    const day = documentDay(entry.date);
+    return { documentId: entry.id, documentName: entry.name, ...(day ? { documentDate: day } : {}) };
+  });
 
   if (!files.length) {
     onActivityEnd(activityId, { outcome: 'failed', label: 'Nessuna opzione' });
@@ -110,7 +132,10 @@ export async function runOfferFilesCall(call, { catalog, round, index, onActivit
       (typeof question === 'string' && question.trim().slice(0, MAX_QUESTION_CHARS)) ||
       (finalReason === 'listing' ? DEFAULT_LISTING_LABEL : DEFAULT_CHOICE_LABEL),
     files,
-    reason: finalReason
+    reason: finalReason,
+    // only a card that was shown carries the key (the failed path above never does): a failed call leaves
+    // the earlier card in place
+    replaceKey: OFFER_FILES_REPLACE_KEY
   });
   return {
     response: {
@@ -119,8 +144,13 @@ export async function runOfferFilesCall(call, { catalog, round, index, onActivit
         finalReason === 'listing'
           ? 'the operator sees the files as a list to download from; stop here and wait'
           : 'the operator will pick one; stop here and wait',
-      ...(files.length < requested.length
+      // a second call in the same reply is harmless: the card replaces the earlier one, never adds to it
+      note: 'this card replaces any offer_files card already shown in this reply; call offer_files once per reply, with all the files',
+      ...(found.length < requested.length
         ? { ignored: 'some ids were not in the list and were dropped' }
+        : {}),
+      ...(found.length > files.length
+        ? { capped: `only the first ${MAX_FILES} files are shown, the most a card can hold: say so` }
         : {})
     }
   };
